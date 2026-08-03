@@ -1,0 +1,256 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper Functions ────────────────────────────────────
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getChurchId() {
+      return request.auth.token.churchId;
+    }
+
+    function getRole() {
+      return request.auth.token.role;
+    }
+
+    function hasRole(roles) {
+      return isAuthenticated() && getRole() in roles;
+    }
+
+    function isOwnChurch(churchId) {
+      return isAuthenticated() && getChurchId() == churchId;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && request.auth.token.superAdmin == true;
+    }
+
+    function isOwnerOrAdmin() {
+      return hasRole(['owner', 'admin']);
+    }
+
+    function isLeadership() {
+      return hasRole(['owner', 'admin', 'pastor']);
+    }
+
+    function isStaff() {
+      return hasRole(['owner', 'admin', 'pastor', 'staff', 'media_staff',
+                      'communications_staff', 'counselling_staff', 'finance_staff',
+                      'cell_leader']);
+    }
+
+    // Prevent writing sensitive fields directly from client
+    function notChangingRole() {
+      return !('role' in request.resource.data);
+    }
+
+    // ── Churches Collection ─────────────────────────────────
+
+    match /churches/{churchId} {
+      allow read: if isAuthenticated() &&
+                     (isOwnChurch(churchId) || isSuperAdmin());
+
+      allow create: if isAuthenticated() && isSuperAdmin();
+
+      allow update: if isAuthenticated() &&
+                       isOwnChurch(churchId) &&
+                       isOwnerOrAdmin();
+
+      allow delete: if isSuperAdmin();
+
+      // ── Members ────────────────────────────────────────
+
+      match /members/{memberId} {
+        allow read: if isAuthenticated() && (isOwnChurch(churchId) || isSuperAdmin());
+        allow create: if isOwnChurch(churchId) && isStaff();
+        allow update: if isOwnChurch(churchId) && isStaff();
+        allow delete: if isOwnChurch(churchId) && isOwnerOrAdmin();
+      }
+
+      // ── Visitors ───────────────────────────────────────
+
+      match /visitors/{visitorId} {
+        allow read: if isAuthenticated() && (isOwnChurch(churchId) || isSuperAdmin());
+        allow create: if isOwnChurch(churchId) && isStaff();
+        allow update: if isOwnChurch(churchId) && isStaff();
+        allow delete: if isOwnChurch(churchId) && isOwnerOrAdmin();
+      }
+
+      // ── Sermons ────────────────────────────────────────
+
+      match /sermons/{sermonId} {
+        allow read: if isAuthenticated() && (isOwnChurch(churchId) || isSuperAdmin());
+        allow create: if isOwnChurch(churchId) && (isLeadership() || hasRole(['media_staff']));
+        allow update: if isOwnChurch(churchId) && (isLeadership() || hasRole(['media_staff']));
+        allow delete: if isOwnChurch(churchId) && isLeadership();
+      }
+
+      // ── Prayer Requests ────────────────────────────────
+
+      match /prayerRequests/{requestId} {
+        allow read: if isAuthenticated() && (isOwnChurch(churchId) || isSuperAdmin());
+        allow create: if isOwnChurch(churchId) && isStaff();
+        allow update: if isOwnChurch(churchId) && isStaff();
+        allow delete: if isOwnChurch(churchId) && isLeadership();
+      }
+
+      // ── Counselling (Strict Privacy) ───────────────────
+
+      match /counselling/{sessionId} {
+        allow read: if isAuthenticated() && isOwnChurch(churchId) && (
+          isLeadership() ||
+          resource.data.counsellorId == request.auth.uid ||
+          resource.data.clientId == request.auth.uid
+        );
+        allow create: if isOwnChurch(churchId) && (
+          isLeadership() || hasRole(['counselling_staff'])
+        );
+        allow update: if isOwnChurch(churchId) && (
+          isLeadership() ||
+          resource.data.counsellorId == request.auth.uid
+        );
+        allow delete: if isOwnChurch(churchId) && isOwnerOrAdmin();
+      }
+
+      // ── Donations (Finance-Restricted) ────────────────
+
+      match /donations/{donationId} {
+        allow read: if isAuthenticated() && isOwnChurch(churchId) && (
+          isLeadership() || hasRole(['finance_staff'])
+        );
+        allow create: if isOwnChurch(churchId) && (
+          isLeadership() || hasRole(['finance_staff'])
+        );
+        allow update: if isOwnChurch(churchId) && (
+          isLeadership() || hasRole(['finance_staff'])
+        );
+        allow delete: if isOwnChurch(churchId) && isOwnerOrAdmin();
+      }
+
+      // ── Events ────────────────────────────────────────
+
+      match /events/{eventId} {
+        allow read: if isAuthenticated() && (isOwnChurch(churchId) || isSuperAdmin());
+        allow create: if isOwnChurch(churchId) && isLeadership();
+        allow update: if isOwnChurch(churchId) && isStaff();
+        allow delete: if isOwnChurch(churchId) && isLeadership();
+      }
+
+      // ── Communications ────────────────────────────────
+
+      match /communications/{commId} {
+        allow read: if isAuthenticated() && isOwnChurch(churchId) && isStaff();
+        allow create: if isOwnChurch(churchId) && (
+          isLeadership() || hasRole(['communications_staff'])
+        );
+        allow update: if isOwnChurch(churchId) && (
+          isLeadership() || hasRole(['communications_staff'])
+        );
+        allow delete: if isOwnChurch(churchId) && isLeadership();
+      }
+
+      // ── Automation Workflows ──────────────────────────
+
+      match /automationWorkflows/{workflowId} {
+        allow read: if isAuthenticated() && isOwnChurch(churchId) && isStaff();
+        allow create: if isOwnChurch(churchId) && isLeadership();
+        allow update: if isOwnChurch(churchId) && isLeadership();
+        allow delete: if isOwnChurch(churchId) && isOwnerOrAdmin();
+      }
+
+      match /workflowEnrollments/{enrollmentId} {
+        allow read: if isAuthenticated() && isOwnChurch(churchId) && isLeadership();
+        allow write: if false; // Server-only via Admin SDK
+      }
+
+      // ── AI Generation Logs ────────────────────────────
+
+      match /aiGenerations/{logId} {
+        allow read: if isAuthenticated() && isOwnChurch(churchId) && isLeadership();
+        allow create: if false; // Server-only
+        allow update: if isOwnChurch(churchId) && isLeadership(); // For approval
+        allow delete: if false;
+      }
+
+      // ── Testimonies ───────────────────────────────────
+
+      match /testimonies/{testimonyId} {
+        allow read: if isAuthenticated() && (isOwnChurch(churchId) || isSuperAdmin());
+        allow create: if isOwnChurch(churchId) && isStaff();
+        allow update: if isOwnChurch(churchId) && isStaff();
+        allow delete: if isOwnChurch(churchId) && isLeadership();
+      }
+
+      // ── Scheduled Jobs ────────────────────────────────
+
+      match /scheduledJobs/{jobId} {
+        allow read: if isAuthenticated() && isOwnChurch(churchId) && isLeadership();
+        allow write: if false; // Server-only via Admin SDK
+      }
+
+      // ── Audit Logs (Read-only, Server writes) ─────────
+
+      match /auditLogs/{logId} {
+        allow read: if isAuthenticated() && isOwnChurch(churchId) && isOwnerOrAdmin();
+        allow write: if false; // Server-only via Admin SDK
+      }
+
+      // ── Partnerships ──────────────────────────────────
+
+      match /partnerships/{partnerId} {
+        allow read: if isAuthenticated() && isOwnChurch(churchId) && (
+          isLeadership() || hasRole(['finance_staff'])
+        );
+        allow create: if isOwnChurch(churchId) && (
+          isLeadership() || hasRole(['finance_staff'])
+        );
+        allow update: if isOwnChurch(churchId) && (
+          isLeadership() || hasRole(['finance_staff'])
+        );
+        allow delete: if isOwnChurch(churchId) && isOwnerOrAdmin();
+      }
+
+      // ── Books ─────────────────────────────────────────
+
+      match /books/{bookId} {
+        allow read: if isAuthenticated() && (isOwnChurch(churchId) || isSuperAdmin());
+        allow write: if isOwnChurch(churchId) && isLeadership();
+      }
+
+      // ── AI Daily Mission ──────────────────────────────
+
+      match /aiDailyMissions/{missionId} {
+        allow read: if isAuthenticated() && isOwnChurch(churchId) && isLeadership();
+        allow write: if false; // Server-only via Admin SDK
+      }
+    }
+
+    // ── Global Users Collection ─────────────────────────────
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == userId || isSuperAdmin()
+      );
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isAuthenticated() && (
+        request.auth.uid == userId || isSuperAdmin()
+      );
+      allow delete: if isSuperAdmin();
+    }
+
+    // ── Subscription Plans (Platform-level, read-only) ──────
+
+    match /subscriptionPlans/{planId} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
+    }
+
+    // Deny everything else by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
