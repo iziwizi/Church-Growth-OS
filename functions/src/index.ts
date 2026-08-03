@@ -10,6 +10,12 @@ export {
   birthdayAndAnniversaryCheck,
 } from './scheduled/index'
 
+// ── AI Engagement Engine ─────────────────────────────────────
+export { calculateEngagementScores } from './scheduled/engagement'
+
+// ── Daily Executive Report ────────────────────────────────────
+export { generateDailyExecutiveReport } from './scheduled/dailyReport'
+
 // Note: Additional functions will be added in Stages 4-6:
 // - Callable: ai-generate, send-communication
 // - Webhooks: WhatsApp delivery, payment gateway callbacks

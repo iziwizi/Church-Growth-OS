@@ -1,8 +1,6 @@
 {
-  "projects": [
-    {
-      "projectId": "your-firebase-project-id",
-      "default": true
-    }
-  ]
+  "projects": {
+    "default": "church-growth-os",
+    "production": "church-growth-os"
+  }
 }

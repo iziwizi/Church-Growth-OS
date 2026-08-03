@@ -9,6 +9,8 @@ out
 dist
 build
 .turbo
+functions/lib
+*.tsbuildinfo
 
 # Environment variables
 .env
@@ -19,6 +21,8 @@ build
 
 # Firebase
 .firebase
+# Firebase Admin SDK service account JSON — never commit
+*firebase-adminsdk*.json
 firebase-debug.log
 firestore-debug.log
 ui-debug.log

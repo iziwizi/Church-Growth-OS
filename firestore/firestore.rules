@@ -53,7 +53,10 @@ service cloud.firestore {
       allow read: if isAuthenticated() &&
                      (isOwnChurch(churchId) || isSuperAdmin());
 
-      allow create: if isAuthenticated() && isSuperAdmin();
+      // Allow setup wizard: authenticated user creates their own church
+      allow create: if isAuthenticated() && (
+        isSuperAdmin() || request.resource.data.ownerId == request.auth.uid
+      );
 
       allow update: if isAuthenticated() &&
                        isOwnChurch(churchId) &&
@@ -226,6 +229,16 @@ service cloud.firestore {
         allow read: if isAuthenticated() && isOwnChurch(churchId) && isLeadership();
         allow write: if false; // Server-only via Admin SDK
       }
+
+      // ── Unified People Engine ─────────────────────────
+      // Every individual exists once. Multi-tag, AI-scored.
+
+      match /people/{personId} {
+        allow read: if isAuthenticated() && (isOwnChurch(churchId) || isSuperAdmin());
+        allow create: if isOwnChurch(churchId) && isStaff();
+        allow update: if isOwnChurch(churchId) && isStaff();
+        allow delete: if isOwnChurch(churchId) && isOwnerOrAdmin();
+      }
     }
 
     // ── Global Users Collection ─────────────────────────────
@@ -239,6 +252,24 @@ service cloud.firestore {
         request.auth.uid == userId || isSuperAdmin()
       );
       allow delete: if isSuperAdmin();
+    }
+
+    // ── AI Executive Reports (Server-only writes) ────────────
+
+    match /aiReports/{churchId}/daily/{reportId} {
+      allow read: if isAuthenticated() &&
+                     (request.auth.token.churchId == churchId || isSuperAdmin()) &&
+                     isLeadership();
+      allow write: if false; // Server-only via Admin SDK
+    }
+
+    // ── Scheduled Jobs (Top-level — for cross-church jobs) ────
+
+    match /scheduledJobs/{jobId} {
+      allow read: if isAuthenticated() &&
+                     request.auth.token.churchId == resource.data.churchId &&
+                     isLeadership();
+      allow write: if false; // Server-only via Admin SDK
     }
 
     // ── Subscription Plans (Platform-level, read-only) ──────
