@@ -88,17 +88,7 @@ export function UserProfileDropdown() {
             </Link>
           </DropdownMenu.Item>
 
-          {process.env.NODE_ENV !== 'production' && (
-            <DropdownMenu.Item asChild>
-              <Link
-                href="/dev-bootstrap"
-                className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-amber-500 outline-none transition-colors hover:bg-amber-500/10 cursor-pointer"
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                Dev Bootstrap & Seed
-              </Link>
-            </DropdownMenu.Item>
-          )}
+
 
           <DropdownMenu.Separator className="my-1 h-px bg-border" />
 

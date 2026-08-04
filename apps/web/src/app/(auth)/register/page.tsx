@@ -8,10 +8,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { motion } from 'framer-motion'
 import { Loader2, UserPlus, Eye, EyeOff, Church } from 'lucide-react'
 import { toast } from 'sonner'
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
-import { auth } from '@/lib/firebase/client'
+import { signUpUser, mapAuthError } from '@/lib/firebase/auth'
 import { z } from 'zod'
-import type { Metadata } from 'next'
 
 const registerSchema = z.object({
   fullName: z.string().min(2, 'Full name is required'),
@@ -40,19 +38,11 @@ function RegisterForm() {
 
   const onSubmit = async (data: RegisterFormData) => {
     try {
-      const credential = await createUserWithEmailAndPassword(auth, data.email, data.password)
-      await updateProfile(credential.user, { displayName: data.fullName })
-      toast.success('Account created! Let\'s set up your church.')
+      await signUpUser(data.email, data.password, data.fullName)
+      toast.success('Account created! A verification email has been sent. Let&apos;s set up your church.')
       router.push('/setup')
     } catch (error) {
-      const code = (error as { code?: string }).code
-      const message =
-        code === 'auth/email-already-in-use'
-          ? 'An account with this email already exists.'
-          : code === 'auth/weak-password'
-          ? 'Please choose a stronger password.'
-          : 'Registration failed. Please try again.'
-      toast.error(message)
+      toast.error(mapAuthError(error))
     }
   }
 

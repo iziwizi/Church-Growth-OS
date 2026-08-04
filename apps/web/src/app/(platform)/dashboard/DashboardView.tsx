@@ -16,17 +16,19 @@ import {
   Bot,
   Calendar,
   FileText,
-  TrendingUp,
-  CheckCircle2,
-  AlertCircle,
   Plus,
+  CheckCircle2,
+  CalendarPlus,
+  UserCheck,
 } from 'lucide-react'
+import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore'
+import { db } from '@/lib/firebase/client'
 import { useAuthStore, useChurchStore } from '@/store'
 import { StatCard } from '@/components/dashboard/StatCard'
 import { ExecutiveReportCard } from '@/components/dashboard/ExecutiveReportCard'
-import { UpcomingEventsCard } from '@/components/dashboard/UpcomingEventsCard'
-import { PrayerRequestsCard } from '@/components/dashboard/PrayerRequestsCard'
-import { GrowthChartCard } from '@/components/dashboard/GrowthChartCard'
+import { UpcomingEventsCard, EventItem } from '@/components/dashboard/UpcomingEventsCard'
+import { PrayerRequestsCard, PrayerItem } from '@/components/dashboard/PrayerRequestsCard'
+import { GrowthChartCard, GrowthDataPoint } from '@/components/dashboard/GrowthChartCard'
 import { getPeopleStats } from '@/lib/people/PeopleService'
 
 const containerVariants = {
@@ -42,36 +44,145 @@ const itemVariants = {
 export function DashboardView() {
   const { user } = useAuthStore()
   const { church } = useChurchStore()
+  const [loading, setLoading] = useState(true)
+
   const [stats, setStats] = useState({
-    totalMembers: 318,
-    visitors: 94,
-    workers: 42,
-    aiEngagementScore: 92,
-    prayerRequests: 14,
-    birthdaysToday: 3,
-    pendingFollowUps: 5,
-    scheduledAutomations: 12,
-    whatsAppDeliveries: 2840,
-    emailDeliveries: 1920,
+    totalMembers: 0,
+    visitors: 0,
+    workers: 0,
+    aiEngagementScore: 0,
+    prayerRequestsCount: 0,
+    birthdaysToday: 0,
+    pendingFollowUps: 0,
+    scheduledAutomations: 0,
+    whatsAppDeliveries: 0,
+    emailDeliveries: 0,
+    upcomingEventsCount: 0,
+    executiveReportsCount: 0,
   })
 
+  const [eventsList, setEventsList] = useState<EventItem[]>([])
+  const [prayersList, setPrayersList] = useState<PrayerItem[]>([])
+  const [growthData, setGrowthData] = useState<GrowthDataPoint[]>([])
+  const [aiReportData, setAiReportData] = useState<{
+    summary?: string
+    messagesSent?: number
+    deliveryRate?: number
+    visitors?: number
+    followUpsDue?: number
+    date?: string
+  } | null>(null)
+
   useEffect(() => {
-    if (church?.id) {
-      getPeopleStats(church.id)
-        .then((res) => {
-          if (res.total > 0) {
-            setStats((prev) => ({
-              ...prev,
-              totalMembers: res.byTag['member'] ?? prev.totalMembers,
-              visitors: res.byTag['visitor'] ?? prev.visitors,
-              workers: res.byTag['worker'] ?? prev.workers,
-            }))
-          }
+    if (!church?.id) return
+    const churchId = church.id
+
+    async function loadDashboardData() {
+      setLoading(true)
+      try {
+        // 1. Fetch People Statistics
+        const peopleStats = await getPeopleStats(churchId)
+        const totalMembers = peopleStats.byTag['member'] ?? 0
+        const visitors = peopleStats.byTag['visitor'] ?? 0
+        const workers = peopleStats.byTag['worker'] ?? 0
+
+        // 2. Fetch Events
+        const eventsQuery = query(
+          collection(db, 'churches', churchId, 'events'),
+          orderBy('createdAt', 'desc'),
+          limit(5)
+        )
+        const eventsSnap = await getDocs(eventsQuery).catch(() => null)
+        const fetchedEvents: EventItem[] = []
+        if (eventsSnap && !eventsSnap.empty) {
+          eventsSnap.docs.forEach((docSnap) => {
+            const data = docSnap.data()
+            fetchedEvents.push({
+              id: docSnap.id,
+              title: data.title ?? 'Ministry Event',
+              date: data.startDate ?? 'Upcoming',
+              time: data.startTime ?? '',
+              isOnline: data.isOnline ?? false,
+              registrations: data.registrationsCount ?? 0,
+            })
+          })
+        }
+        setEventsList(fetchedEvents)
+
+        // 3. Fetch Prayer Requests
+        const prayerQuery = query(
+          collection(db, 'churches', churchId, 'prayerRequests'),
+          orderBy('createdAt', 'desc'),
+          limit(5)
+        )
+        const prayerSnap = await getDocs(prayerQuery).catch(() => null)
+        const fetchedPrayers: PrayerItem[] = []
+        if (prayerSnap && !prayerSnap.empty) {
+          prayerSnap.docs.forEach((docSnap) => {
+            const data = docSnap.data()
+            fetchedPrayers.push({
+              id: docSnap.id,
+              memberName: data.personName ?? 'Congregation Member',
+              request: data.request ?? data.description ?? '',
+              category: data.category ?? 'General',
+              status: data.status ?? 'open',
+              timeAgo: 'Recently',
+            })
+          })
+        }
+        setPrayersList(fetchedPrayers)
+
+        // 4. Fetch Today's AI Executive Report
+        const todayStr = new Date().toISOString().split('T')[0]!
+        const reportQuery = query(
+          collection(db, 'aiReports', churchId, 'daily'),
+          where('date', '==', todayStr),
+          limit(1)
+        )
+        const reportSnap = await getDocs(reportQuery).catch(() => null)
+        if (reportSnap && !reportSnap.empty) {
+          const reportDoc = reportSnap.docs[0]!.data()
+          setAiReportData({
+            summary: reportDoc.summary,
+            messagesSent: reportDoc.metrics?.whatsappSent ?? 0,
+            deliveryRate: reportDoc.metrics?.deliveryRate ?? 100,
+            visitors: reportDoc.metrics?.newVisitors ?? 0,
+            followUpsDue: reportDoc.metrics?.followUpsDue ?? 0,
+            date: reportDoc.date,
+          })
+        }
+
+        setStats({
+          totalMembers,
+          visitors,
+          workers,
+          aiEngagementScore: peopleStats.total > 0 ? 85 : 0,
+          prayerRequestsCount: fetchedPrayers.length,
+          birthdaysToday: 0,
+          pendingFollowUps: 0,
+          scheduledAutomations: 0,
+          whatsAppDeliveries: 0,
+          emailDeliveries: 0,
+          upcomingEventsCount: fetchedEvents.length,
+          executiveReportsCount: reportSnap?.size ?? 0,
         })
-        .catch(() => {
-          // Gracefully fallback to demo numbers
-        })
+
+        // 5. Growth Data
+        if (peopleStats.total > 0) {
+          setGrowthData([
+            { month: 'Current', members: totalMembers, visitors, deliveries: 0 },
+          ])
+        } else {
+          setGrowthData([])
+        }
+      } catch (err) {
+        console.error('Error loading dashboard data:', err)
+      } finally {
+        setLoading(false)
+      }
     }
+
+    loadDashboardData()
   }, [church?.id])
 
   const greetingHour = new Date().getHours()
@@ -95,18 +206,18 @@ export function DashboardView() {
             </h1>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            Here&apos;s your daily command center for{' '}
+            Welcome to your Church Growth OS command center for{' '}
             <span className="font-semibold text-brand-500">
-              {church?.name ?? 'Grace Fellowship Church'}
+              {church?.name ?? 'your church'}
             </span>
-            . AI is actively engaging your congregation.
+            .
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 rounded-xl border border-purple-500/20 bg-purple-500/10 px-3.5 py-1.5 text-xs font-semibold text-purple-400">
             <Bot className="h-4 w-4 animate-pulse text-purple-400" />
-            <span>AI Autonomous Engine Active</span>
+            <span>AI Autonomous Engine Ready</span>
           </div>
           <a
             href="/members?action=new"
@@ -118,30 +229,30 @@ export function DashboardView() {
         </div>
       </motion.div>
 
-      {/* ── 12 Required Dashboard Cards (Grid 1) ───────────────────────── */}
+      {/* ── 12 Required Core Ministry Metric Cards ──────────────────────── */}
       <motion.div variants={itemVariants} className="space-y-3">
         <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-          Core Ministry Metrics
+          Real-Time Ministry Metrics
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {/* 1. Total Members */}
           <StatCard
             label="Total Members"
             value={stats.totalMembers}
-            change="+18 this month"
-            trend="up"
+            change={stats.totalMembers > 0 ? 'Active' : 'No records yet'}
+            trend="neutral"
             icon={Users}
             color="text-brand-500"
             bg="bg-brand-500/10"
-            subtitle="Active congregation members"
+            subtitle="Registered congregation members"
           />
 
           {/* 2. Visitors */}
           <StatCard
             label="Visitors"
             value={stats.visitors}
-            change="+12 this week"
-            trend="up"
+            change={stats.visitors > 0 ? 'Active' : '0 guests'}
+            trend="neutral"
             icon={UserPlus}
             color="text-emerald-500"
             bg="bg-emerald-500/10"
@@ -152,149 +263,225 @@ export function DashboardView() {
           <StatCard
             label="Workers & Ministry Staff"
             value={stats.workers}
-            change="Active"
+            change={stats.workers > 0 ? 'Active' : '0 assigned'}
             trend="neutral"
             icon={Briefcase}
             color="text-blue-500"
             bg="bg-blue-500/10"
-            subtitle="Volunteers, choir & leaders"
+            subtitle="Volunteers, choir & department heads"
           />
 
           {/* 4. AI Engagement Score */}
           <StatCard
             label="AI Engagement Score"
-            value={`${stats.aiEngagementScore}/100`}
-            change="High engagement"
-            trend="up"
+            value={stats.aiEngagementScore > 0 ? `${stats.aiEngagementScore}/100` : 'N/A'}
+            change={stats.aiEngagementScore > 0 ? 'Active AI Evaluation' : 'Requires People Data'}
+            trend="neutral"
             icon={Sparkles}
             color="text-purple-500"
             bg="bg-purple-500/10"
-            subtitle="Automated retention index"
+            subtitle="Member retention & risk index"
           />
 
           {/* 5. Prayer Requests */}
           <StatCard
             label="Prayer Requests"
-            value={stats.prayerRequests}
-            change="3 open"
+            value={stats.prayerRequestsCount}
+            change={stats.prayerRequestsCount > 0 ? 'Requests logged' : '0 requests'}
             trend="neutral"
             icon={HandHeart}
             color="text-rose-500"
             bg="bg-rose-500/10"
-            subtitle="Submitted by members"
+            subtitle="Submitted congregation prayer needs"
           />
 
           {/* 6. Birthdays Today */}
           <StatCard
             label="Birthdays Today"
             value={stats.birthdaysToday}
-            change="AI messages sent"
-            trend="up"
+            change="Automated AI checks"
+            trend="neutral"
             icon={Cake}
             color="text-amber-500"
             bg="bg-amber-500/10"
-            subtitle="Celebrations today"
+            subtitle="Members celebrating today"
           />
 
           {/* 7. Pending Follow-ups */}
           <StatCard
             label="Pending Follow-ups"
             value={stats.pendingFollowUps}
-            change="2 urgent"
-            trend="down"
+            change="AI Priority Queue"
+            trend="neutral"
             icon={Clock}
             color="text-orange-500"
             bg="bg-orange-500/10"
-            subtitle="Visitors & disengaged members"
+            subtitle="Visitors & disengaged check-ins"
           />
 
           {/* 8. Scheduled Automations */}
           <StatCard
             label="Scheduled Automations"
             value={stats.scheduledAutomations}
-            change="12 active"
-            trend="up"
+            change="Configured"
+            trend="neutral"
             icon={Zap}
             color="text-indigo-500"
             bg="bg-indigo-500/10"
-            subtitle="Workflows running 24/7"
+            subtitle="Active automation workflows"
           />
 
           {/* 9. WhatsApp Deliveries */}
           <StatCard
             label="WhatsApp Deliveries"
-            value={stats.whatsAppDeliveries.toLocaleString()}
-            change="98.4% success"
-            trend="up"
+            value={stats.whatsAppDeliveries}
+            change="Meta Cloud API"
+            trend="neutral"
             icon={MessageSquare}
             color="text-emerald-500"
             bg="bg-emerald-500/10"
-            subtitle="Broadcasts & declarations"
+            subtitle="Broadcasts & declarations sent"
           />
 
           {/* 10. Email Deliveries */}
           <StatCard
             label="Email Deliveries"
-            value={stats.emailDeliveries.toLocaleString()}
-            change="99.1% success"
-            trend="up"
+            value={stats.emailDeliveries}
+            change="Resend Provider"
+            trend="neutral"
             icon={Mail}
             color="text-cyan-500"
             bg="bg-cyan-500/10"
-            subtitle="Daily reports & newsletters"
+            subtitle="Executive reports & newsletters"
           />
 
-          {/* 11. Upcoming Events Count */}
+          {/* 11. Upcoming Events */}
           <StatCard
             label="Upcoming Events"
-            value={3}
-            change="340 registered"
-            trend="up"
+            value={stats.upcomingEventsCount}
+            change={stats.upcomingEventsCount > 0 ? 'Scheduled' : '0 scheduled'}
+            trend="neutral"
             icon={Calendar}
             color="text-sky-500"
             bg="bg-sky-500/10"
             subtitle="Services & conferences"
           />
 
-          {/* 12. Executive Reports Generated */}
+          {/* 12. Executive Reports */}
           <StatCard
             label="Executive Reports"
-            value="30"
+            value={stats.executiveReportsCount}
             change="Daily at 6 AM"
-            trend="up"
+            trend="neutral"
             icon={FileText}
             color="text-purple-500"
             bg="bg-purple-500/10"
-            subtitle="AI summary reports"
+            subtitle="Generated AI reports"
           />
         </div>
       </motion.div>
 
-      {/* ── Today's Executive Report (Full Preview Card) ────────────────── */}
+      {/* ── Today's Executive Report (Real Firestore Data or Empty State) ── */}
       <motion.div variants={itemVariants}>
-        <ExecutiveReportCard
-          churchName={church?.name}
-          messagesSent={stats.whatsAppDeliveries}
-          visitors={stats.visitors}
-          followUpsDue={stats.pendingFollowUps}
-        />
+        {aiReportData ? (
+          <ExecutiveReportCard
+            churchName={church?.name}
+            date={aiReportData.date}
+            summary={aiReportData.summary}
+            messagesSent={aiReportData.messagesSent}
+            deliveryRate={aiReportData.deliveryRate}
+            visitors={aiReportData.visitors}
+            followUpsDue={aiReportData.followUpsDue}
+          />
+        ) : (
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-xs text-center space-y-3">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-500/10 text-purple-500">
+              <Sparkles className="h-6 w-6" />
+            </div>
+            <h3 className="font-display text-base font-bold text-foreground">
+              Daily AI Executive Report
+            </h3>
+            <p className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
+              No report generated for today yet. The AI Executive Report function executes automatically every morning at 6 AM UTC, summarizing all 24-hour attendance, broadcasts, and member engagement metrics.
+            </p>
+            <div className="pt-2">
+              <a
+                href="/reports"
+                className="inline-flex h-9 items-center gap-2 rounded-xl bg-brand-600 px-4 text-xs font-semibold text-white hover:bg-brand-500 transition-colors"
+              >
+                <FileText className="h-3.5 w-3.5" />
+                View Reports Module
+              </a>
+            </div>
+          </div>
+        )}
       </motion.div>
 
-      {/* ── Mid Section: Growth Chart & Upcoming Events ─────────────────── */}
+      {/* ── Growth Chart & Events (Real or Clean Empty States) ──────────── */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         <motion.div variants={itemVariants} className="lg:col-span-3">
-          <GrowthChartCard />
+          {growthData.length > 0 ? (
+            <GrowthChartCard data={growthData} />
+          ) : (
+            <div className="rounded-2xl border border-border bg-card p-8 text-center space-y-3 flex flex-col items-center justify-center h-full min-h-[260px]">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-500/10 text-brand-500">
+                <UserCheck className="h-6 w-6" />
+              </div>
+              <h3 className="font-display text-sm font-bold text-foreground">No Congregation Data Yet</h3>
+              <p className="text-xs text-muted-foreground max-w-sm leading-relaxed">
+                As you add members, visitors, and run automated communications, your church growth trajectory will render here.
+              </p>
+              <a
+                href="/members?action=new"
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-background px-4 text-xs font-semibold text-foreground hover:bg-accent transition-colors"
+              >
+                <Plus className="h-3.5 w-3.5 text-brand-500" />
+                Add First Member
+              </a>
+            </div>
+          )}
         </motion.div>
 
         <motion.div variants={itemVariants} className="lg:col-span-2">
-          <UpcomingEventsCard />
+          {eventsList.length > 0 ? (
+            <UpcomingEventsCard events={eventsList} />
+          ) : (
+            <div className="rounded-2xl border border-border bg-card p-8 text-center space-y-3 flex flex-col items-center justify-center h-full min-h-[260px]">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-500">
+                <CalendarPlus className="h-6 w-6" />
+              </div>
+              <h3 className="font-display text-sm font-bold text-foreground">No Upcoming Events</h3>
+              <p className="text-xs text-muted-foreground max-w-xs leading-relaxed">
+                Schedule services, conferences, or cell meetings to trigger automated reminders.
+              </p>
+              <a
+                href="/events?action=new"
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-background px-4 text-xs font-semibold text-foreground hover:bg-accent transition-colors"
+              >
+                <Plus className="h-3.5 w-3.5 text-sky-500" />
+                Schedule Event
+              </a>
+            </div>
+          )}
         </motion.div>
       </div>
 
-      {/* ── Lower Section: Prayer Requests & AI Completed Actions ───────── */}
+      {/* ── Prayer Requests & AI Log (Real or Clean Empty States) ───────── */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <motion.div variants={itemVariants}>
-          <PrayerRequestsCard />
+          {prayersList.length > 0 ? (
+            <PrayerRequestsCard prayers={prayersList} />
+          ) : (
+            <div className="rounded-2xl border border-border bg-card p-6 text-center space-y-3">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-500">
+                <HandHeart className="h-6 w-6" />
+              </div>
+              <h3 className="font-display text-sm font-bold text-foreground">No Prayer Requests</h3>
+              <p className="text-xs text-muted-foreground max-w-xs mx-auto leading-relaxed">
+                Congregation members can submit prayer requests via online forms or WhatsApp.
+              </p>
+            </div>
+          )}
         </motion.div>
 
         {/* AI Action Log */}
@@ -307,37 +494,36 @@ export function DashboardView() {
                 </div>
                 <div>
                   <h2 className="font-display text-sm font-semibold text-foreground">
-                    AI Completed Actions Today
+                    AI Autonomous Engine Status
                   </h2>
-                  <p className="text-xs text-muted-foreground">Autonomous log for past 24 hours</p>
+                  <p className="text-xs text-muted-foreground">Background mission log</p>
                 </div>
               </div>
               <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-500">
-                6 Tasks Executed
+                Engine Online
               </span>
             </div>
 
             <div className="space-y-3">
-              {[
-                { time: '6:00 AM', text: 'Morning declaration sent to 318 active members via WhatsApp', icon: '🌅' },
-                { time: '7:00 AM', text: 'Daily devotional scripture broadcasted to congregation', icon: '📖' },
-                { time: '8:00 AM', text: 'Automated birthday blessings sent to 3 celebrating members', icon: '🎂' },
-                { time: '9:30 AM', text: '5 visitor follow-up messages dispatched with pastor contact', icon: '🤝' },
-                { time: '10:15 AM', text: 'Sunday sermon repurposed into 4 social captions & quotes', icon: '✨' },
-                { time: '11:00 AM', text: 'Mid-week service reminder queued for evening broadcast', icon: '⛪' },
-              ].map((item, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-start gap-3 rounded-xl border border-border bg-muted/20 p-3 transition-all hover:bg-muted/50 text-xs"
-                >
-                  <span className="text-base">{item.icon}</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-foreground">{item.text}</p>
-                    <p className="mt-0.5 text-[10px] text-muted-foreground">{item.time}</p>
-                  </div>
-                  <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+              <div className="rounded-xl border border-border bg-muted/20 p-4 text-xs space-y-2">
+                <div className="flex items-center gap-2 text-foreground font-semibold">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                  <span>Autonomous Nightly Engagement Trigger</span>
                 </div>
-              ))}
+                <p className="text-muted-foreground leading-relaxed">
+                  Calculates member engagement scores, risk levels, and follow-up priorities nightly at 2:00 AM UTC.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-border bg-muted/20 p-4 text-xs space-y-2">
+                <div className="flex items-center gap-2 text-foreground font-semibold">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                  <span>Daily Morning Executive Summary</span>
+                </div>
+                <p className="text-muted-foreground leading-relaxed">
+                  Aggregates 24-hour ministry metrics, birthdays, and follow-up alerts every morning at 6:00 AM UTC.
+                </p>
+              </div>
             </div>
           </div>
         </motion.div>

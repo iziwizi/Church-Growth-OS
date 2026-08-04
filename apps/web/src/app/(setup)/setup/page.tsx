@@ -176,14 +176,13 @@ export default function SetupPage() {
       // Generate a churchId from slug
       const churchId = `${setupData.step1.slug}-${user.uid.slice(0, 6)}`
 
-      // Write church document to Firestore
-      await setDoc(doc(db, 'churches', churchId), {
+      const churchData = {
         id: churchId,
         name: setupData.step1.name,
         slug: setupData.step1.slug,
         description: setupData.step1.description ?? '',
-        plan: 'trial',
-        status: 'active',
+        plan: 'trial' as const,
+        status: 'active' as const,
         ownerId: user.uid,
         branding: {
           logoUrl,
@@ -213,7 +212,31 @@ export default function SetupPage() {
         metrics: { totalMembers: 0, totalVisitors: 0, totalDonations: 0 },
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-      })
+      }
+
+      // Write church document to Firestore
+      await setDoc(doc(db, 'churches', churchId), churchData)
+
+      // Update user document in Firestore with churchId and owner role
+      try {
+        const { updateDoc } = await import('firebase/firestore')
+        await updateDoc(doc(db, 'users', user.uid), {
+          churchId: churchId,
+          role: 'owner',
+          updatedAt: serverTimestamp(),
+        })
+      } catch {
+        // Fallback setDoc if user doc was not present
+        const { setDoc: setDocUser } = await import('firebase/firestore')
+        await setDocUser(doc(db, 'users', user.uid), {
+          uid: user.uid,
+          churchId: churchId,
+          role: 'owner',
+          email: user.email,
+          fullName: user.displayName ?? 'Pastor',
+          updatedAt: serverTimestamp(),
+        }, { merge: true })
+      }
 
       toast.success('🎉 Church setup complete! Welcome to Church Growth OS.')
       router.push('/dashboard')

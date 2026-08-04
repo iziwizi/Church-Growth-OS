@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { motion } from 'framer-motion'
 import { Eye, EyeOff, Loader2, LogIn } from 'lucide-react'
 import { toast } from 'sonner'
-import { signIn } from '@/lib/firebase/auth'
+import { signInUser, mapAuthError } from '@/lib/firebase/auth'
 import { loginSchema } from '@church-growth-os/shared'
 import type { z } from 'zod'
 
@@ -18,12 +18,10 @@ function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [showPassword, setShowPassword] = useState(false)
-  const [devSeeding, setDevSeeding] = useState(false)
 
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors, isSubmitting },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -31,7 +29,7 @@ function LoginForm() {
 
   const onSubmit = async (data: LoginFormData) => {
     try {
-      const cred = await signIn(data.email, data.password)
+      const cred = await signInUser(data.email, data.password)
       toast.success('Welcome back!')
 
       // Check if user has an existing church
@@ -46,32 +44,7 @@ function LoginForm() {
         router.push(from)
       }
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message.includes('invalid-credential')
-            ? 'Invalid email or password'
-            : error.message
-          : 'Sign in failed. Please try again.'
-      toast.error(message)
-    }
-  }
-
-  const handleDevQuickSeed = async () => {
-    setDevSeeding(true)
-    try {
-      const { seedDevAccountAndChurch, DEV_ADMIN_EMAIL, DEV_ADMIN_PASSWORD } = await import(
-        '@/lib/auth/seedDevAccount'
-      )
-      setValue('email', DEV_ADMIN_EMAIL)
-      setValue('password', DEV_ADMIN_PASSWORD)
-      await seedDevAccountAndChurch()
-      toast.success('Dev account seeded! Click Sign in or logging in...')
-      await onSubmit({ email: DEV_ADMIN_EMAIL, password: DEV_ADMIN_PASSWORD })
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Dev seed failed'
-      toast.error(message)
-    } finally {
-      setDevSeeding(false)
+      toast.error(mapAuthError(error))
     }
   }
 
@@ -170,20 +143,6 @@ function LoginForm() {
       >
         Create your church account
       </Link>
-
-      {/* Dev Mode Quick Seed */}
-      {process.env.NODE_ENV !== 'production' && (
-        <div className="mt-6 border-t pt-4 text-center">
-          <button
-            type="button"
-            onClick={handleDevQuickSeed}
-            disabled={devSeeding || isSubmitting}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-500 hover:text-amber-400 hover:underline disabled:opacity-50"
-          >
-            {devSeeding ? <Loader2 className="h-3 w-3 animate-spin" /> : '⚡'} Dev Auto-Seed & Login (admin@churchgrowthos.local)
-          </button>
-        </div>
-      )}
     </div>
   )
 }
