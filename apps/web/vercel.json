@@ -1,12 +1,6 @@
 {
-  "buildCommand": "cd ../.. && pnpm build --filter=@church-growth-os/web",
-  "outputDirectory": "apps/web/.next",
-  "installCommand": "pnpm install",
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "/api/:path*"
-    }
-  ]
+  "buildCommand": "next build",
+  "outputDirectory": ".next"
 }
