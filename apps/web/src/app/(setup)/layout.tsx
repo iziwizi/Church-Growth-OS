@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Image from 'next/image'
 
 export const metadata: Metadata = {
   title: 'Church Setup | Church Growth OS',
@@ -19,10 +20,14 @@ export default function SetupLayout({ children }: { children: React.ReactNode })
       {/* Header */}
       <header className="relative z-10 flex items-center justify-between px-6 py-5">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500">
-            <span className="text-sm font-bold text-white">C</span>
-          </div>
-          <span className="text-sm font-semibold text-white">Church Growth OS</span>
+          <Image
+            src="/logo.png"
+            alt="Church Growth OS"
+            width={160}
+            height={40}
+            className="h-8 w-auto object-contain"
+            priority
+          />
         </div>
       </header>
 

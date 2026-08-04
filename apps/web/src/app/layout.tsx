@@ -33,6 +33,11 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
   },
+  icons: {
+    icon: '/icon.png',
+    shortcut: '/favicon.ico',
+    apple: '/icon.png',
+  },
   robots: {
     index: false, // SaaS app — don't index
     follow: false,

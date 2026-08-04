@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Bell, Check, Sparkles, UserPlus, HandHeart, MessageSquare, AlertCircle } from 'lucide-react'
 import * as Popover from '@radix-ui/react-popover'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -18,6 +19,7 @@ export interface NotificationItem {
 }
 
 export function NotificationCenter() {
+  const router = useRouter()
   const { church } = useChurchStore()
   const [notifications, setNotifications] = useState<NotificationItem[]>([
     {
@@ -81,6 +83,29 @@ export function NotificationCenter() {
 
   const markAsRead = (id: string) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
+  }
+
+  const handleNotificationClick = (item: NotificationItem) => {
+    markAsRead(item.id)
+    switch (item.type) {
+      case 'visitor':
+        router.push('/visitors')
+        break
+      case 'prayer':
+        router.push('/prayer-requests')
+        break
+      case 'comm':
+        router.push('/communications')
+        break
+      case 'ai':
+        router.push('/reports')
+        break
+      case 'alert':
+        router.push('/support')
+        break
+      default:
+        router.push('/dashboard')
+    }
   }
 
   const getIcon = (type: NotificationItem['type']) => {
@@ -155,7 +180,7 @@ export function NotificationCenter() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    onClick={() => markAsRead(item.id)}
+                    onClick={() => handleNotificationClick(item)}
                     className={`flex items-start gap-3 p-3.5 transition-colors cursor-pointer hover:bg-muted/50 ${
                       !item.read ? 'bg-brand-500/5' : ''
                     }`}

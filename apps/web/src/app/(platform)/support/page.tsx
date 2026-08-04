@@ -100,6 +100,19 @@ export default function SupportDeskPage() {
         createdAt: serverTimestamp(),
       })
 
+      // Trigger Email Notification to Super Admin
+      fetch('/api/support/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: 'admin@mujteknify.com',
+          subject: `[New Ticket] ${subject.trim()}`,
+          ticketId: church.id,
+          churchName: church.name,
+          message: `Category: ${category}\nPriority: ${priority}\nFrom: ${user?.email}\n\n${description.trim()}`,
+        }),
+      }).catch(() => null)
+
       toast.success('Support ticket submitted successfully!')
       setShowModal(false)
       setSubject('')

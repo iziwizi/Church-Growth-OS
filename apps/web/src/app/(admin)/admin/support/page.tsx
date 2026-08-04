@@ -39,6 +39,21 @@ export default function AdminSupportDeskPage() {
         status,
         updatedAt: serverTimestamp(),
       })
+      const targetTicket = tickets.find((t) => t.id === ticketId)
+      if (targetTicket?.userEmail) {
+        fetch('/api/support/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: targetTicket.userEmail,
+            subject: `[Ticket Status Updated: ${status.toUpperCase()}] ${targetTicket.subject}`,
+            ticketId,
+            churchName: targetTicket.churchName ?? 'Church',
+            message: `Your support ticket status has been updated to: ${status.toUpperCase()}.\n\nSuper Admin has reviewed your request.`,
+          }),
+        }).catch(() => null)
+      }
+
       toast.success(`Ticket marked as ${status.toUpperCase()}!`)
       setTickets((prev) => prev.map((t) => (t.id === ticketId ? { ...t, status } : t)))
     } catch {

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { onAuthChange, getUserProfile } from '@/lib/firebase/auth'
 import { getUserChurch } from '@/lib/auth/checkChurchSetup'
+import { ensureSuperAdminProfile } from '@/lib/auth/seedSuperAdmin'
 import { useAuthStore, useChurchStore } from '@/store'
 import { Loader2 } from 'lucide-react'
 
@@ -45,7 +46,10 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
         let activeRole = profile?.role ?? 'owner'
 
         // Check if user is Super Admin (either profile role === 'super_admin' or claims)
-        const isSuperAdmin = activeRole === 'super_admin' || profile?.email?.endsWith('@mujteknify.com')
+        const isSuperAdmin = activeRole === 'super_admin' || firebaseUser.email?.endsWith('@mujteknify.com')
+        if (isSuperAdmin && firebaseUser.email) {
+          await ensureSuperAdminProfile(firebaseUser.uid, firebaseUser.email)
+        }
 
         let churchDoc = null
         if (activeChurchId) {
