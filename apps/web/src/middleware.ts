@@ -1,37 +1,14 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const PUBLIC_PATHS = [
-  '/login',
-  '/register',
-  '/forgot-password',
-  '/reset-password',
-  '/api/webhooks',
-  '/_next',
-  '/favicon.ico',
-]
-
-const AUTH_ONLY_PATHS = ['/login', '/register', '/forgot-password']
-
+/**
+ * Next.js Middleware — Pass-through middleware for App Router.
+ * Authentication & Church Onboarding route guards are handled client-side
+ * by AuthInitializer using Firebase Authentication & Firestore.
+ */
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Allow public paths and static assets
-  if (PUBLIC_PATHS.some((path) => pathname.startsWith(path))) {
-    return NextResponse.next()
-  }
-
-  // Check for session cookie (set by Firebase client after auth)
-  const sessionCookie = request.cookies.get('__session')?.value
-
-  // If no session and accessing protected route, redirect to login
-  if (!sessionCookie && !pathname.startsWith('/api')) {
-    const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('from', pathname)
-    return NextResponse.redirect(loginUrl)
-  }
-
-  // Add tenant headers if session exists
   const response = NextResponse.next()
   response.headers.set('x-pathname', pathname)
 
@@ -41,11 +18,7 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization)
-     * - favicon.ico
-     * - public folder
+     * Match all request paths except static files & favicon
      */
     '/((?!_next/static|_next/image|favicon.ico|public).*)',
   ],
