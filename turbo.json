@@ -1,11 +1,44 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
+  "globalEnv": [
+    "NODE_ENV",
+    "NEXT_PUBLIC_APP_URL",
+    "NEXT_PUBLIC_APP_ENV",
+    "NEXT_PUBLIC_FIREBASE_API_KEY",
+    "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
+    "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
+    "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET",
+    "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID",
+    "NEXT_PUBLIC_FIREBASE_APP_ID",
+    "NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID",
+    "FIREBASE_ADMIN_PROJECT_ID",
+    "FIREBASE_ADMIN_CLIENT_EMAIL",
+    "FIREBASE_ADMIN_PRIVATE_KEY",
+    "NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME",
+    "CLOUDINARY_CLOUD_NAME",
+    "CLOUDINARY_API_KEY",
+    "CLOUDINARY_API_SECRET",
+    "CLOUDINARY_UPLOAD_PRESET",
+    "CLOUDINARY_URL",
+    "ANTHROPIC_API_KEY",
+    "OPENAI_API_KEY",
+    "DEEPSEEK_API_KEY",
+    "DEFAULT_EMAIL_PROVIDER",
+    "DEFAULT_SMS_PROVIDER",
+    "DEFAULT_WHATSAPP_PROVIDER"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+      "outputs": [
+        ".next/**",
+        "!.next/cache/**",
+        "dist/**",
+        "build/**",
+        "lib/**"
+      ]
     },
     "dev": {
       "cache": false,
