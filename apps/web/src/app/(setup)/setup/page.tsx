@@ -23,6 +23,7 @@ import { toast } from 'sonner'
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db, auth } from '@/lib/firebase/client'
 import { uploadService } from '@/lib/upload'
+import { useChurchStore, useAuthStore } from '@/store'
 
 // ── Step definitions ──────────────────────────────────────────
 const STEPS = [
@@ -178,10 +179,10 @@ export default function SetupPage() {
 
       const churchData = {
         id: churchId,
-        name: setupData.step1.name,
-        slug: setupData.step1.slug,
+        name: setupData.step1.name ?? 'My Church',
+        slug: setupData.step1.slug ?? 'my-church',
         description: setupData.step1.description ?? '',
-        plan: 'trial' as const,
+        plan: 'growth' as const,
         status: 'active' as const,
         ownerId: user.uid,
         branding: {
@@ -209,7 +210,13 @@ export default function SetupPage() {
           automationEnabled: true,
           approvalRequired: setupData.step3.aiMode === 'approval',
         },
-        metrics: { totalMembers: 0, totalVisitors: 0, totalDonations: 0 },
+        subscription: {
+          planId: 'trial',
+          status: 'trialing' as const,
+          currentPeriodEnd: serverTimestamp(),
+          seats: 100,
+        },
+        metrics: { totalMembers: 0, totalVisitors: 0, totalDonations: 0, lastUpdated: serverTimestamp() },
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       }
@@ -223,6 +230,8 @@ export default function SetupPage() {
         await updateDoc(doc(db, 'users', user.uid), {
           churchId: churchId,
           role: 'owner',
+          subscriptionStatus: 'trial',
+          status: 'active',
           updatedAt: serverTimestamp(),
         })
       } catch {
@@ -232,14 +241,24 @@ export default function SetupPage() {
           uid: user.uid,
           churchId: churchId,
           role: 'owner',
+          subscriptionStatus: 'trial',
           email: user.email,
           fullName: user.displayName ?? 'Pastor',
+          status: 'active',
           updatedAt: serverTimestamp(),
         }, { merge: true })
       }
 
+      // Update client store state immediately
+      useChurchStore.getState().setChurch(churchData as unknown as import('@church-growth-os/shared').Church)
+      useAuthStore.getState().setClaims({
+        churchId,
+        role: 'owner',
+        superAdmin: false,
+      })
+
       toast.success('🎉 Church setup complete! Welcome to Church Growth OS.')
-      router.push('/dashboard')
+      router.replace('/dashboard')
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Setup failed'
       toast.error(message)

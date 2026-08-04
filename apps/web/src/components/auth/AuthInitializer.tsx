@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { onAuthChange, getUserProfile } from '@/lib/firebase/auth'
 import { getUserChurch } from '@/lib/auth/checkChurchSetup'
@@ -10,49 +10,55 @@ import { Loader2 } from 'lucide-react'
 const PUBLIC_ROUTES = ['/', '/login', '/register', '/forgot-password']
 
 /**
- * AuthInitializer — Attaches Firebase auth observer & enforces production route protection.
- * Loads user profile and church data from Firestore into client stores.
+ * AuthInitializer — Centralized Authentication & Production Route Guard.
+ * Synchronizes Firebase Auth user with Firestore user profile and church data.
+ * Enforces automatic redirects between /login, /setup, and /dashboard.
  */
 export function AuthInitializer({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { user, isLoading, isInitialized, setUser, setClaims, setLoading, setInitialized, reset } =
-    useAuthStore()
-  const { setChurch } = useChurchStore()
+  const [checkingRoute, setCheckingRoute] = useState(true)
 
+  const { user, isInitialized, setUser, setClaims, setLoading, setInitialized, reset } =
+    useAuthStore()
+  const { church, setChurch } = useChurchStore()
+
+  // 1. Observer for Firebase Auth & Firestore synchronization
   useEffect(() => {
     const unsubscribe = onAuthChange(async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser)
 
-        // Fetch user profile from Firestore
+        // Fetch User Profile from Firestore
         const profile = await getUserProfile(firebaseUser.uid)
-        if (profile) {
-          setClaims({
-            churchId: profile.churchId ?? '',
-            role: profile.role ?? 'owner',
-            superAdmin: false,
-          })
 
-          // If user has a churchId in profile, load the church doc
-          if (profile.churchId) {
-            const churchDoc = await getUserChurch(firebaseUser.uid)
-            if (churchDoc) {
-              setChurch(churchDoc)
-            }
-          }
+        let activeChurchId = profile?.churchId ?? null
+        let activeRole = profile?.role ?? 'owner'
+
+        // If user profile has churchId, fetch Church document
+        let churchDoc = null
+        if (activeChurchId) {
+          churchDoc = await getUserChurch(firebaseUser.uid)
         } else {
-          // If user doc doesn't exist yet, check by ownerId in churches
-          const churchDoc = await getUserChurch(firebaseUser.uid)
+          // Fallback check if church was created by ownerId
+          churchDoc = await getUserChurch(firebaseUser.uid)
           if (churchDoc) {
-            setChurch(churchDoc)
-            setClaims({
-              churchId: churchDoc.id,
-              role: 'owner',
-              superAdmin: false,
-            })
+            activeChurchId = churchDoc.id
+            activeRole = 'owner'
           }
         }
+
+        if (churchDoc) {
+          setChurch(churchDoc)
+        } else {
+          setChurch(null)
+        }
+
+        setClaims({
+          churchId: activeChurchId ?? '',
+          role: activeRole,
+          superAdmin: false,
+        })
       } else {
         reset()
         setChurch(null)
@@ -65,38 +71,43 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
     return () => unsubscribe()
   }, [setUser, setClaims, setLoading, setInitialized, reset, setChurch])
 
-  // Guard routing logic after initialization
+  // 2. Centralized Production Route Protection Guard
   useEffect(() => {
-    if (!isInitialized || isLoading) return
+    if (!isInitialized) return
 
     const isPublic = PUBLIC_ROUTES.includes(pathname)
     const isSetup = pathname === '/setup'
+    const hasChurch = !!church?.id
 
-    if (!user && !isPublic) {
-      router.push(`/login?from=${encodeURIComponent(pathname)}`)
+    if (!user) {
+      if (!isPublic) {
+        router.replace(`/login?from=${encodeURIComponent(pathname)}`)
+      } else {
+        setCheckingRoute(false)
+      }
       return
     }
 
-    if (user) {
-      // Check if user has an associated church
-      getUserChurch(user.uid).then((churchDoc) => {
-        const hasChurch = !!churchDoc
-
-        if (isPublic) {
-          // Logged in user visiting login/register -> redirect to dashboard or setup
-          router.push(hasChurch ? '/dashboard' : '/setup')
-        } else if (!hasChurch && !isSetup) {
-          // Authenticated but no church setup complete -> force redirect to setup
-          router.push('/setup')
-        } else if (hasChurch && isSetup) {
-          // Church setup already completed -> redirect away from setup to dashboard
-          router.push('/dashboard')
-        }
-      })
+    // User is authenticated
+    if (!hasChurch) {
+      if (!isSetup) {
+        // Authenticated but no church -> Force automatic redirect to /setup
+        router.replace('/setup')
+      } else {
+        setCheckingRoute(false)
+      }
+    } else {
+      if (isSetup || isPublic) {
+        // Authenticated with church setup complete -> Redirect to /dashboard
+        router.replace('/dashboard')
+      } else {
+        setCheckingRoute(false)
+      }
     }
-  }, [user, isInitialized, isLoading, pathname, router])
+  }, [user, church, isInitialized, pathname, router])
 
-  if (isLoading && !PUBLIC_ROUTES.includes(pathname)) {
+  // Loading Screen for uninitialized state or route transitions
+  if (!isInitialized || (checkingRoute && !PUBLIC_ROUTES.includes(pathname))) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">

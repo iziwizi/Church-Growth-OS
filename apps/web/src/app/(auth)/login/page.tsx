@@ -9,6 +9,7 @@ import { motion } from 'framer-motion'
 import { Eye, EyeOff, Loader2, LogIn } from 'lucide-react'
 import { toast } from 'sonner'
 import { signInUser, mapAuthError } from '@/lib/firebase/auth'
+import { getUserChurch } from '@/lib/auth/checkChurchSetup'
 import { loginSchema } from '@church-growth-os/shared'
 import type { z } from 'zod'
 
@@ -32,16 +33,14 @@ function LoginForm() {
       const cred = await signInUser(data.email, data.password)
       toast.success('Welcome back!')
 
-      // Check if user has an existing church
-      const { getUserChurch } = await import('@/lib/auth/checkChurchSetup')
+      // Check church setup immediately and redirect
       const church = await getUserChurch(cred.user.uid)
-
       if (!church) {
         toast.info('Please complete your church setup.')
-        router.push('/setup')
+        router.replace('/setup')
       } else {
         const from = searchParams.get('from') ?? '/dashboard'
-        router.push(from)
+        router.replace(from)
       }
     } catch (error) {
       toast.error(mapAuthError(error))

@@ -38,9 +38,13 @@ function RegisterForm() {
 
   const onSubmit = async (data: RegisterFormData) => {
     try {
-      await signUpUser(data.email, data.password, data.fullName)
-      toast.success('Account created! A verification email has been sent. Let&apos;s set up your church.')
-      router.push('/setup')
+      const { verificationSent } = await signUpUser(data.email, data.password, data.fullName)
+      if (verificationSent) {
+        toast.success('Account created! Verification email sent. Redirecting to church setup...')
+      } else {
+        toast.success('Account created! Redirecting to church setup...')
+      }
+      router.replace('/setup')
     } catch (error) {
       toast.error(mapAuthError(error))
     }

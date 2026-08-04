@@ -60,20 +60,19 @@ export async function signUpUser(
   email: string,
   password: string,
   fullName: string
-): Promise<UserCredential> {
+): Promise<{ user: User; verificationSent: boolean }> {
+  // 1. Create Firebase Authentication account
   const credential = await createUserWithEmailAndPassword(auth, email, password)
   const user = credential.user
 
-  await updateProfile(user, { displayName: fullName })
-
-  // Send verification email
+  // 2. Set display name
   try {
-    await sendEmailVerification(user)
-  } catch (err) {
-    console.warn('Email verification send failed:', err)
+    await updateProfile(user, { displayName: fullName })
+  } catch (profileErr) {
+    console.warn('Could not update profile displayName:', profileErr)
   }
 
-  // Create Firestore user document
+  // 3. Create Firestore User Profile Document in /users/{uid}
   const userDocRef = doc(db, 'users', user.uid)
   const profilePayload: UserProfileData = {
     uid: user.uid,
@@ -92,14 +91,23 @@ export async function signUpUser(
 
   await setDoc(userDocRef, profilePayload)
 
-  return credential
+  // 4. Send Email Verification
+  let verificationSent = false
+  try {
+    await sendEmailVerification(user)
+    verificationSent = true
+  } catch (emailErr) {
+    console.error('Failed to send verification email:', emailErr)
+  }
+
+  return { user, verificationSent }
 }
 
 export async function signInUser(email: string, password: string): Promise<UserCredential> {
   const credential = await signInWithEmailAndPassword(auth, email, password)
   const user = credential.user
 
-  // Update lastLogin timestamp in Firestore user document
+  // Update lastLogin timestamp and emailVerified in Firestore
   try {
     const userDocRef = doc(db, 'users', user.uid)
     await updateDoc(userDocRef, {
@@ -108,7 +116,26 @@ export async function signInUser(email: string, password: string): Promise<UserC
       updatedAt: serverTimestamp(),
     })
   } catch {
-    // Ignore if document not created yet
+    // If profile document missing, create it
+    try {
+      const userDocRef = doc(db, 'users', user.uid)
+      await setDoc(userDocRef, {
+        uid: user.uid,
+        fullName: user.displayName ?? 'Pastor',
+        email: user.email ?? email,
+        photoURL: user.photoURL ?? null,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        role: 'owner',
+        subscriptionStatus: 'trial',
+        churchId: null,
+        emailVerified: user.emailVerified,
+        lastLogin: serverTimestamp(),
+        status: 'active',
+      }, { merge: true })
+    } catch (setErr) {
+      console.warn('Could not sync user profile on login:', setErr)
+    }
   }
 
   return credential
@@ -130,6 +157,17 @@ export async function getUserProfile(uid: string): Promise<UserProfileData | nul
 
 export async function sendPasswordReset(email: string): Promise<void> {
   return sendPasswordResetEmail(auth, email)
+}
+
+export async function resendVerification(): Promise<boolean> {
+  if (!auth.currentUser) return false
+  try {
+    await sendEmailVerification(auth.currentUser)
+    return true
+  } catch (err) {
+    console.error('Failed to resend verification email:', err)
+    return false
+  }
 }
 
 export async function logOut(): Promise<void> {
