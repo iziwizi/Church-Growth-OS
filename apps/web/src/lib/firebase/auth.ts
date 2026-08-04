@@ -19,7 +19,7 @@ export interface UserProfileData {
   photoURL: string | null
   createdAt: unknown
   updatedAt: unknown
-  role: 'owner' | 'admin' | 'pastor' | 'staff'
+  role: 'super_admin' | 'owner' | 'admin' | 'pastor' | 'staff'
   subscriptionStatus: 'active' | 'trial' | 'past_due' | 'canceled'
   churchId: string | null
   emailVerified: boolean

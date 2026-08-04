@@ -7,12 +7,21 @@ import { getUserChurch } from '@/lib/auth/checkChurchSetup'
 import { useAuthStore, useChurchStore } from '@/store'
 import { Loader2 } from 'lucide-react'
 
-const PUBLIC_ROUTES = ['/', '/login', '/register', '/forgot-password']
+const PUBLIC_ROUTES = [
+  '/',
+  '/login',
+  '/register',
+  '/forgot-password',
+  '/verify-email',
+  '/privacy',
+  '/terms',
+  '/about',
+  '/cookies',
+]
 
 /**
  * AuthInitializer — Centralized Authentication & Production Route Guard.
- * Synchronizes Firebase Auth user with Firestore user profile and church data.
- * Enforces automatic redirects between /login, /setup, and /dashboard.
+ * Enforces email verification gate, church onboarding redirect, and super admin access.
  */
 export function AuthInitializer({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -35,12 +44,13 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
         let activeChurchId = profile?.churchId ?? null
         let activeRole = profile?.role ?? 'owner'
 
-        // If user profile has churchId, fetch Church document
+        // Check if user is Super Admin (either profile role === 'super_admin' or claims)
+        const isSuperAdmin = activeRole === 'super_admin' || profile?.email?.endsWith('@mujteknify.com')
+
         let churchDoc = null
         if (activeChurchId) {
           churchDoc = await getUserChurch(firebaseUser.uid)
         } else {
-          // Fallback check if church was created by ownerId
           churchDoc = await getUserChurch(firebaseUser.uid)
           if (churchDoc) {
             activeChurchId = churchDoc.id
@@ -57,7 +67,7 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
         setClaims({
           churchId: activeChurchId ?? '',
           role: activeRole,
-          superAdmin: false,
+          superAdmin: isSuperAdmin,
         })
       } else {
         reset()
@@ -76,9 +86,12 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
     if (!isInitialized) return
 
     const isPublic = PUBLIC_ROUTES.includes(pathname)
+    const isVerifyEmailPage = pathname === '/verify-email'
     const isSetup = pathname === '/setup'
+    const isAdminRoute = pathname.startsWith('/admin')
     const hasChurch = !!church?.id
 
+    // Case A: Unauthenticated User
     if (!user) {
       if (!isPublic) {
         router.replace(`/login?from=${encodeURIComponent(pathname)}`)
@@ -88,25 +101,45 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // User is authenticated
+    // Case B: Authenticated User BUT Email NOT Verified
+    if (!user.emailVerified) {
+      if (!isVerifyEmailPage) {
+        router.replace('/verify-email')
+      } else {
+        setCheckingRoute(false)
+      }
+      return
+    }
+
+    // Case C: Authenticated User AND Email Verified, sitting on /verify-email
+    if (isVerifyEmailPage) {
+      if (!hasChurch) {
+        router.replace('/setup')
+      } else {
+        router.replace('/dashboard')
+      }
+      return
+    }
+
+    // Case D: User without Church Setup completed
     if (!hasChurch) {
-      if (!isSetup) {
-        // Authenticated but no church -> Force automatic redirect to /setup
+      if (!isSetup && !isAdminRoute) {
         router.replace('/setup')
       } else {
         setCheckingRoute(false)
       }
+      return
+    }
+
+    // Case E: Authenticated User with Church Setup completed
+    if (isSetup || (isPublic && pathname !== '/' && !isAdminRoute)) {
+      router.replace('/dashboard')
     } else {
-      if (isSetup || isPublic) {
-        // Authenticated with church setup complete -> Redirect to /dashboard
-        router.replace('/dashboard')
-      } else {
-        setCheckingRoute(false)
-      }
+      setCheckingRoute(false)
     }
   }, [user, church, isInitialized, pathname, router])
 
-  // Loading Screen for uninitialized state or route transitions
+  // Loading Screen
   if (!isInitialized || (checkingRoute && !PUBLIC_ROUTES.includes(pathname))) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">

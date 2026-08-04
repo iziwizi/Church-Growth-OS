@@ -528,6 +528,12 @@ export function DashboardView() {
           </div>
         </motion.div>
       </div>
+
+      {/* Dashboard Footer Attribution */}
+      <footer className="mt-8 border-t border-border pt-6 text-center text-xs text-muted-foreground">
+        Powered by <span className="font-semibold text-foreground">Church Growth OS</span> — A Product of{' '}
+        <span className="font-semibold text-foreground">MUJTEKNIFY LIMITED</span>
+      </footer>
     </motion.div>
   )
 }

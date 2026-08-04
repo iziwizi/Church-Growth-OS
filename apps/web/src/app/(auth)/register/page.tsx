@@ -172,6 +172,11 @@ function RegisterForm() {
           Sign in
         </Link>
       </div>
+
+      <div className="mt-6 pt-4 border-t text-center text-[11px] text-muted-foreground">
+        Powered by <span className="font-semibold text-foreground">Church Growth OS</span> — A Product of{' '}
+        <span className="font-semibold text-foreground">MUJTEKNIFY LIMITED</span>
+      </div>
     </div>
   )
 }
