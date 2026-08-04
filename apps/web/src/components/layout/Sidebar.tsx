@@ -119,9 +119,17 @@ export function Sidebar() {
       {/* Logo / Church Name */}
       <div className="flex h-16 items-center justify-between border-b px-3">
         <Link href="/dashboard" className="flex min-w-0 items-center gap-2.5">
-          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-brand-600 shadow-sm">
-            <Bot className="h-4 w-4 text-white" />
-          </div>
+          {church?.branding?.logoUrl ? (
+            <img
+              src={church.branding.logoUrl}
+              alt={church.name}
+              className="h-8 w-8 flex-shrink-0 rounded-lg object-contain border bg-background p-0.5"
+            />
+          ) : (
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-brand-600 shadow-sm overflow-hidden">
+              <img src="/icon.png" alt="Church Growth OS" className="h-6 w-6 object-contain" />
+            </div>
+          )}
           <AnimatePresence mode="wait">
             {!sidebarCollapsed && (
               <motion.div
@@ -134,7 +142,7 @@ export function Sidebar() {
                 <p className="truncate text-sm font-bold text-sidebar-foreground">
                   {church?.name ?? 'Church Growth OS'}
                 </p>
-                <p className="truncate text-xs text-muted-foreground">Ministry Platform</p>
+                <p className="truncate text-[10px] text-muted-foreground">Ministry Platform</p>
               </motion.div>
             )}
           </AnimatePresence>

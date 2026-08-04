@@ -1,48 +1,121 @@
 import type { Metadata } from 'next'
+import Image from 'next/image'
 import Link from 'next/link'
+import { Sparkles, Users, UserCheck, FileText } from 'lucide-react'
 
 export const metadata: Metadata = {
-  title: 'Sign In',
-  description: 'Sign in to your Church Growth OS account',
+  title: 'Church Growth OS — Authentication',
+  description: 'Sign in or register for your Church Growth OS account',
 }
+
+const FEATURES = [
+  {
+    icon: Sparkles,
+    title: 'AI Automation',
+    desc: 'Autonomous engagement workflows that run 24/7',
+  },
+  {
+    icon: Users,
+    title: 'Unified Member Engine',
+    desc: 'Single-source-of-truth congregation database',
+  },
+  {
+    icon: UserCheck,
+    title: 'Visitor Follow-up',
+    desc: 'Automated 7-step guest retention pipeline',
+  },
+  {
+    icon: FileText,
+    title: 'Executive AI Reports',
+    desc: 'Daily 6 AM automated executive summary',
+  },
+]
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative flex min-h-svh flex-col">
-      {/* Animated gradient background */}
-      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <div className="absolute -top-40 -right-40 h-[600px] w-[600px] rounded-full bg-brand-500/10 blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 h-[600px] w-[600px] rounded-full bg-brand-700/10 blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gold-500/5 blur-3xl" />
+    <div className="grid min-h-screen w-full grid-cols-1 lg:grid-cols-12 bg-background text-foreground">
+      {/* ── LEFT SIDE: Premium Hero Section (Desktop Only) ──────────────── */}
+      <div className="relative hidden lg:col-span-6 lg:flex flex-col justify-between p-12 bg-card border-r border-border overflow-hidden">
+        {/* Ambient Gradient Background */}
+        <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.15),transparent_50%)]" />
+        <div className="pointer-events-none absolute bottom-0 right-0 h-96 w-96 rounded-full bg-purple-600/10 blur-3xl" />
+
+        {/* Brand Header */}
+        <div className="flex items-center gap-3">
+          <Image
+            src="/logo.png"
+            alt="Church Growth OS"
+            width={180}
+            height={48}
+            className="h-10 w-auto object-contain"
+            priority
+          />
+        </div>
+
+        {/* Hero Content */}
+        <div className="my-auto max-w-lg space-y-6 pt-8">
+          <div className="inline-flex items-center gap-2 rounded-full border border-brand-500/20 bg-brand-500/10 px-3.5 py-1 text-xs font-semibold text-brand-400">
+            <Sparkles className="h-3.5 w-3.5 text-brand-400" />
+            <span>Production SaaS Platform</span>
+          </div>
+
+          <h1 className="font-display text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl leading-tight">
+            Grow your church with{' '}
+            <span className="bg-gradient-to-r from-brand-400 via-purple-400 to-indigo-400 bg-clip-text text-transparent">
+              intelligent automation.
+            </span>
+          </h1>
+
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Manage members, automate follow-ups, communicate effectively, and gain actionable ministry insights from one unified operating system.
+          </p>
+
+          {/* Feature Highlights Grid */}
+          <div className="grid grid-cols-2 gap-4 pt-4">
+            {FEATURES.map((item) => {
+              const Icon = item.icon
+              return (
+                <div
+                  key={item.title}
+                  className="rounded-2xl border border-border bg-background/50 p-4 backdrop-blur-sm shadow-xs space-y-1.5"
+                >
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500/10 text-brand-400">
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <p className="text-xs font-bold text-foreground">{item.title}</p>
+                  <p className="text-[11px] text-muted-foreground leading-snug">{item.desc}</p>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Footer info */}
+        <div className="flex items-center justify-between text-xs text-muted-foreground pt-8 border-t border-border/40">
+          <p>&copy; {new Date().getFullYear()} Church Growth OS</p>
+          <div className="flex items-center gap-4">
+            <Link href="/privacy" className="hover:text-foreground">Privacy</Link>
+            <Link href="/terms" className="hover:text-foreground">Terms</Link>
+          </div>
+        </div>
       </div>
 
-      {/* Logo */}
-      <header className="p-6">
-        <Link href="/" className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="text-white">
-              <path
-                d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
-          <span className="font-display text-lg font-bold text-foreground">Church Growth OS</span>
-        </Link>
-      </header>
+      {/* ── RIGHT SIDE: Authentication Form (Mobile & Desktop) ────────────── */}
+      <div className="flex lg:col-span-6 flex-col items-center justify-center p-6 sm:p-12 relative">
+        {/* Mobile Header Logo */}
+        <div className="lg:hidden mb-8 text-center">
+          <Image
+            src="/logo.png"
+            alt="Church Growth OS"
+            width={160}
+            height={42}
+            className="h-9 w-auto mx-auto object-contain"
+            priority
+          />
+        </div>
 
-      {/* Main content */}
-      <main className="flex flex-1 items-center justify-center px-4 py-12">{children}</main>
-
-      {/* Footer */}
-      <footer className="p-6 text-center">
-        <p className="text-xs text-muted-foreground">
-          &copy; {new Date().getFullYear()} Church Growth OS. All rights reserved.
-        </p>
-      </footer>
+        <div className="w-full max-w-md">{children}</div>
+      </div>
     </div>
   )
 }
