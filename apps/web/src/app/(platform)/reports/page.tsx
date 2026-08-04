@@ -2,13 +2,26 @@
 
 import { BarChart3, Download, FileText, Sparkles, TrendingUp, Users, UserCheck } from 'lucide-react'
 import { useChurchStore } from '@/store'
+import { generateExecutiveReportPDF } from '@/lib/reports/generatePDF'
 import { toast } from 'sonner'
 
 export default function ReportsPage() {
   const { church } = useChurchStore()
 
   const handleExportPDF = () => {
-    toast.success('Executive PDF Report generated for ' + (church?.name ?? 'Church') + '!')
+    generateExecutiveReportPDF({
+      churchName: church?.name ?? 'Grace Church',
+      logoUrl: church?.branding?.logoUrl,
+      date: new Date().toLocaleDateString(),
+      summary:
+        '1. Visitor Retention: 85% of first-time guests received automated 24-hour follow-up messages.\n' +
+        '2. Financial Giving: Tithes & offerings up 12% compared to last month\'s average.\n' +
+        '3. Engagement Alert: 3 members flagged for pastoral check-in due to missed service attendance.',
+      visitorsCount: 18,
+      membersCount: 420,
+      givingTotal: 250000,
+    })
+    toast.success('Executive PDF Report generated!')
   }
 
   return (

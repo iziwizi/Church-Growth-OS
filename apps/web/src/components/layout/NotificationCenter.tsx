@@ -1,9 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Bell, Check, Sparkles, UserPlus, HandHeart, MessageSquare, AlertCircle } from 'lucide-react'
 import * as Popover from '@radix-ui/react-popover'
 import { motion, AnimatePresence } from 'framer-motion'
+import { collection, query, onSnapshot, orderBy, limit } from 'firebase/firestore'
+import { db } from '@/lib/firebase/client'
+import { useChurchStore } from '@/store'
 
 export interface NotificationItem {
   id: string
@@ -14,43 +17,61 @@ export interface NotificationItem {
   read: boolean
 }
 
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: '1',
-    title: 'AI Morning Declaration Sent',
-    description: 'Autonomous engine sent declaration to 318 active members.',
-    time: '6:00 AM',
-    type: 'ai',
-    read: false,
-  },
-  {
-    id: '2',
-    title: 'New Visitor Follow-up Scheduled',
-    description: 'AI assigned Pastor John for 48h check-in with Brother David.',
-    time: '8:30 AM',
-    type: 'visitor',
-    read: false,
-  },
-  {
-    id: '3',
-    title: 'New Prayer Request Received',
-    description: 'Sister Sarah submitted a prayer request for family healing.',
-    time: '9:15 AM',
-    type: 'prayer',
-    read: false,
-  },
-  {
-    id: '4',
-    title: 'Daily AI Executive Report Ready',
-    description: 'Morning executive summary generated and delivered to email.',
-    time: '6:05 AM',
-    type: 'ai',
-    read: true,
-  },
-]
-
 export function NotificationCenter() {
-  const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS)
+  const { church } = useChurchStore()
+  const [notifications, setNotifications] = useState<NotificationItem[]>([
+    {
+      id: '1',
+      title: 'Autonomous AI Engine Active',
+      description: 'Morning executive summary generated and delivered.',
+      time: '6:00 AM',
+      type: 'ai',
+      read: false,
+    },
+    {
+      id: '2',
+      title: '7-Step Visitor Sequence Online',
+      description: 'Guest retention automation monitoring new intake.',
+      time: '8:30 AM',
+      type: 'visitor',
+      read: false,
+    },
+  ])
+
+  useEffect(() => {
+    if (!church?.id) return
+    const q = query(
+      collection(db, 'churches', church.id, 'notifications'),
+      orderBy('createdAt', 'desc'),
+      limit(10)
+    )
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snap) => {
+        if (snap && !snap.empty) {
+          const list: NotificationItem[] = []
+          snap.docs.forEach((d) => {
+            const data = d.data()
+            list.push({
+              id: d.id,
+              title: data.title ?? 'Notification',
+              description: data.description ?? '',
+              time: data.time ?? 'Just now',
+              type: data.type ?? 'ai',
+              read: data.read ?? false,
+            })
+          })
+          setNotifications(list)
+        }
+      },
+      (err) => {
+        console.warn('Notification listener notice:', err)
+      }
+    )
+
+    return () => unsubscribe()
+  }, [church?.id])
 
   const unreadCount = notifications.filter((n) => !n.read).length
 
@@ -99,18 +120,18 @@ export function NotificationCenter() {
           sideOffset={8}
           className="z-50 w-80 sm:w-96 rounded-2xl border border-border bg-card p-0 shadow-xl backdrop-blur-md outline-none animate-in fade-in-50 zoom-in-95"
         >
-          {/* Header */}
           <div className="flex items-center justify-between border-b px-4 py-3">
             <div className="flex items-center gap-2">
               <h3 className="font-display text-sm font-semibold text-foreground">Notifications</h3>
               {unreadCount > 0 && (
-                <span className="rounded-full bg-brand-100 dark:bg-brand-950/60 px-2 py-0.5 text-xs font-medium text-brand-600 dark:text-brand-400">
+                <span className="rounded-full bg-brand-500/10 px-2 py-0.5 text-xs font-semibold text-brand-500">
                   {unreadCount} new
                 </span>
               )}
             </div>
             {unreadCount > 0 && (
               <button
+                type="button"
                 onClick={markAllAsRead}
                 className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -120,7 +141,6 @@ export function NotificationCenter() {
             )}
           </div>
 
-          {/* List */}
           <div className="max-h-[360px] overflow-y-auto divide-y divide-border">
             <AnimatePresence mode="popLayout">
               {notifications.length === 0 ? (
@@ -137,7 +157,7 @@ export function NotificationCenter() {
                     exit={{ opacity: 0 }}
                     onClick={() => markAsRead(item.id)}
                     className={`flex items-start gap-3 p-3.5 transition-colors cursor-pointer hover:bg-muted/50 ${
-                      !item.read ? 'bg-brand-50/30 dark:bg-brand-950/10' : ''
+                      !item.read ? 'bg-brand-500/5' : ''
                     }`}
                   >
                     <div className="mt-0.5 rounded-lg border bg-background p-2 shadow-xs shrink-0">

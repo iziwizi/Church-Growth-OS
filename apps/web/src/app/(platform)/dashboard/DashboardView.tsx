@@ -532,7 +532,9 @@ export function DashboardView() {
       {/* Dashboard Footer Attribution */}
       <footer className="mt-8 border-t border-border pt-6 text-center text-xs text-muted-foreground">
         Powered by <span className="font-semibold text-foreground">Church Growth OS</span> — A Product of{' '}
-        <span className="font-semibold text-foreground">MUJTEKNIFY LIMITED</span>
+        <a href="https://mujteknify.com" target="_blank" rel="noopener noreferrer" className="font-semibold text-foreground hover:underline">
+          MUJTEKNIFY LIMITED
+        </a>
       </footer>
     </motion.div>
   )

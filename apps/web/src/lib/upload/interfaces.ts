@@ -27,4 +27,8 @@ export interface IUploadService {
   upload(file: File | Blob, options?: UploadOptions): Promise<UploadResult>
   delete(publicId: string): Promise<void>
   buildUrl(publicId: string, transformations?: string): string
+  getChurchFolder(
+    churchId: string,
+    category: 'branding' | 'members' | 'sermons' | 'events' | 'documents' | 'support' | 'reports' | 'communications'
+  ): string
 }

@@ -106,6 +106,13 @@ export class CloudinaryUploadService implements IUploadService {
     return `${this.baseFetchUrl}/image/upload/${transform}${publicId}`
   }
 
+  getChurchFolder(
+    churchId: string,
+    category: 'branding' | 'members' | 'sermons' | 'events' | 'documents' | 'support' | 'reports' | 'communications'
+  ): string {
+    return `churches/${churchId}/${category}`
+  }
+
   private detectResourceType(file: File | Blob): 'image' | 'video' | 'raw' {
     const type = file.type ?? ''
     if (type.startsWith('image/')) return 'image'
