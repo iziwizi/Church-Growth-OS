@@ -4,139 +4,106 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import {
-  Church,
-  Palette,
-  Brain,
-  MessageSquare,
+  Church as ChurchIcon,
+  UserCheck,
+  Building2,
+  Target,
+  Zap,
   CheckCircle2,
   ArrowRight,
   ArrowLeft,
   Loader2,
   Upload,
   X,
+  Plus,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db, auth } from '@/lib/firebase/client'
 import { uploadService } from '@/lib/upload'
 import { useChurchStore, useAuthStore } from '@/store'
+import type { Church, ChurchBranch, ChurchAIProfile } from '@church-growth-os/shared'
 
-// ── Step definitions ──────────────────────────────────────────
 const STEPS = [
-  { id: 1, title: 'Church Profile',     icon: Church,       desc: 'Name, slug, and description' },
-  { id: 2, title: 'Branding',           icon: Palette,      desc: 'Logo, colors, and timezone' },
-  { id: 3, title: 'AI Settings',        icon: Brain,        desc: 'AI provider and automation mode' },
-  { id: 4, title: 'Communications',     icon: MessageSquare, desc: 'WhatsApp, Email, and SMS' },
-  { id: 5, title: 'Ready!',             icon: CheckCircle2, desc: 'You are all set' },
+  { id: 1, title: 'Church Info', icon: ChurchIcon, desc: 'Contact & location details' },
+  { id: 2, title: 'Leadership', icon: UserCheck, desc: 'Senior pastor details' },
+  { id: 3, title: 'Profile & Branches', icon: Building2, desc: 'Vision & campus setup' },
+  { id: 4, title: 'Ministry Goals', icon: Target, desc: 'Personalize your platform' },
+  { id: 5, title: 'Automation', icon: Zap, desc: 'Autonomous vs Approval mode' },
 ]
 
-// ── Step 1 Schema ─────────────────────────────────────────────
-const step1Schema = z.object({
-  name: z.string().min(3, 'Church name must be at least 3 characters'),
-  slug: z.string()
-    .min(3, 'Slug must be at least 3 characters')
-    .max(30, 'Slug must be 30 characters or less')
-    .regex(/^[a-z0-9-]+$/, 'Slug can only contain lowercase letters, numbers, and hyphens'),
-  description: z.string().optional(),
-  country: z.string().min(1, 'Country is required'),
-  timezone: z.string().min(1, 'Timezone is required'),
-})
+const GOALS_LIST = [
+  { id: 'visitor_followup', label: 'Visitor Follow-up', desc: 'Automate 7-day visitor engagement' },
+  { id: 'membership_growth', label: 'Membership Growth', desc: 'Convert visitors to active members' },
+  { id: 'evangelism', label: 'Evangelism', desc: 'Outreach campaigns and community growth' },
+  { id: 'youth_ministry', label: 'Youth Ministry', desc: 'Engage young adults and students' },
+  { id: 'prayer_management', label: 'Prayer Management', desc: 'Track and respond to prayer needs' },
+  { id: 'events', label: 'Events', desc: 'Promote services, conferences, and retreats' },
+  { id: 'giving', label: 'Giving', desc: 'Encourage tithes, offerings, and seed faith' },
+  { id: 'partnerships', label: 'Partnerships', desc: 'Manage covenant givers and vision builders' },
+  { id: 'social_growth', label: 'Social Media Growth', desc: 'AI content generation for social channels' },
+  { id: 'small_groups', label: 'Small Groups', desc: 'Cell fellowship tracking and nurture' },
+  { id: 'volunteer_management', label: 'Volunteer Management', desc: 'Organize workforce and department teams' },
+]
 
-// ── Step 3 Schema ─────────────────────────────────────────────
-const step3Schema = z.object({
-  aiProvider: z.enum(['claude', 'openai', 'deepseek']),
-  aiMode: z.enum(['autonomous', 'approval']),
-})
-
-type Step1Data = z.infer<typeof step1Schema>
-type Step3Data = z.infer<typeof step3Schema>
-
-interface SetupData {
-  step1: Partial<Step1Data>
-  step2: { logoUrl?: string; primaryColor: string; secondaryColor: string }
-  step3: Partial<Step3Data>
-  step4: { whatsappProvider?: string; emailProvider?: string; smsProvider?: string }
-}
-
-// ── Step Progress Indicator ───────────────────────────────────
-function SetupProgress({ currentStep, steps }: { currentStep: number; steps: typeof STEPS }) {
-  return (
-    <div className="mb-8 flex items-center gap-2">
-      {steps.map((step, i) => {
-        const Icon = step.icon
-        const isDone = currentStep > step.id
-        const isCurrent = currentStep === step.id
-        return (
-          <div key={step.id} className="flex items-center gap-2">
-            <div
-              className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold transition-all ${
-                isDone
-                  ? 'bg-brand-500 text-white'
-                  : isCurrent
-                  ? 'bg-white text-brand-600 ring-2 ring-brand-400'
-                  : 'bg-white/10 text-white/40'
-              }`}
-            >
-              {isDone ? <CheckCircle2 className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
-            </div>
-            {i < steps.length - 1 && (
-              <div
-                className={`h-px w-8 transition-all ${
-                  isDone ? 'bg-brand-400' : 'bg-white/20'
-                }`}
-              />
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-// ── Main Wizard Component ─────────────────────────────────────
-export default function SetupPage() {
+export default function SetupWizardPage() {
   const router = useRouter()
   const [currentStep, setCurrentStep] = useState(1)
+  const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
+
+  // Step 1: Church Information
+  const [name, setName] = useState('')
+  const [slug, setSlug] = useState('')
+  const [churchEmail, setChurchEmail] = useState('')
+  const [churchPhone, setChurchPhone] = useState('')
+  const [country, setCountry] = useState('NG')
+  const [state, setState] = useState('')
+  const [city, setCity] = useState('')
+  const [address, setAddress] = useState('')
+  const [website, setWebsite] = useState('')
+  const [denomination, setDenomination] = useState('Pentecostal')
+  const [yearFounded, setYearFounded] = useState('')
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
-  const [uploading, setUploading] = useState(false)
-  const [saving, setSaving] = useState(false)
 
-  const [setupData, setSetupData] = useState<SetupData>({
-    step1: {},
-    step2: { primaryColor: '#6366f1', secondaryColor: '#8b5cf6' },
-    step3: {},
-    step4: { whatsappProvider: 'meta_cloud', emailProvider: 'resend', smsProvider: 'termii' },
-  })
+  // Step 2: Leadership
+  const [pastorName, setPastorName] = useState('')
+  const [pastorEmail, setPastorEmail] = useState('')
+  const [pastorPhone, setPastorPhone] = useState('')
 
-  // ── Step 1 form ────────────────────────────────────────────
-  const step1Form = useForm<Step1Data>({
-    resolver: zodResolver(step1Schema),
-    defaultValues: { country: 'NG', timezone: 'Africa/Lagos' },
-  })
+  // Step 3: Profile & Branches
+  const [mission, setMission] = useState('')
+  const [vision, setVision] = useState('')
+  const [description, setDescription] = useState('')
+  const [attendance, setAttendance] = useState('100-500')
+  const [hasBranches, setHasBranches] = useState<boolean>(false)
+  const [branchName, setBranchName] = useState('')
+  const [branchAddress, setBranchAddress] = useState('')
+  const [branchPastor, setBranchPastor] = useState('')
 
-  // ── Step 3 form ────────────────────────────────────────────
-  const step3Form = useForm<Step3Data>({
-    resolver: zodResolver(step3Schema),
-    defaultValues: { aiProvider: 'claude', aiMode: 'autonomous' },
-  })
+  // Step 4: Ministry Goals
+  const [selectedGoals, setSelectedGoals] = useState<string[]>([
+    'visitor_followup',
+    'membership_growth',
+    'events',
+  ])
 
-  // Auto-generate slug from church name
-  const handleNameChange = (name: string) => {
-    const slug = name
+  // Step 5: Automation Preference
+  const [automationMode, setAutomationMode] = useState<'autonomous' | 'approval'>('autonomous')
+
+  const handleNameChange = (val: string) => {
+    setName(val)
+    const generatedSlug = val
       .toLowerCase()
       .replace(/[^a-z0-9\s-]/g, '')
       .replace(/\s+/g, '-')
       .replace(/-+/g, '-')
       .slice(0, 30)
-    step1Form.setValue('slug', slug)
+    setSlug(generatedSlug)
   }
 
-  // Logo file selection
   const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -148,7 +115,12 @@ export default function SetupPage() {
     setLogoPreview(URL.createObjectURL(file))
   }
 
-  // ── Complete setup ─────────────────────────────────────────
+  const toggleGoal = (goalId: string) => {
+    setSelectedGoals((prev) =>
+      prev.includes(goalId) ? prev.filter((g) => g !== goalId) : [...prev, goalId]
+    )
+  }
+
   const completeSetup = async () => {
     const user = auth.currentUser
     if (!user) {
@@ -157,588 +129,685 @@ export default function SetupPage() {
       return
     }
 
+    if (!name.trim()) {
+      toast.error('Church Name is required')
+      setCurrentStep(1)
+      return
+    }
+
     setSaving(true)
 
     try {
-      // Upload logo if selected
+      // 1. Upload Logo if provided
       let logoUrl = ''
       if (logoFile) {
         setUploading(true)
-        const result = await uploadService.upload(logoFile, {
+        const res = await uploadService.upload(logoFile, {
           folder: `churches/${user.uid}/logos`,
           allowedFormats: ['jpg', 'jpeg', 'png', 'webp', 'svg'],
-          maxBytes: 5 * 1024 * 1024,
-          tags: ['church_logo'],
         })
-        logoUrl = result.url
+        logoUrl = res.url
         setUploading(false)
       }
 
-      // Generate a churchId from slug
-      const churchId = `${setupData.step1.slug}-${user.uid.slice(0, 6)}`
+      const generatedChurchId = `${slug || 'church'}-${user.uid.slice(0, 6)}`
+      const now = new Date()
+      const fourteenDaysFromNow = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000)
 
-      const churchData = {
-        id: churchId,
-        name: setupData.step1.name ?? 'My Church',
-        slug: setupData.step1.slug ?? 'my-church',
-        description: setupData.step1.description ?? '',
-        plan: 'growth' as const,
-        status: 'active' as const,
+      // Branches list
+      const branchesList: ChurchBranch[] = [
+        {
+          id: 'main-hq',
+          name: `${name.trim()} (Main HQ)`,
+          address: address.trim() || 'HQ Address',
+          pastorName: pastorName.trim() || 'Senior Pastor',
+          isHQ: true,
+        },
+      ]
+
+      if (hasBranches && branchName.trim()) {
+        branchesList.push({
+          id: `branch-1`,
+          name: branchName.trim(),
+          address: branchAddress.trim(),
+          pastorName: branchPastor.trim(),
+          isHQ: false,
+        })
+      }
+
+      // Church Payload
+      const churchData: Partial<Church> = {
+        id: generatedChurchId,
+        name: name.trim(),
+        slug: slug.trim() || 'church',
+        description: description.trim(),
+        missionStatement: mission.trim(),
+        visionStatement: vision.trim(),
+        churchEmail: churchEmail.trim() || user.email || '',
+        churchPhone: churchPhone.trim(),
+        website: website.trim(),
+        address: address.trim(),
+        city: city.trim(),
+        state: state.trim(),
+        denomination: denomination.trim(),
+        yearFounded: yearFounded ? parseInt(yearFounded) : undefined,
+        averageAttendance: attendance ? parseInt(attendance) || 250 : 250,
+        plan: 'free_trial',
+        status: 'active',
         ownerId: user.uid,
+        seniorPastor: {
+          name: pastorName.trim() || user.displayName || 'Senior Pastor',
+          email: pastorEmail.trim() || user.email || '',
+          phone: pastorPhone.trim(),
+        },
+        branches: branchesList,
+        ministryGoals: selectedGoals,
         branding: {
-          logoUrl,
-          primaryColor: setupData.step2.primaryColor,
-          secondaryColor: setupData.step2.secondaryColor,
-          timezone: setupData.step1.timezone ?? 'Africa/Lagos',
-          country: setupData.step1.country ?? 'NG',
+          logoUrl: logoUrl || '',
+          primaryColor: '#4f46e5',
+          secondaryColor: '#06b6d4',
+          country,
+          timezone: 'Africa/Lagos',
           currency: 'NGN',
         },
         settings: {
-          communicationProviders: {
-            whatsapp: { provider: setupData.step4.whatsappProvider ?? 'meta_cloud', config: {}, isActive: false },
-            email: { provider: setupData.step4.emailProvider ?? 'resend', config: {}, isActive: false },
-            sms: { provider: setupData.step4.smsProvider ?? 'termii', config: {}, isActive: false },
-          },
-          aiProvider: setupData.step3.aiProvider ?? 'claude',
-          aiMode: setupData.step3.aiMode ?? 'autonomous',
+          aiMode: automationMode,
+          automationEnabled: true,
+          approvalRequired: automationMode === 'approval',
           featureFlags: {
             ai_studio: true,
             automation: true,
             communications_whatsapp: true,
             communications_sms: true,
+            donations: true,
+            partnerships: true,
+            live_service: true,
           },
-          automationEnabled: true,
-          approvalRequired: setupData.step3.aiMode === 'approval',
         },
         subscription: {
-          planId: 'trial',
-          status: 'trialing' as const,
-          currentPeriodEnd: serverTimestamp(),
+          planId: 'free_trial',
+          status: 'trialing',
+          trialStart: now.toISOString(),
+          trialEnd: fourteenDaysFromNow.toISOString(),
+          trialEndsAt: fourteenDaysFromNow.toISOString(),
           seats: 100,
+          aiCreditsRemaining: 2500,
+          aiCreditsTotal: 2500,
+          storageUsedMb: 0,
+          storageTotalMb: 5000,
+          branchesLimit: hasBranches ? 3 : 1,
         },
-        metrics: { totalMembers: 0, totalVisitors: 0, totalDonations: 0, lastUpdated: serverTimestamp() },
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        metrics: {
+          totalMembers: 0,
+          totalVisitors: 0,
+          totalDonations: 0,
+          lastUpdated: serverTimestamp() as any,
+        },
       }
 
       // Write church document to Firestore
-      await setDoc(doc(db, 'churches', churchId), churchData)
+      await setDoc(doc(db, 'churches', generatedChurchId), {
+        ...churchData,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
 
-      // Update user document in Firestore with churchId and owner role
-      try {
-        const { updateDoc } = await import('firebase/firestore')
-        await updateDoc(doc(db, 'users', user.uid), {
-          churchId: churchId,
-          role: 'owner',
-          subscriptionStatus: 'trial',
-          status: 'active',
-          updatedAt: serverTimestamp(),
-        })
-      } catch {
-        // Fallback setDoc if user doc was not present
-        const { setDoc: setDocUser } = await import('firebase/firestore')
-        await setDocUser(doc(db, 'users', user.uid), {
-          uid: user.uid,
-          churchId: churchId,
-          role: 'owner',
-          subscriptionStatus: 'trial',
-          email: user.email,
-          fullName: user.displayName ?? 'Pastor',
-          status: 'active',
-          updatedAt: serverTimestamp(),
-        }, { merge: true })
+      // Write AI Profile to Firestore: churches/{churchId}/ai/profile (Task 4 requirement)
+      const aiProfileData: ChurchAIProfile = {
+        churchName: name.trim(),
+        mission: mission.trim(),
+        vision: vision.trim(),
+        description: description.trim(),
+        denomination: denomination.trim(),
+        country,
+        timezone: 'Africa/Lagos',
+        communicationStyle: 'Pastoral, Warm & Faith-Filled',
+        automationPreference: automationMode,
+        ministryGoals: selectedGoals,
+        branches: branchesList,
+        preferredBibleTranslation: 'NIV',
+        preferredTone: 'Inspirational',
+        serviceDays: ['Sunday'],
+        averageAttendance: attendance ? parseInt(attendance) || 250 : 250,
       }
 
-      // Update client store state immediately
-      useChurchStore.getState().setChurch(churchData as unknown as import('@church-growth-os/shared').Church)
+      await setDoc(doc(db, 'churches', generatedChurchId, 'ai', 'profile'), {
+        ...aiProfileData,
+        updatedAt: serverTimestamp(),
+      })
+
+      // Update user document in Firestore with churchId
+      await setDoc(
+        doc(db, 'users', user.uid),
+        {
+          churchId: generatedChurchId,
+          role: 'owner',
+          subscriptionStatus: 'trial',
+          status: 'active',
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      )
+
+      // Update client Zustand store immediately
+      useChurchStore.getState().setChurch(churchData as Church)
       useAuthStore.getState().setClaims({
-        churchId,
+        churchId: generatedChurchId,
         role: 'owner',
         superAdmin: false,
       })
 
-      toast.success('🎉 Church setup complete! Welcome to Church Growth OS.')
+      toast.success('🎉 Church setup completed! Welcome to Church Growth OS.')
+
+      // Seamless transition to Dashboard — NO logout
       router.replace('/dashboard')
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Setup failed'
-      toast.error(message)
+    } catch (err: any) {
+      console.error('Setup error:', err)
+      toast.error(err.message ?? 'Setup failed. Please try again.')
     } finally {
       setSaving(false)
       setUploading(false)
     }
   }
 
-  // ── Step navigation ────────────────────────────────────────
-  const goNext = async () => {
+  const goNext = () => {
     if (currentStep === 1) {
-      const valid = await step1Form.trigger()
-      if (!valid) return
-      setSetupData((d) => ({ ...d, step1: step1Form.getValues() }))
+      if (!name.trim()) {
+        toast.error('Please enter your Church Name')
+        return
+      }
     }
-    if (currentStep === 3) {
-      const valid = await step3Form.trigger()
-      if (!valid) return
-      setSetupData((d) => ({ ...d, step3: step3Form.getValues() }))
-    }
-    if (currentStep === 4) {
-      await completeSetup()
+    if (currentStep === 5) {
+      completeSetup()
       return
     }
-    setCurrentStep((s) => Math.min(s + 1, 5))
+    setCurrentStep((s) => s + 1)
   }
 
   const goBack = () => setCurrentStep((s) => Math.max(s - 1, 1))
 
-  const currentStepData = STEPS[currentStep - 1]!
+  const currentStepInfo = STEPS[currentStep - 1]!
 
   return (
-    <div className="w-full max-w-2xl">
-      <SetupProgress currentStep={currentStep} steps={STEPS} />
+    <div className="w-full max-w-2xl mx-auto py-8 px-4">
+      {/* Step Indicator */}
+      <div className="mb-8 flex items-center justify-between">
+        {STEPS.map((step, idx) => {
+          const Icon = step.icon
+          const isDone = currentStep > step.id
+          const isCurrent = currentStep === step.id
+          return (
+            <div key={step.id} className="flex items-center gap-2">
+              <div
+                className={`flex h-9 w-9 items-center justify-center rounded-xl text-xs font-bold transition-all ${
+                  isDone
+                    ? 'bg-brand-600 text-white'
+                    : isCurrent
+                    ? 'bg-brand-500 text-white ring-4 ring-brand-500/20'
+                    : 'bg-muted text-muted-foreground'
+                }`}
+              >
+                {isDone ? <CheckCircle2 className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+              </div>
+              {idx < STEPS.length - 1 && (
+                <div
+                  className={`h-0.5 w-6 sm:w-12 transition-all ${
+                    isDone ? 'bg-brand-500' : 'bg-muted'
+                  }`}
+                />
+              )}
+            </div>
+          )
+        })}
+      </div>
 
       <AnimatePresence mode="wait">
         <motion.div
           key={currentStep}
-          initial={{ opacity: 0, x: 24 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -24 }}
-          transition={{ duration: 0.3 }}
-          className="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur-sm"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -12 }}
+          transition={{ duration: 0.2 }}
+          className="rounded-2xl border bg-card p-6 sm:p-8 shadow-sm space-y-6"
         >
-          {/* Step Header */}
-          <div className="mb-6 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-500/20 text-brand-400">
-              {currentStepData.icon && <currentStepData.icon className="h-5 w-5" />}
+          {/* Header */}
+          <div className="flex items-center gap-3 border-b pb-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-500/10 text-brand-500">
+              <currentStepInfo.icon className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-medium uppercase tracking-widest text-brand-400">
+              <p className="text-xs font-semibold uppercase tracking-wider text-brand-500">
                 Step {currentStep} of {STEPS.length}
               </p>
-              <h2 className="font-display text-xl font-bold text-white">{currentStepData.title}</h2>
+              <h2 className="font-display text-xl font-bold text-foreground">{currentStepInfo.title}</h2>
             </div>
           </div>
 
-          {/* ── Step 1: Church Profile ─────────────────────── */}
+          {/* STEP 1: Church Information */}
           {currentStep === 1 && (
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-white/80">Church Name *</label>
-                <input
-                  type="text"
-                  placeholder="Grace Fellowship Church"
-                  className="flex h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder:text-white/30 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/20"
-                  {...step1Form.register('name', { onChange: (e) => handleNameChange(e.target.value) })}
-                />
-                {step1Form.formState.errors.name && (
-                  <p className="text-xs text-red-400">{step1Form.formState.errors.name.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-white/80">
-                  Church Slug (URL) *
-                  <span className="ml-2 text-xs text-white/40">auto-generated from name</span>
-                </label>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-white/40">churchgrowth.os/</span>
-                  <input
-                    type="text"
-                    placeholder="grace-fellowship"
-                    className="flex h-11 flex-1 rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder:text-white/30 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/20"
-                    {...step1Form.register('slug')}
-                  />
-                </div>
-                {step1Form.formState.errors.slug && (
-                  <p className="text-xs text-red-400">{step1Form.formState.errors.slug.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-white/80">Church Description (optional)</label>
-                <textarea
-                  rows={3}
-                  placeholder="Briefly describe your church's vision and mission..."
-                  className="flex w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/30 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/20 resize-none"
-                  {...step1Form.register('description')}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-white/80">Country *</label>
-                  <select
-                    className="flex h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white focus:border-brand-400 focus:outline-none appearance-none"
-                    {...step1Form.register('country')}
-                  >
-                    <option value="NG" className="bg-gray-900">Nigeria</option>
-                    <option value="GH" className="bg-gray-900">Ghana</option>
-                    <option value="KE" className="bg-gray-900">Kenya</option>
-                    <option value="ZA" className="bg-gray-900">South Africa</option>
-                    <option value="UG" className="bg-gray-900">Uganda</option>
-                    <option value="TZ" className="bg-gray-900">Tanzania</option>
-                    <option value="US" className="bg-gray-900">United States</option>
-                    <option value="GB" className="bg-gray-900">United Kingdom</option>
-                    <option value="CA" className="bg-gray-900">Canada</option>
-                    <option value="AU" className="bg-gray-900">Australia</option>
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-white/80">Timezone *</label>
-                  <select
-                    className="flex h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white focus:border-brand-400 focus:outline-none appearance-none"
-                    {...step1Form.register('timezone')}
-                  >
-                    <option value="Africa/Lagos" className="bg-gray-900">Africa/Lagos (WAT)</option>
-                    <option value="Africa/Accra" className="bg-gray-900">Africa/Accra (GMT)</option>
-                    <option value="Africa/Nairobi" className="bg-gray-900">Africa/Nairobi (EAT)</option>
-                    <option value="Africa/Johannesburg" className="bg-gray-900">Africa/Johannesburg (SAST)</option>
-                    <option value="America/New_York" className="bg-gray-900">America/New_York (EST)</option>
-                    <option value="America/Los_Angeles" className="bg-gray-900">America/Los_Angeles (PST)</option>
-                    <option value="Europe/London" className="bg-gray-900">Europe/London (GMT)</option>
-                    <option value="Australia/Sydney" className="bg-gray-900">Australia/Sydney (AEST)</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── Step 2: Branding ─────────────────────────────── */}
-          {currentStep === 2 && (
-            <div className="space-y-6">
-              {/* Logo Upload */}
-              <div className="space-y-3">
-                <label className="text-sm font-medium text-white/80">Church Logo</label>
-                <div className="flex items-center gap-4">
+            <div className="space-y-4 text-xs">
+              <div>
+                <label className="font-semibold">Church Logo (Optional)</label>
+                <div className="mt-1 flex items-center gap-4">
                   {logoPreview ? (
                     <div className="relative">
-                      <img
-                        src={logoPreview}
-                        alt="Logo preview"
-                        className="h-20 w-20 rounded-xl object-cover ring-2 ring-brand-400"
-                      />
+                      <img src={logoPreview} alt="Logo" className="h-16 w-16 rounded-xl object-contain border bg-background p-1" />
                       <button
                         type="button"
                         onClick={() => { setLogoFile(null); setLogoPreview(null) }}
-                        className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white"
+                        className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-white"
                       >
                         <X className="h-3 w-3" />
                       </button>
                     </div>
                   ) : (
-                    <div className="flex h-20 w-20 items-center justify-center rounded-xl border-2 border-dashed border-white/20 bg-white/5">
-                      <Upload className="h-6 w-6 text-white/30" />
-                    </div>
-                  )}
-                  <div>
-                    <label
-                      htmlFor="logo-upload"
-                      className="cursor-pointer inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm text-white/80 hover:bg-white/10 transition-colors"
-                    >
-                      <Upload className="h-4 w-4" />
-                      {logoPreview ? 'Change logo' : 'Upload logo'}
+                    <label className="flex h-16 w-16 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed bg-muted/20 hover:bg-muted/40 transition-colors">
+                      <Upload className="h-5 w-5 text-muted-foreground" />
+                      <input type="file" accept="image/*" className="hidden" onChange={handleLogoSelect} />
                     </label>
-                    <input
-                      id="logo-upload"
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,image/svg+xml"
-                      className="hidden"
-                      onChange={handleLogoSelect}
-                    />
-                    <p className="mt-1 text-xs text-white/40">PNG, JPG, WebP, SVG — max 5 MB</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Brand Colors */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-white/80">Primary Color</label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="color"
-                      value={setupData.step2.primaryColor}
-                      onChange={(e) =>
-                        setSetupData((d) => ({
-                          ...d,
-                          step2: { ...d.step2, primaryColor: e.target.value },
-                        }))
-                      }
-                      className="h-11 w-14 cursor-pointer rounded-lg border border-white/10 bg-transparent p-1"
-                    />
-                    <input
-                      type="text"
-                      value={setupData.step2.primaryColor}
-                      onChange={(e) =>
-                        setSetupData((d) => ({
-                          ...d,
-                          step2: { ...d.step2, primaryColor: e.target.value },
-                        }))
-                      }
-                      className="flex h-11 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-white focus:outline-none"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-white/80">Secondary Color</label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="color"
-                      value={setupData.step2.secondaryColor}
-                      onChange={(e) =>
-                        setSetupData((d) => ({
-                          ...d,
-                          step2: { ...d.step2, secondaryColor: e.target.value },
-                        }))
-                      }
-                      className="h-11 w-14 cursor-pointer rounded-lg border border-white/10 bg-transparent p-1"
-                    />
-                    <input
-                      type="text"
-                      value={setupData.step2.secondaryColor}
-                      onChange={(e) =>
-                        setSetupData((d) => ({
-                          ...d,
-                          step2: { ...d.step2, secondaryColor: e.target.value },
-                        }))
-                      }
-                      className="flex h-11 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-white focus:outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Preview */}
-              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                <p className="mb-3 text-xs font-medium text-white/40 uppercase tracking-wider">Brand Preview</p>
-                <div className="flex items-center gap-3">
-                  {logoPreview && (
-                    <img src={logoPreview} alt="logo" className="h-10 w-10 rounded-lg object-cover" />
                   )}
-                  <div
-                    className="flex-1 rounded-lg px-4 py-2 text-sm font-semibold text-white text-center"
-                    style={{ background: `linear-gradient(135deg, ${setupData.step2.primaryColor}, ${setupData.step2.secondaryColor})` }}
+                  <p className="text-[11px] text-muted-foreground">Upload your high-res church emblem or logo.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="font-semibold">Church Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => handleNameChange(e.target.value)}
+                    placeholder="e.g. Grace Assembly International"
+                    className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3 focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold">Church Slug (URL)</label>
+                  <input
+                    type="text"
+                    value={slug}
+                    onChange={(e) => setSlug(e.target.value)}
+                    placeholder="grace-assembly"
+                    className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3 focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold">Church Official Email</label>
+                  <input
+                    type="email"
+                    value={churchEmail}
+                    onChange={(e) => setChurchEmail(e.target.value)}
+                    placeholder="info@graceassembly.org"
+                    className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3 focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold">Church Phone</label>
+                  <input
+                    type="text"
+                    value={churchPhone}
+                    onChange={(e) => setChurchPhone(e.target.value)}
+                    placeholder="+234 800 000 0000"
+                    className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3 focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div>
+                  <label className="font-semibold">Country</label>
+                  <select
+                    value={country}
+                    onChange={(e) => setCountry(e.target.value)}
+                    className="mt-1 flex h-9 w-full rounded-xl border bg-background px-2"
                   >
-                    {setupData.step1.name ?? 'Your Church Name'}
-                  </div>
+                    <option value="NG">Nigeria</option>
+                    <option value="GH">Ghana</option>
+                    <option value="KE">Kenya</option>
+                    <option value="ZA">South Africa</option>
+                    <option value="US">United States</option>
+                    <option value="GB">United Kingdom</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="font-semibold">State / Region</label>
+                  <input
+                    type="text"
+                    value={state}
+                    onChange={(e) => setState(e.target.value)}
+                    placeholder="Lagos"
+                    className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold">City</label>
+                  <input
+                    type="text"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    placeholder="Ikeja"
+                    className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold">Full Address</label>
+                <input
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="12 Praise Avenue, Off Commercial Way"
+                  className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div>
+                  <label className="font-semibold">Website</label>
+                  <input
+                    type="url"
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                    placeholder="https://graceassembly.org"
+                    className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold">Denomination</label>
+                  <input
+                    type="text"
+                    value={denomination}
+                    onChange={(e) => setDenomination(e.target.value)}
+                    placeholder="e.g. Pentecostal / Evangelical"
+                    className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold">Year Founded</label>
+                  <input
+                    type="number"
+                    value={yearFounded}
+                    onChange={(e) => setYearFounded(e.target.value)}
+                    placeholder="e.g. 2012"
+                    className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+                  />
                 </div>
               </div>
             </div>
           )}
 
-          {/* ── Step 3: AI Settings ───────────────────────────── */}
+          {/* STEP 2: Leadership */}
+          {currentStep === 2 && (
+            <div className="space-y-4 text-xs">
+              <p className="text-muted-foreground">Information about your Senior Pastor &amp; Ministry Head.</p>
+              <div>
+                <label className="font-semibold">Senior Pastor Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={pastorName}
+                  onChange={(e) => setPastorName(e.target.value)}
+                  placeholder="Pastor David Okonkwo"
+                  className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3 focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="font-semibold">Pastor Direct Email</label>
+                  <input
+                    type="email"
+                    value={pastorEmail}
+                    onChange={(e) => setPastorEmail(e.target.value)}
+                    placeholder="pastor.david@graceassembly.org"
+                    className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold">Pastor Direct Phone / WhatsApp</label>
+                  <input
+                    type="text"
+                    value={pastorPhone}
+                    onChange={(e) => setPastorPhone(e.target.value)}
+                    placeholder="+234 803 000 0000"
+                    className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 3: Profile & Branches */}
           {currentStep === 3 && (
-            <div className="space-y-6">
-              {/* AI Provider */}
-              <div className="space-y-3">
-                <label className="text-sm font-medium text-white/80">AI Provider</label>
-                <div className="grid grid-cols-3 gap-3">
-                  {(
-                    [
-                      { value: 'claude', label: 'Claude', sub: 'Anthropic (Recommended)', emoji: '🧠' },
-                      { value: 'openai', label: 'GPT-4o', sub: 'OpenAI', emoji: '⚡' },
-                      { value: 'deepseek', label: 'DeepSeek', sub: 'Budget option', emoji: '🔍' },
-                    ] as const
-                  ).map((opt) => {
-                    const selected = step3Form.watch('aiProvider') === opt.value
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => step3Form.setValue('aiProvider', opt.value)}
-                        className={`rounded-xl border p-4 text-left transition-all ${
-                          selected
-                            ? 'border-brand-400 bg-brand-500/20 ring-2 ring-brand-400/30'
-                            : 'border-white/10 bg-white/5 hover:bg-white/10'
-                        }`}
-                      >
-                        <div className="text-2xl">{opt.emoji}</div>
-                        <div className="mt-2 font-semibold text-white text-sm">{opt.label}</div>
-                        <div className="text-xs text-white/50">{opt.sub}</div>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* AI Mode */}
-              <div className="space-y-3">
-                <label className="text-sm font-medium text-white/80">Automation Mode</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {(
-                    [
-                      {
-                        value: 'autonomous',
-                        label: '🤖 Autonomous',
-                        desc: 'AI acts automatically. Dashboard reports what was done.',
-                        recommended: true,
-                      },
-                      {
-                        value: 'approval',
-                        label: '✋ Approval Mode',
-                        desc: 'AI drafts content. You review and approve before sending.',
-                        recommended: false,
-                      },
-                    ] as const
-                  ).map((opt) => {
-                    const selected = step3Form.watch('aiMode') === opt.value
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => step3Form.setValue('aiMode', opt.value)}
-                        className={`rounded-xl border p-4 text-left transition-all ${
-                          selected
-                            ? 'border-brand-400 bg-brand-500/20 ring-2 ring-brand-400/30'
-                            : 'border-white/10 bg-white/5 hover:bg-white/10'
-                        }`}
-                      >
-                        <div className="font-semibold text-white text-sm">{opt.label}</div>
-                        {opt.recommended && (
-                          <span className="mt-1 inline-block rounded-full bg-brand-500/30 px-2 py-0.5 text-xs text-brand-300">
-                            Recommended
-                          </span>
-                        )}
-                        <p className="mt-2 text-xs text-white/50">{opt.desc}</p>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── Step 4: Communication Providers ──────────────── */}
-          {currentStep === 4 && (
-            <div className="space-y-4">
-              <p className="text-sm text-white/60">
-                Select your preferred providers. You can configure API keys in Settings after setup.
-              </p>
-
-              {[
-                {
-                  label: '📱 WhatsApp Provider',
-                  key: 'whatsappProvider' as const,
-                  options: [
-                    { value: 'meta_cloud', label: 'Meta Cloud API', sub: 'Official — recommended' },
-                    { value: 'ultramsg', label: 'UltraMsg', sub: 'Easy setup' },
-                    { value: 'whatsapp_business', label: 'WhatsApp Business', sub: 'For existing accounts' },
-                  ],
-                },
-                {
-                  label: '📧 Email Provider',
-                  key: 'emailProvider' as const,
-                  options: [
-                    { value: 'resend', label: 'Resend', sub: 'Modern & fast — recommended' },
-                    { value: 'mailchimp', label: 'Mailchimp', sub: 'Popular choice' },
-                    { value: 'sendgrid', label: 'SendGrid', sub: 'Enterprise grade' },
-                  ],
-                },
-                {
-                  label: '💬 SMS Provider',
-                  key: 'smsProvider' as const,
-                  options: [
-                    { value: 'termii', label: 'Termii', sub: 'Africa-focused — recommended' },
-                    { value: 'africas_talking', label: "Africa's Talking", sub: 'Multi-country Africa' },
-                    { value: 'twilio', label: 'Twilio', sub: 'Global coverage' },
-                  ],
-                },
-              ].map(({ label, key, options }) => (
-                <div key={key} className="space-y-2">
-                  <label className="text-sm font-medium text-white/80">{label}</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {options.map((opt) => {
-                      const selected = setupData.step4[key] === opt.value
-                      return (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          onClick={() =>
-                            setSetupData((d) => ({
-                              ...d,
-                              step4: { ...d.step4, [key]: opt.value },
-                            }))
-                          }
-                          className={`rounded-xl border p-3 text-left transition-all ${
-                            selected
-                              ? 'border-brand-400 bg-brand-500/20'
-                              : 'border-white/10 bg-white/5 hover:bg-white/10'
-                          }`}
-                        >
-                          <div className="text-xs font-semibold text-white">{opt.label}</div>
-                          <div className="mt-0.5 text-xs text-white/40">{opt.sub}</div>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* ── Step 5: Done! ────────────────────────────────── */}
-          {currentStep === 5 && (
-            <div className="py-6 text-center space-y-4">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-brand-500/20">
-                <CheckCircle2 className="h-8 w-8 text-brand-400" />
+            <div className="space-y-4 text-xs">
+              <div>
+                <label className="font-semibold">Mission Statement</label>
+                <textarea
+                  rows={2}
+                  value={mission}
+                  onChange={(e) => setMission(e.target.value)}
+                  placeholder="To raise a global community of believer champions..."
+                  className="mt-1 flex w-full rounded-xl border bg-background px-3 py-2 resize-none"
+                />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-white">You&apos;re all set!</h3>
-                <p className="mt-2 text-sm text-white/60">
-                  Your church profile has been created. The AI is already working in the background.
-                </p>
+                <label className="font-semibold">Vision Statement</label>
+                <textarea
+                  rows={2}
+                  value={vision}
+                  onChange={(e) => setVision(e.target.value)}
+                  placeholder="Empowering lives through the Gospel of Christ..."
+                  className="mt-1 flex w-full rounded-xl border bg-background px-3 py-2 resize-none"
+                />
               </div>
-              <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-left space-y-2">
-                <div className="flex items-center gap-2 text-sm text-white/70">
-                  <CheckCircle2 className="h-4 w-4 text-brand-400 shrink-0" />
-                  <span>Church profile saved to Firestore</span>
+              <div>
+                <label className="font-semibold">Church Overview / Description</label>
+                <textarea
+                  rows={2}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="A vibrant, multicultural church dedicated to holistic discipleship..."
+                  className="mt-1 flex w-full rounded-xl border bg-background px-3 py-2 resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold">Average Weekly Attendance</label>
+                <select
+                  value={attendance}
+                  onChange={(e) => setAttendance(e.target.value)}
+                  className="mt-1 flex h-9 w-full rounded-xl border bg-background px-2"
+                >
+                  <option value="50">Under 100 Members</option>
+                  <option value="250">100 – 500 Members</option>
+                  <option value="750">500 – 1,000 Members</option>
+                  <option value="2500">1,000 – 5,000 Members</option>
+                  <option value="10000">5,000+ Members</option>
+                </select>
+              </div>
+
+              {/* Branch Setup */}
+              <div className="rounded-xl border bg-muted/20 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-foreground">Do you have satellite campuses / branches?</span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setHasBranches(true)}
+                      className={`h-7 px-3 rounded-lg text-xs font-semibold ${
+                        hasBranches ? 'bg-brand-600 text-white' : 'border bg-background'
+                      }`}
+                    >
+                      YES
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setHasBranches(false)}
+                      className={`h-7 px-3 rounded-lg text-xs font-semibold ${
+                        !hasBranches ? 'bg-brand-600 text-white' : 'border bg-background'
+                      }`}
+                    >
+                      NO
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-white/70">
-                  <CheckCircle2 className="h-4 w-4 text-brand-400 shrink-0" />
-                  <span>AI Engine activated in {setupData.step3.aiMode ?? 'autonomous'} mode</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-white/70">
-                  <CheckCircle2 className="h-4 w-4 text-brand-400 shrink-0" />
-                  <span>Communication providers configured</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-white/60">
-                  <Brain className="h-4 w-4 text-yellow-400 shrink-0" />
-                  <span>Add your API keys in Settings to enable sending</span>
-                </div>
+
+                {hasBranches && (
+                  <div className="space-y-3 pt-2 border-t border-border">
+                    <p className="font-semibold text-brand-500">First Satellite Branch Setup</p>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                      <input
+                        type="text"
+                        placeholder="Branch Name (e.g. Lekki Campus)"
+                        value={branchName}
+                        onChange={(e) => setBranchName(e.target.value)}
+                        className="flex h-9 rounded-xl border bg-background px-3"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Branch Address"
+                        value={branchAddress}
+                        onChange={(e) => setBranchAddress(e.target.value)}
+                        className="flex h-9 rounded-xl border bg-background px-3"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Resident Pastor Name"
+                        value={branchPastor}
+                        onChange={(e) => setBranchPastor(e.target.value)}
+                        className="flex h-9 rounded-xl border bg-background px-3"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
-          {/* ── Navigation Buttons ────────────────────────────── */}
-          <div className="mt-8 flex items-center justify-between">
+          {/* STEP 4: Ministry Goals */}
+          {currentStep === 4 && (
+            <div className="space-y-4 text-xs">
+              <div>
+                <h3 className="font-display text-sm font-bold text-foreground">
+                  What would you like Church Growth OS to help you achieve?
+                </h3>
+                <p className="text-muted-foreground mt-0.5">
+                  Select all that apply. Your choices personalize AI automation and workflow recommendations.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                {GOALS_LIST.map((goal) => {
+                  const selected = selectedGoals.includes(goal.id)
+                  return (
+                    <button
+                      key={goal.id}
+                      type="button"
+                      onClick={() => toggleGoal(goal.id)}
+                      className={`flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${
+                        selected
+                          ? 'border-brand-500 bg-brand-500/10 text-foreground ring-1 ring-brand-500/30'
+                          : 'border-border bg-background hover:bg-accent'
+                      }`}
+                    >
+                      <div
+                        className={`flex h-4 w-4 mt-0.5 shrink-0 items-center justify-center rounded-md border ${
+                          selected ? 'bg-brand-600 border-brand-600 text-white' : 'border-input'
+                        }`}
+                      >
+                        {selected && <CheckCircle2 className="h-3 w-3" />}
+                      </div>
+                      <div>
+                        <p className="font-bold text-foreground">{goal.label}</p>
+                        <p className="text-[10px] text-muted-foreground leading-tight">{goal.desc}</p>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* STEP 5: Automation Preference */}
+          {currentStep === 5 && (
+            <div className="space-y-4 text-xs">
+              <div>
+                <h3 className="font-display text-sm font-bold text-foreground">
+                  How should Church Growth OS operate?
+                </h3>
+                <p className="text-muted-foreground mt-0.5">
+                  Select your primary operational mode. You can edit this anytime in Settings.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => setAutomationMode('autonomous')}
+                  className={`rounded-2xl border p-5 text-left transition-all ${
+                    automationMode === 'autonomous'
+                      ? 'border-brand-500 bg-brand-500/10 ring-2 ring-brand-500/30'
+                      : 'border-border bg-card hover:bg-accent'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-display text-base font-bold text-foreground">🤖 Autonomous Mode</span>
+                    <span className="rounded-full bg-brand-500/20 px-2 py-0.5 text-[10px] font-bold text-brand-500">
+                      Recommended
+                    </span>
+                  </div>
+                  <p className="text-muted-foreground leading-relaxed">
+                    System automatically executes approved follow-ups, birthday greetings, and report generation 24/7.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setAutomationMode('approval')}
+                  className={`rounded-2xl border p-5 text-left transition-all ${
+                    automationMode === 'approval'
+                      ? 'border-brand-500 bg-brand-500/10 ring-2 ring-brand-500/30'
+                      : 'border-border bg-card hover:bg-accent'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-display text-base font-bold text-foreground">✋ Approval Mode</span>
+                  </div>
+                  <p className="text-muted-foreground leading-relaxed">
+                    System drafts follow-up messages and newsletters, but requires manual approval before sending.
+                  </p>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Navigation Controls */}
+          <div className="flex items-center justify-between pt-4 border-t">
             <button
               type="button"
               onClick={goBack}
-              disabled={currentStep === 1}
-              className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white/70 transition-colors hover:bg-white/10 disabled:pointer-events-none disabled:opacity-30"
+              disabled={currentStep === 1 || saving}
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border px-4 text-xs font-semibold hover:bg-accent disabled:opacity-30"
             >
-              <ArrowLeft className="h-4 w-4" />
-              Back
+              <ArrowLeft className="h-4 w-4" /> Back
             </button>
 
             <button
               type="button"
               onClick={goNext}
               disabled={saving || uploading}
-              className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-600 disabled:opacity-70"
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-5 text-xs font-semibold text-white hover:bg-brand-500 transition-colors shadow-xs disabled:opacity-50"
             >
               {saving || uploading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  {uploading ? 'Uploading...' : 'Saving...'}
-                </>
-              ) : currentStep === 4 ? (
-                <>
-                  Complete Setup
-                  <CheckCircle2 className="h-4 w-4" />
+                  {uploading ? 'Uploading Logo...' : 'Completing Setup...'}
                 </>
               ) : currentStep === 5 ? (
                 <>
-                  Go to Dashboard
-                  <ArrowRight className="h-4 w-4" />
+                  Complete Setup &amp; Open Dashboard
+                  <CheckCircle2 className="h-4 w-4" />
                 </>
               ) : (
                 <>

@@ -12,11 +12,12 @@ export type Timestamp = {
 // TENANT / CHURCH TYPES
 // ============================================================
 
-export type Plan = 'starter' | 'growth' | 'enterprise'
+export type Plan = 'free_trial' | 'starter' | 'growth' | 'enterprise'
 export type ChurchStatus = 'active' | 'suspended' | 'trial'
 
 export interface ChurchBranding {
   logoUrl?: string
+  faviconUrl?: string
   primaryColor: string
   secondaryColor: string
   timezone: string
@@ -31,12 +32,12 @@ export interface CommunicationProviderConfig {
 }
 
 export interface ChurchSettings {
-  communicationProviders: {
+  communicationProviders?: {
     whatsapp?: CommunicationProviderConfig
     email?: CommunicationProviderConfig
     sms?: CommunicationProviderConfig
   }
-  aiProvider: AIProviderType
+  aiProvider?: AIProviderType
   aiMode: AIMode
   featureFlags: Record<string, boolean>
   socialLinks?: SocialLinks
@@ -50,15 +51,58 @@ export interface SocialLinks {
   twitter?: string
   youtube?: string
   tiktok?: string
+  linkedin?: string
+  threads?: string
+  telegram?: string
+  whatsappChannel?: string
+  spotify?: string
+  applePodcast?: string
   website?: string
 }
 
+export interface ChurchBranch {
+  id: string
+  name: string
+  address: string
+  pastorName: string
+  pastorEmail?: string
+  pastorPhone?: string
+  isHQ: boolean
+  createdAt?: unknown
+}
+
+export interface ChurchAIProfile {
+  churchName: string
+  mission?: string
+  vision?: string
+  description?: string
+  denomination?: string
+  country: string
+  timezone: string
+  communicationStyle: string
+  automationPreference: AIMode
+  ministryGoals: string[]
+  branches: ChurchBranch[]
+  preferredBibleTranslation: string
+  preferredTone: string
+  serviceDays: string[]
+  averageAttendance?: number
+  updatedAt?: unknown
+}
+
 export interface ChurchSubscription {
-  planId: string
+  planId: Plan
   status: 'active' | 'trialing' | 'past_due' | 'canceled'
-  currentPeriodEnd: Timestamp
+  currentPeriodEnd?: Timestamp | unknown
   seats: number
-  trialEndsAt?: Timestamp
+  trialStart?: Timestamp | unknown
+  trialEnd?: Timestamp | unknown
+  trialEndsAt?: Timestamp | unknown
+  aiCreditsRemaining?: number
+  aiCreditsTotal?: number
+  storageUsedMb?: number
+  storageTotalMb?: number
+  branchesLimit?: number
 }
 
 export interface ChurchMetrics {
@@ -66,6 +110,13 @@ export interface ChurchMetrics {
   totalVisitors: number
   totalDonations: number
   lastUpdated: Timestamp
+}
+
+export interface SeniorPastorInfo {
+  name: string
+  email?: string
+  phone?: string
+  photoUrl?: string
 }
 
 export interface Church {
@@ -79,6 +130,22 @@ export interface Church {
   settings: ChurchSettings
   subscription: ChurchSubscription
   metrics: ChurchMetrics
+  description?: string
+  missionStatement?: string
+  visionStatement?: string
+  churchEmail?: string
+  churchPhone?: string
+  website?: string
+  address?: string
+  city?: string
+  state?: string
+  denomination?: string
+  yearFounded?: number
+  averageAttendance?: number
+  seniorPastor?: SeniorPastorInfo
+  branches?: ChurchBranch[]
+  ministryGoals?: string[]
+  socialLinks?: SocialLinks
   createdAt: Timestamp
   updatedAt: Timestamp
 }

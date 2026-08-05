@@ -17,6 +17,13 @@ import {
   Loader2,
   Save,
   Lock,
+  CreditCard,
+  Plus,
+  Trash2,
+  CheckCircle2,
+  ArrowRight,
+  HardDrive,
+  Sparkles,
 } from 'lucide-react'
 import { sendPasswordReset } from '@/lib/firebase/auth'
 
@@ -27,6 +34,7 @@ type SettingsTab =
   | 'social'
   | 'notifications'
   | 'branches'
+  | 'subscription'
   | 'preferences'
   | 'security'
 
@@ -34,9 +42,10 @@ const SETTINGS_NAV = [
   { id: 'profile' as SettingsTab, label: 'Church Profile', icon: Building2 },
   { id: 'branding' as SettingsTab, label: 'Branding & Theme', icon: Palette },
   { id: 'users' as SettingsTab, label: 'Users & Roles', icon: Users },
-  { id: 'social' as SettingsTab, label: 'Social Links', icon: Globe },
+  { id: 'social' as SettingsTab, label: 'Social Media Links', icon: Globe },
   { id: 'notifications' as SettingsTab, label: 'Notifications', icon: Bell },
   { id: 'branches' as SettingsTab, label: 'Branch Management', icon: Network },
+  { id: 'subscription' as SettingsTab, label: 'Subscription & Plan', icon: CreditCard },
   { id: 'preferences' as SettingsTab, label: 'Preferences', icon: Sliders },
   { id: 'security' as SettingsTab, label: 'Security & Password', icon: Lock },
 ]
@@ -103,7 +112,8 @@ export default function SettingsPage() {
           {activeTab === 'users' && <UsersSettingsTab church={church} />}
           {activeTab === 'social' && <SocialMediaSettingsTab church={church} setChurch={setChurch} />}
           {activeTab === 'notifications' && <NotificationSettingsTab church={church} setChurch={setChurch} />}
-          {activeTab === 'branches' && <BranchSettingsTab church={church} />}
+          {activeTab === 'branches' && <BranchSettingsTab church={church} setChurch={setChurch} />}
+          {activeTab === 'subscription' && <SubscriptionSettingsTab church={church} />}
           {activeTab === 'preferences' && <PreferencesTab church={church} setChurch={setChurch} />}
           {activeTab === 'security' && <SecuritySettingsTab user={user} />}
         </div>
@@ -112,7 +122,7 @@ export default function SettingsPage() {
   )
 }
 
-// ── 1. Profile Settings Tab ──────────────────────────────────────────────────
+// ── 1. Profile Settings Tab (Task 5: Synchronizes all setup fields) ─────────
 function ProfileSettingsTab({ church, setChurch }: { church: any; setChurch: any }) {
   const [saving, setSaving] = useState(false)
   const { register, handleSubmit } = useForm({
@@ -120,13 +130,22 @@ function ProfileSettingsTab({ church, setChurch }: { church: any; setChurch: any
       name: church.name ?? '',
       slug: church.slug ?? '',
       description: church.description ?? '',
+      missionStatement: church.missionStatement ?? '',
+      visionStatement: church.visionStatement ?? '',
       churchEmail: church.churchEmail ?? '',
       churchPhone: church.churchPhone ?? '',
+      website: church.website ?? '',
       address: church.address ?? '',
       city: church.city ?? '',
       state: church.state ?? '',
+      denomination: church.denomination ?? 'Pentecostal',
+      yearFounded: church.yearFounded ?? '',
+      averageAttendance: church.averageAttendance ?? 250,
       country: church.branding?.country ?? 'NG',
       timezone: church.branding?.timezone ?? 'Africa/Lagos',
+      seniorPastorName: church.seniorPastor?.name ?? '',
+      seniorPastorEmail: church.seniorPastor?.email ?? '',
+      seniorPastorPhone: church.seniorPastor?.phone ?? '',
     },
   })
 
@@ -138,11 +157,22 @@ function ProfileSettingsTab({ church, setChurch }: { church: any; setChurch: any
         name: data.name,
         slug: data.slug,
         description: data.description,
+        missionStatement: data.missionStatement,
+        visionStatement: data.visionStatement,
         churchEmail: data.churchEmail,
         churchPhone: data.churchPhone,
+        website: data.website,
         address: data.address,
         city: data.city,
         state: data.state,
+        denomination: data.denomination,
+        yearFounded: data.yearFounded ? parseInt(data.yearFounded) : null,
+        averageAttendance: parseInt(data.averageAttendance) || 250,
+        seniorPastor: {
+          name: data.seniorPastorName,
+          email: data.seniorPastorEmail,
+          phone: data.seniorPastorPhone,
+        },
         'branding.country': data.country,
         'branding.timezone': data.timezone,
         updatedAt: serverTimestamp(),
@@ -152,6 +182,11 @@ function ProfileSettingsTab({ church, setChurch }: { church: any; setChurch: any
       setChurch({
         ...church,
         ...data,
+        seniorPastor: {
+          name: data.seniorPastorName,
+          email: data.seniorPastorEmail,
+          phone: data.seniorPastorPhone,
+        },
         branding: { ...church.branding, country: data.country, timezone: data.timezone },
       })
       toast.success('Church profile updated successfully!')
@@ -164,46 +199,46 @@ function ProfileSettingsTab({ church, setChurch }: { church: any; setChurch: any
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-4">
-        <h2 className="font-display text-base font-bold text-foreground">Church Profile Details</h2>
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-4 text-xs">
+        <h2 className="font-display text-base font-bold text-foreground">Church Identity &amp; Contact</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-1">
-            <label className="text-xs font-medium">Church Name</label>
+            <label className="font-semibold">Church Name</label>
             <input
               type="text"
               {...register('name')}
-              className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+              className="flex h-9 w-full rounded-xl border bg-background px-3"
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium">Church Slug</label>
+            <label className="font-semibold">Church Slug (URL)</label>
             <input
               type="text"
               {...register('slug')}
-              className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+              className="flex h-9 w-full rounded-xl border bg-background px-3"
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium">Church Email</label>
+            <label className="font-semibold">Church Email</label>
             <input
               type="email"
               {...register('churchEmail')}
-              className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+              className="flex h-9 w-full rounded-xl border bg-background px-3"
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium">Church Phone</label>
+            <label className="font-semibold">Church Phone</label>
             <input
               type="text"
               {...register('churchPhone')}
-              className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+              className="flex h-9 w-full rounded-xl border bg-background px-3"
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium">Country</label>
+            <label className="font-semibold">Country</label>
             <select
               {...register('country')}
-              className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+              className="flex h-9 w-full rounded-xl border bg-background px-2"
             >
               <option value="NG">Nigeria</option>
               <option value="GH">Ghana</option>
@@ -213,10 +248,10 @@ function ProfileSettingsTab({ church, setChurch }: { church: any; setChurch: any
             </select>
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium">Timezone</label>
+            <label className="font-semibold">Timezone</label>
             <select
               {...register('timezone')}
-              className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+              className="flex h-9 w-full rounded-xl border bg-background px-2"
             >
               <option value="Africa/Lagos">Africa/Lagos (WAT)</option>
               <option value="Africa/Accra">Africa/Accra (GMT)</option>
@@ -225,20 +260,99 @@ function ProfileSettingsTab({ church, setChurch }: { church: any; setChurch: any
               <option value="Europe/London">Europe/London (GMT)</option>
             </select>
           </div>
-          <div className="sm:col-span-2 space-y-1">
-            <label className="text-xs font-medium">Address</label>
+          <div className="space-y-1">
+            <label className="font-semibold">Denomination</label>
             <input
               type="text"
-              {...register('address')}
-              className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+              {...register('denomination')}
+              className="flex h-9 w-full rounded-xl border bg-background px-3"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="font-semibold">Year Founded</label>
+            <input
+              type="number"
+              {...register('yearFounded')}
+              className="flex h-9 w-full rounded-xl border bg-background px-3"
             />
           </div>
           <div className="sm:col-span-2 space-y-1">
-            <label className="text-xs font-medium">Mission & Description</label>
+            <label className="font-semibold">Address</label>
+            <input
+              type="text"
+              {...register('address')}
+              className="flex h-9 w-full rounded-xl border bg-background px-3"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="font-semibold">City</label>
+            <input
+              type="text"
+              {...register('city')}
+              className="flex h-9 w-full rounded-xl border bg-background px-3"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="font-semibold">State / Region</label>
+            <input
+              type="text"
+              {...register('state')}
+              className="flex h-9 w-full rounded-xl border bg-background px-3"
+            />
+          </div>
+        </div>
+
+        <h3 className="font-display text-sm font-bold text-foreground border-t pt-4">Leadership &amp; Vision</h3>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="space-y-1">
+            <label className="font-semibold">Senior Pastor Name</label>
+            <input
+              type="text"
+              {...register('seniorPastorName')}
+              className="flex h-9 w-full rounded-xl border bg-background px-3"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="font-semibold">Pastor Email</label>
+            <input
+              type="email"
+              {...register('seniorPastorEmail')}
+              className="flex h-9 w-full rounded-xl border bg-background px-3"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="font-semibold">Pastor Phone</label>
+            <input
+              type="text"
+              {...register('seniorPastorPhone')}
+              className="flex h-9 w-full rounded-xl border bg-background px-3"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <label className="font-semibold">Mission Statement</label>
             <textarea
-              rows={3}
+              rows={2}
+              {...register('missionStatement')}
+              className="mt-1 flex w-full rounded-xl border bg-background px-3 py-2 resize-none"
+            />
+          </div>
+          <div>
+            <label className="font-semibold">Vision Statement</label>
+            <textarea
+              rows={2}
+              {...register('visionStatement')}
+              className="mt-1 flex w-full rounded-xl border bg-background px-3 py-2 resize-none"
+            />
+          </div>
+          <div>
+            <label className="font-semibold">Church Description</label>
+            <textarea
+              rows={2}
               {...register('description')}
-              className="flex w-full rounded-xl border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+              className="mt-1 flex w-full rounded-xl border bg-background px-3 py-2 resize-none"
             />
           </div>
         </div>
@@ -290,9 +404,9 @@ function BrandingSettingsTab({ church, setChurch }: { church: any; setChurch: an
     <form onSubmit={handleSave} className="space-y-6">
       <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-4">
         <h2 className="font-display text-base font-bold text-foreground">Theme Colors</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-xs">
           <div>
-            <label className="text-xs font-medium">Primary Brand Color</label>
+            <label className="font-semibold">Primary Brand Color</label>
             <div className="flex items-center gap-3 mt-1">
               <input
                 type="color"
@@ -310,7 +424,7 @@ function BrandingSettingsTab({ church, setChurch }: { church: any; setChurch: an
           </div>
 
           <div>
-            <label className="text-xs font-medium">Secondary Accent Color</label>
+            <label className="font-semibold">Secondary Accent Color</label>
             <div className="flex items-center gap-3 mt-1">
               <input
                 type="color"
@@ -363,23 +477,48 @@ function UsersSettingsTab({ church }: { church: any }) {
   )
 }
 
-// ── 4. Social Links Tab ───────────────────────────────────────────────────────
+// ── 4. Social Links Tab (Task 6: Expanded 12 Supported Platforms) ─────────────
 function SocialMediaSettingsTab({ church, setChurch }: { church: any; setChurch: any }) {
   const [saving, setSaving] = useState(false)
-  const [facebook, setFacebook] = useState(church.socialLinks?.facebook ?? '')
-  const [instagram, setInstagram] = useState(church.socialLinks?.instagram ?? '')
-  const [youtube, setYoutube] = useState(church.socialLinks?.youtube ?? '')
+  const links = church.socialLinks ?? {}
+
+  const [facebook, setFacebook] = useState(links.facebook ?? '')
+  const [instagram, setInstagram] = useState(links.instagram ?? '')
+  const [youtube, setYoutube] = useState(links.youtube ?? '')
+  const [tiktok, setTiktok] = useState(links.tiktok ?? '')
+  const [linkedin, setLinkedin] = useState(links.linkedin ?? '')
+  const [twitter, setTwitter] = useState(links.twitter ?? '')
+  const [threads, setThreads] = useState(links.threads ?? '')
+  const [telegram, setTelegram] = useState(links.telegram ?? '')
+  const [whatsappChannel, setWhatsappChannel] = useState(links.whatsappChannel ?? '')
+  const [spotify, setSpotify] = useState(links.spotify ?? '')
+  const [applePodcast, setApplePodcast] = useState(links.applePodcast ?? '')
+  const [website, setWebsite] = useState(links.website ?? church.website ?? '')
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
     try {
+      const socialLinksPayload = {
+        facebook,
+        instagram,
+        youtube,
+        tiktok,
+        linkedin,
+        twitter,
+        threads,
+        telegram,
+        whatsappChannel,
+        spotify,
+        applePodcast,
+        website,
+      }
       await updateDoc(doc(db, 'churches', church.id), {
-        socialLinks: { facebook, instagram, youtube },
+        socialLinks: socialLinksPayload,
         updatedAt: serverTimestamp(),
       })
-      setChurch({ ...church, socialLinks: { facebook, instagram, youtube } })
-      toast.success('Social media links updated!')
+      setChurch({ ...church, socialLinks: socialLinksPayload })
+      toast.success('All 12 Social media channels saved to Firestore!')
     } catch {
       toast.error('Failed to update social links.')
     } finally {
@@ -390,10 +529,10 @@ function SocialMediaSettingsTab({ church, setChurch }: { church: any; setChurch:
   return (
     <form onSubmit={handleSave} className="space-y-6">
       <div className="rounded-2xl border bg-card p-6 shadow-xs space-y-4 text-xs">
-        <h2 className="font-display text-base font-bold text-foreground">Ministry Social Profiles</h2>
-        <div className="space-y-3">
+        <h2 className="font-display text-base font-bold text-foreground">12 Ministry Social &amp; Media Channels</h2>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
-            <label className="font-semibold">Facebook Page URL</label>
+            <label className="font-semibold">Facebook Page</label>
             <input
               type="url"
               placeholder="https://facebook.com/mychurch"
@@ -413,12 +552,102 @@ function SocialMediaSettingsTab({ church, setChurch }: { church: any; setChurch:
             />
           </div>
           <div>
-            <label className="font-semibold">YouTube Channel URL</label>
+            <label className="font-semibold">YouTube Channel</label>
             <input
               type="url"
               placeholder="https://youtube.com/@mychurch"
               value={youtube}
               onChange={(e) => setYoutube(e.target.value)}
+              className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+            />
+          </div>
+          <div>
+            <label className="font-semibold">TikTok Profile</label>
+            <input
+              type="url"
+              placeholder="https://tiktok.com/@mychurch"
+              value={tiktok}
+              onChange={(e) => setTiktok(e.target.value)}
+              className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+            />
+          </div>
+          <div>
+            <label className="font-semibold">LinkedIn Page</label>
+            <input
+              type="url"
+              placeholder="https://linkedin.com/company/mychurch"
+              value={linkedin}
+              onChange={(e) => setLinkedin(e.target.value)}
+              className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+            />
+          </div>
+          <div>
+            <label className="font-semibold">X / Twitter</label>
+            <input
+              type="url"
+              placeholder="https://x.com/mychurch"
+              value={twitter}
+              onChange={(e) => setTwitter(e.target.value)}
+              className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+            />
+          </div>
+          <div>
+            <label className="font-semibold">Threads</label>
+            <input
+              type="url"
+              placeholder="https://threads.net/@mychurch"
+              value={threads}
+              onChange={(e) => setThreads(e.target.value)}
+              className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+            />
+          </div>
+          <div>
+            <label className="font-semibold">Telegram Channel / Group</label>
+            <input
+              type="url"
+              placeholder="https://t.me/mychurch"
+              value={telegram}
+              onChange={(e) => setTelegram(e.target.value)}
+              className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+            />
+          </div>
+          <div>
+            <label className="font-semibold">WhatsApp Channel</label>
+            <input
+              type="url"
+              placeholder="https://whatsapp.com/channel/..."
+              value={whatsappChannel}
+              onChange={(e) => setWhatsappChannel(e.target.value)}
+              className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+            />
+          </div>
+          <div>
+            <label className="font-semibold">Spotify Podcast Show</label>
+            <input
+              type="url"
+              placeholder="https://open.spotify.com/show/..."
+              value={spotify}
+              onChange={(e) => setSpotify(e.target.value)}
+              className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+            />
+          </div>
+          <div>
+            <label className="font-semibold">Apple Podcast</label>
+            <input
+              type="url"
+              placeholder="https://podcasts.apple.com/..."
+              value={applePodcast}
+              onChange={(e) => setApplePodcast(e.target.value)}
+              className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+            />
+          </div>
+          <div>
+            <label className="font-semibold">Official Website</label>
+            <input
+              type="url"
+              placeholder="https://mychurch.org"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
               className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
             />
           </div>
@@ -431,7 +660,7 @@ function SocialMediaSettingsTab({ church, setChurch }: { church: any; setChurch:
             className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-4 font-semibold text-white hover:bg-brand-500 disabled:opacity-50"
           >
             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-            Save Social Links
+            Save Social Media Links
           </button>
         </div>
       </div>
@@ -481,20 +710,134 @@ function NotificationSettingsTab({ church, setChurch }: { church: any; setChurch
 }
 
 // ── 6. Branch Management Tab ──────────────────────────────────────────────────
-function BranchSettingsTab({ church }: { church: any }) {
+function BranchSettingsTab({ church, setChurch }: { church: any; setChurch: any }) {
+  const branches = church.branches ?? []
+  const [newBranchName, setNewBranchName] = useState('')
+  const [newBranchAddr, setNewBranchAddr] = useState('')
+  const [newBranchPastor, setNewBranchPastor] = useState('')
+  const [adding, setAdding] = useState(false)
+
+  const handleAddBranch = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newBranchName.trim()) return
+    setAdding(true)
+    try {
+      const newBranch = {
+        id: `branch-${Date.now()}`,
+        name: newBranchName.trim(),
+        address: newBranchAddr.trim(),
+        pastorName: newBranchPastor.trim(),
+        isHQ: false,
+      }
+      const updatedBranches = [...branches, newBranch]
+      await updateDoc(doc(db, 'churches', church.id), {
+        branches: updatedBranches,
+        updatedAt: serverTimestamp(),
+      })
+      setChurch({ ...church, branches: updatedBranches })
+      toast.success(`Branch "${newBranchName}" created!`)
+      setNewBranchName('')
+      setNewBranchAddr('')
+      setNewBranchPastor('')
+    } catch {
+      toast.error('Failed to add branch.')
+    } finally {
+      setAdding(false)
+    }
+  }
+
   return (
     <div className="rounded-2xl border bg-card p-6 shadow-xs space-y-4 text-xs">
-      <h2 className="font-display text-base font-bold text-foreground">Branch &amp; Satellite Campuses</h2>
-      <p className="text-muted-foreground">Main Campus: <strong className="text-foreground">{church.name} (HQ)</strong></p>
-      <div className="rounded-xl border bg-muted/20 p-4">
-        <p className="font-semibold text-foreground">Multi-Branch Architecture</p>
-        <p className="text-muted-foreground mt-1">To add satellite campuses or secondary branches under {church.name}, contact platform support.</p>
+      <h2 className="font-display text-base font-bold text-foreground">Satellite Campuses &amp; Branches</h2>
+      <div className="space-y-3">
+        {branches.map((b: any) => (
+          <div key={b.id} className="flex items-center justify-between rounded-xl border p-3 bg-muted/10">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-foreground">{b.name}</span>
+                {b.isHQ && <span className="rounded-full bg-brand-500/20 px-2 py-0.5 text-[10px] font-bold text-brand-500">HQ</span>}
+              </div>
+              <p className="text-muted-foreground text-[11px] mt-0.5">{b.address} • Pastor: {b.pastorName || 'Unassigned'}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <form onSubmit={handleAddBranch} className="rounded-xl border bg-muted/20 p-4 space-y-3 pt-4 border-t">
+        <p className="font-bold text-foreground">Add New Satellite Branch</p>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <input
+            type="text"
+            required
+            placeholder="Branch Name *"
+            value={newBranchName}
+            onChange={(e) => setNewBranchName(e.target.value)}
+            className="flex h-9 rounded-xl border bg-background px-3"
+          />
+          <input
+            type="text"
+            placeholder="Address"
+            value={newBranchAddr}
+            onChange={(e) => setNewBranchAddr(e.target.value)}
+            className="flex h-9 rounded-xl border bg-background px-3"
+          />
+          <input
+            type="text"
+            placeholder="Resident Pastor Name"
+            value={newBranchPastor}
+            onChange={(e) => setNewBranchPastor(e.target.value)}
+            className="flex h-9 rounded-xl border bg-background px-3"
+          />
+        </div>
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            disabled={adding}
+            className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-brand-600 px-3 font-semibold text-white hover:bg-brand-500"
+          >
+            {adding ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+            Add Campus Branch
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+// ── 7. Subscription Tab (Task 11 Requirement) ────────────────────────────────
+function SubscriptionSettingsTab({ church }: { church: any }) {
+  const isTrial = church.subscription?.planId === 'free_trial' || church.subscription?.status === 'trialing'
+  const planName = isTrial ? '14-Day Free Trial' : (church.subscription?.planId?.toUpperCase() ?? 'FREE TRIAL')
+
+  return (
+    <div className="rounded-2xl border bg-card p-6 shadow-xs space-y-4 text-xs">
+      <h2 className="font-display text-base font-bold text-foreground flex items-center gap-2">
+        <CreditCard className="h-4 w-4 text-brand-500" />
+        Current SaaS Subscription
+      </h2>
+
+      <div className="rounded-xl border bg-muted/20 p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-bold text-foreground text-sm">{planName}</p>
+            <p className="text-muted-foreground text-[11px]">
+              Status: <span className="text-emerald-500 font-bold capitalize">{church.subscription?.status ?? 'active'}</span>
+            </p>
+          </div>
+          <a
+            href="/pricing"
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-4 font-semibold text-white hover:bg-brand-500 shadow-xs"
+          >
+            <span>Upgrade Plan</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </a>
+        </div>
       </div>
     </div>
   )
 }
 
-// ── 7. Preferences Tab ────────────────────────────────────────────────────────
+// ── 8. Preferences Tab ────────────────────────────────────────────────────────
 function PreferencesTab({ church, setChurch }: { church: any; setChurch: any }) {
   return (
     <div className="rounded-2xl border bg-card p-6 shadow-xs space-y-4 text-xs">
@@ -505,8 +848,8 @@ function PreferencesTab({ church, setChurch }: { church: any; setChurch: any }) 
           <span className="font-bold text-foreground">NGN (₦)</span>
         </div>
         <div className="flex justify-between border-b pb-2">
-          <span className="text-muted-foreground">Multi-Tenant Isolation</span>
-          <span className="font-bold text-emerald-500">Strict Multi-Tenant</span>
+          <span className="text-muted-foreground">Automation Operating Mode</span>
+          <span className="font-bold text-brand-500 capitalize">{church.settings?.aiMode ?? 'autonomous'}</span>
         </div>
         <div className="flex justify-between pb-2">
           <span className="text-muted-foreground">Platform Engine</span>
@@ -517,7 +860,7 @@ function PreferencesTab({ church, setChurch }: { church: any; setChurch: any }) 
   )
 }
 
-// ── 8. Security Tab ───────────────────────────────────────────────────────────
+// ── 9. Security Tab ───────────────────────────────────────────────────────────
 function SecuritySettingsTab({ user }: { user: any }) {
   const [sending, setSending] = useState(false)
 
