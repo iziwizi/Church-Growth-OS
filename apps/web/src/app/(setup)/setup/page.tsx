@@ -245,14 +245,27 @@ export default function SetupWizardPage() {
         },
       }
 
-      // Write church document to Firestore
+      // 1. Write church document to Firestore
       await setDoc(doc(db, 'churches', generatedChurchId), {
         ...churchData,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       })
 
-      // Write AI Profile to Firestore: churches/{churchId}/ai/profile (Task 4 requirement)
+      // 2. Update user document in Firestore with churchId immediately
+      await setDoc(
+        doc(db, 'users', user.uid),
+        {
+          churchId: generatedChurchId,
+          role: 'owner',
+          subscriptionStatus: 'trial',
+          status: 'active',
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      )
+
+      // 3. Write AI Profile to Firestore: churches/{churchId}/ai/profile (Task 4 requirement)
       const aiProfileData: ChurchAIProfile = {
         churchName: name.trim(),
         mission: mission.trim(),
@@ -275,19 +288,6 @@ export default function SetupWizardPage() {
         ...aiProfileData,
         updatedAt: serverTimestamp(),
       })
-
-      // Update user document in Firestore with churchId
-      await setDoc(
-        doc(db, 'users', user.uid),
-        {
-          churchId: generatedChurchId,
-          role: 'owner',
-          subscriptionStatus: 'trial',
-          status: 'active',
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      )
 
       // Update client Zustand store immediately
       useChurchStore.getState().setChurch(churchData as Church)

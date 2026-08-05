@@ -49,12 +49,21 @@ function LoginForm() {
 
   return (
     <div className="rounded-2xl border bg-card p-8 shadow-sm">
-      {/* Header */}
-      <div className="mb-8 space-y-1.5 text-center">
-        <h1 className="font-display text-2xl font-bold text-foreground">Welcome back</h1>
-        <p className="text-sm text-muted-foreground">
-          Sign in to your Church Growth OS account
-        </p>
+      {/* Header with Centered Rounded Logo */}
+      <div className="mb-6 text-center space-y-3">
+        <div className="flex justify-center">
+          <img
+            src="/logo.png"
+            alt="Church Growth OS"
+            className="h-12 w-auto object-contain rounded-lg shadow-2xs border bg-background p-1"
+          />
+        </div>
+        <div>
+          <h1 className="font-display text-2xl font-bold text-foreground">Welcome back</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Sign in to your Church Growth OS account
+          </p>
+        </div>
       </div>
 
       {/* Form */}

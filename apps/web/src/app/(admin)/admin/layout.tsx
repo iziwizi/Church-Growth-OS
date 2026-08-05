@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { useAuthStore } from '@/store'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -10,19 +11,30 @@ import {
   Cpu,
   BellRing,
   Activity,
-  LogOut,
   ArrowLeft,
   Loader2,
+  CreditCard,
+  HelpCircle,
+  BarChart3,
+  Server,
 } from 'lucide-react'
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, isSuperAdmin, role, isInitialized } = useAuthStore()
   const router = useRouter()
+  const [timedOut, setTimedOut] = useState(false)
 
-  if (!isInitialized) {
+  // Safety Timeout: Never spin forever if Auth initialization takes longer than 2.5s
+  useEffect(() => {
+    const timer = setTimeout(() => setTimedOut(true), 2500)
+    return () => clearTimeout(timer)
+  }, [])
+
+  if (!isInitialized && !timedOut) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <Loader2 className="h-6 w-6 animate-spin text-brand-500" />
+      <div className="flex h-screen items-center justify-center bg-background flex-col gap-3">
+        <Loader2 className="h-7 w-7 animate-spin text-brand-600" />
+        <p className="text-xs font-semibold text-muted-foreground">Authenticating Super Admin Portal...</p>
       </div>
     )
   }
@@ -42,10 +54,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </p>
         <button
           type="button"
-          onClick={() => router.replace('/dashboard')}
+          onClick={() => router.replace(user ? '/dashboard' : '/login')}
           className="inline-flex h-9 items-center gap-2 rounded-xl bg-brand-600 px-4 text-xs font-semibold text-white hover:bg-brand-500"
         >
-          <ArrowLeft className="h-4 w-4" /> Return to Church Dashboard
+          <ArrowLeft className="h-4 w-4" /> {user ? 'Return to Church Dashboard' : 'Go to Sign In'}
         </button>
       </div>
     )
@@ -57,7 +69,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <aside className="w-64 border-r border-border bg-card p-4 flex flex-col justify-between hidden md:flex">
         <div className="space-y-6">
           <div className="flex items-center gap-2 px-2">
-            <Image src="/logo.png" alt="Logo" width={140} height={36} className="h-8 w-auto object-contain" />
+            <Image
+              src="/logo.png"
+              alt="Church Growth OS"
+              width={140}
+              height={36}
+              className="h-8 w-auto object-contain rounded-lg"
+            />
           </div>
 
           <div className="rounded-xl border border-brand-500/20 bg-brand-500/10 p-3 text-xs space-y-1">
@@ -65,7 +83,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <ShieldCheck className="h-4 w-4" />
               <span>Super Admin Portal</span>
             </div>
-            <p className="text-[11px] text-muted-foreground">Platform Operator Mode</p>
+            <p className="text-[11px] text-muted-foreground">MUJTEKNIFY Operator Control</p>
           </div>
 
           <nav className="space-y-1">
@@ -73,7 +91,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               href="/admin"
               className="flex h-9 items-center gap-3 rounded-xl px-3 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-foreground"
             >
-              <Activity className="h-4 w-4 text-brand-500" /> Platform Overview
+              <Activity className="h-4 w-4 text-brand-500" /> Overview
             </Link>
             <Link
               href="/admin/churches"
@@ -85,7 +103,31 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               href="/admin/infrastructure"
               className="flex h-9 items-center gap-3 rounded-xl px-3 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-foreground"
             >
-              <Cpu className="h-4 w-4 text-brand-500" /> Infrastructure & APIs
+              <Cpu className="h-4 w-4 text-brand-500" /> Infrastructure &amp; APIs
+            </Link>
+            <Link
+              href="/admin/billing"
+              className="flex h-9 items-center gap-3 rounded-xl px-3 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              <CreditCard className="h-4 w-4 text-brand-500" /> Subscriptions &amp; Billing
+            </Link>
+            <Link
+              href="/admin/support"
+              className="flex h-9 items-center gap-3 rounded-xl px-3 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              <HelpCircle className="h-4 w-4 text-brand-500" /> Support Desk
+            </Link>
+            <Link
+              href="/admin/platform-health"
+              className="flex h-9 items-center gap-3 rounded-xl px-3 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              <Server className="h-4 w-4 text-brand-500" /> Platform Health
+            </Link>
+            <Link
+              href="/admin/analytics"
+              className="flex h-9 items-center gap-3 rounded-xl px-3 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              <BarChart3 className="h-4 w-4 text-brand-500" /> Telemetry &amp; Analytics
             </Link>
             <Link
               href="/admin/notices"

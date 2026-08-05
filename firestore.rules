@@ -190,7 +190,7 @@ service cloud.firestore {
         allow write: if isChurchOwnerOrAdmin(churchId);
       }
 
-      // ── Subcollection: Audit Logs (Read-only for owners, server writes) ──
+      // ── Subcollection: Audit Logs ─────────────────────────────────────────
       match /auditLogs/{logId} {
         allow read: if isChurchOwnerOrAdmin(churchId);
         allow write: if false; // Cloud Functions / Admin SDK only
@@ -214,7 +214,17 @@ service cloud.firestore {
         allow delete: if isChurchOwnerOrAdmin(churchId);
       }
 
-      // ── Subcollection: AI Generated Content ──────────────────────────────
+      // ── Subcollection: AI Generated Content & Profiles ────────────────────
+      match /ai/{aiId} {
+        allow read, create, update: if isChurchMember(churchId);
+        allow delete: if isChurchOwnerOrAdmin(churchId);
+      }
+
+      match /aiProfile/{aiId} {
+        allow read, create, update: if isChurchMember(churchId);
+        allow delete: if isChurchOwnerOrAdmin(churchId);
+      }
+
       match /aiContent/{contentId} {
         allow read, create, update: if isChurchMember(churchId);
         allow delete: if isChurchOwnerOrAdmin(churchId);
@@ -224,6 +234,18 @@ service cloud.firestore {
       match /supportTickets/{ticketId} {
         allow read, create, update: if isChurchMember(churchId);
         allow delete: if isChurchOwnerOrAdmin(churchId);
+      }
+
+      // ── Subcollection: Satellite Branches ─────────────────────────────────
+      match /branches/{branchId} {
+        allow read, create, update: if isChurchMember(churchId);
+        allow delete: if isChurchOwnerOrAdmin(churchId);
+      }
+
+      // ── Subcollection: Subscriptions ──────────────────────────────────────
+      match /subscription/{subId} {
+        allow read: if isChurchMember(churchId);
+        allow write: if isChurchOwnerOrAdmin(churchId);
       }
     }
 
@@ -242,11 +264,12 @@ service cloud.firestore {
     }
 
     // ============================================================================
-    // SYSTEM INFRASTRUCTURE SECRETS (/system/infrastructure)
+    // SYSTEM INFRASTRUCTURE & PRICING SECRETS (/system/infrastructure, /system/pricing)
     // ============================================================================
 
     match /system/{document=**} {
-      allow read, write: if isAuthenticated() && (
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && (
         isSuperAdmin() ||
         request.auth.token.role == 'super_admin' ||
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin'

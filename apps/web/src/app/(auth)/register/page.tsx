@@ -53,14 +53,20 @@ function RegisterForm() {
 
   return (
     <div className="rounded-2xl border bg-card p-8 shadow-sm">
-      <div className="mb-8 text-center">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-100 dark:bg-brand-900/30">
-          <Church className="h-6 w-6 text-brand-600" />
+      <div className="mb-6 text-center space-y-3">
+        <div className="flex justify-center">
+          <img
+            src="/logo.png"
+            alt="Church Growth OS"
+            className="h-12 w-auto object-contain rounded-lg shadow-2xs border bg-background p-1"
+          />
         </div>
-        <h1 className="font-display text-2xl font-bold text-foreground">Create your church account</h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          Start your Church Growth OS journey — free for 30 days.
-        </p>
+        <div>
+          <h1 className="font-display text-2xl font-bold text-foreground">Create your church account</h1>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Start your Church Growth OS journey — 14 days free trial.
+          </p>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

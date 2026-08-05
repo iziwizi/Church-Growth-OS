@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
   Check,
@@ -11,11 +11,14 @@ import {
   Sparkles,
   ArrowRight,
   HelpCircle,
+  Loader2,
 } from 'lucide-react'
+import { doc, getDoc } from 'firebase/firestore'
+import { db } from '@/lib/firebase/client'
 import { useChurchStore } from '@/store'
 import { toast } from 'sonner'
 
-const PRICING_PLANS = [
+const DEFAULT_PLANS = [
   {
     id: 'free_trial',
     name: 'Free Trial',
@@ -37,7 +40,6 @@ const PRICING_PLANS = [
     branches: 1,
     aiCredits: '2,500 Credits',
     buttonText: 'Current Trial Plan',
-    buttonVariant: 'outline' as const,
     highlight: false,
   },
   {
@@ -61,7 +63,6 @@ const PRICING_PLANS = [
     branches: 1,
     aiCredits: '5,000 Credits',
     buttonText: 'Upgrade to Starter',
-    buttonVariant: 'secondary' as const,
     highlight: false,
   },
   {
@@ -85,7 +86,6 @@ const PRICING_PLANS = [
     branches: 3,
     aiCredits: '15,000 Credits',
     buttonText: 'Upgrade to Growth',
-    buttonVariant: 'primary' as const,
     highlight: true,
   },
   {
@@ -109,7 +109,6 @@ const PRICING_PLANS = [
     branches: 999,
     aiCredits: '50,000 Credits',
     buttonText: 'Contact Enterprise Sales',
-    buttonVariant: 'secondary' as const,
     highlight: false,
   },
 ]
@@ -117,8 +116,26 @@ const PRICING_PLANS = [
 export default function PricingPage() {
   const { church } = useChurchStore()
   const [currency, setCurrency] = useState<'NGN' | 'USD'>('NGN')
+  const [plans, setPlans] = useState<any[]>(DEFAULT_PLANS)
+  const [loading, setLoading] = useState(true)
 
-  const handleUpgradeClick = (plan: typeof PRICING_PLANS[0]) => {
+  useEffect(() => {
+    async function loadDynamicPricing() {
+      try {
+        const snap = await getDoc(doc(db, 'system', 'pricing')).catch(() => null)
+        if (snap && snap.exists() && snap.data()?.plans) {
+          setPlans(snap.data().plans)
+        }
+      } catch (err) {
+        console.warn('Using default pricing schema:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadDynamicPricing()
+  }, [])
+
+  const handleUpgradeClick = (plan: typeof DEFAULT_PLANS[0]) => {
     if (plan.id === church?.subscription?.planId) {
       toast.info(`Your church is currently on the ${plan.name} plan.`)
       return
@@ -131,12 +148,12 @@ export default function PricingPage() {
   const currentPlanId = church?.subscription?.planId ?? 'free_trial'
 
   return (
-    <div className="space-y-8 py-4">
+    <div className="space-y-8 py-4 text-xs">
       {/* Page Header */}
       <div className="text-center space-y-3 max-w-2xl mx-auto">
         <div className="inline-flex items-center gap-2 rounded-full bg-brand-500/10 px-3.5 py-1 text-xs font-bold text-brand-500">
           <Sparkles className="h-3.5 w-3.5" />
-          <span>Flexible SaaS Plans for Every Ministry Size</span>
+          <span>Super Admin Managed Pricing Engine</span>
         </div>
         <h1 className="font-display text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
           Simple, Transparent Church Growth Pricing
@@ -171,95 +188,101 @@ export default function PricingPage() {
         </div>
       </div>
 
-      {/* Pricing Cards Grid */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {PRICING_PLANS.map((plan) => {
-          const isCurrent = plan.id === currentPlanId
-          return (
-            <motion.div
-              key={plan.id}
-              whileHover={{ y: -4 }}
-              transition={{ duration: 0.2 }}
-              className={`relative flex flex-col justify-between rounded-2xl border bg-card p-6 shadow-xs ${
-                plan.highlight
-                  ? 'border-brand-500 ring-2 ring-brand-500/20'
-                  : isCurrent
-                  ? 'border-emerald-500/50 bg-emerald-500/5'
-                  : 'border-border'
-              }`}
-            >
-              {plan.highlight && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-brand-600 px-3 py-0.5 text-[10px] font-bold text-white shadow-xs">
-                  {plan.badge}
-                </div>
-              )}
-
-              <div className="space-y-4">
-                <div>
-                  <h3 className="font-display text-lg font-bold text-foreground">{plan.name}</h3>
-                  <p className="text-[11px] text-muted-foreground mt-1 min-h-[32px]">
-                    {plan.description}
-                  </p>
-                </div>
-
-                <div className="border-y py-3">
-                  <div className="flex items-baseline gap-1">
-                    <span className="font-display text-3xl font-extrabold text-foreground">
-                      {currency === 'NGN' ? plan.price : plan.usdPrice}
-                    </span>
-                    <span className="text-xs text-muted-foreground">{plan.period}</span>
+      {loading ? (
+        <div className="flex h-64 items-center justify-center rounded-2xl border bg-card">
+          <Loader2 className="h-6 w-6 animate-spin text-brand-600" />
+        </div>
+      ) : (
+        /* Pricing Cards Grid */
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {plans.map((plan) => {
+            const isCurrent = plan.id === currentPlanId
+            return (
+              <motion.div
+                key={plan.id}
+                whileHover={{ y: -4 }}
+                transition={{ duration: 0.2 }}
+                className={`relative flex flex-col justify-between rounded-2xl border bg-card p-6 shadow-xs ${
+                  plan.highlight
+                    ? 'border-brand-500 ring-2 ring-brand-500/20'
+                    : isCurrent
+                    ? 'border-emerald-500/50 bg-emerald-500/5'
+                    : 'border-border'
+                }`}
+              >
+                {plan.highlight && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-brand-600 px-3 py-0.5 text-[10px] font-bold text-white shadow-xs">
+                    {plan.badge}
                   </div>
-                </div>
+                )}
 
-                {/* Core Specs */}
-                <div className="space-y-1.5 text-xs font-semibold">
-                  <div className="flex items-center justify-between text-muted-foreground">
-                    <span>AI Credits:</span>
-                    <span className="text-foreground">{plan.aiCredits}</span>
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-display text-lg font-bold text-foreground">{plan.name}</h3>
+                    <p className="text-[11px] text-muted-foreground mt-1 min-h-[32px]">
+                      {plan.description}
+                    </p>
                   </div>
-                  <div className="flex items-center justify-between text-muted-foreground">
-                    <span>Branches:</span>
-                    <span className="text-foreground">{plan.branches === 999 ? 'Unlimited' : plan.branches}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-muted-foreground">
-                    <span>Storage:</span>
-                    <span className="text-foreground">{plan.storage}</span>
-                  </div>
-                </div>
 
-                {/* Features List */}
-                <div className="space-y-2 pt-2 border-t text-xs">
-                  <p className="font-bold text-foreground text-[11px]">Included Features:</p>
-                  {plan.features.map((feat) => (
-                    <div key={feat} className="flex items-start gap-2">
-                      <Check className="h-3.5 w-3.5 shrink-0 text-emerald-500 mt-0.5" />
-                      <span className="text-muted-foreground text-[11px]">{feat}</span>
+                  <div className="border-y py-3">
+                    <div className="flex items-baseline gap-1">
+                      <span className="font-display text-3xl font-extrabold text-foreground">
+                        {currency === 'NGN' ? plan.price : plan.usdPrice}
+                      </span>
+                      <span className="text-xs text-muted-foreground">{plan.period}</span>
                     </div>
-                  ))}
-                </div>
-              </div>
+                  </div>
 
-              <div className="pt-6">
-                <button
-                  type="button"
-                  onClick={() => handleUpgradeClick(plan)}
-                  disabled={isCurrent}
-                  className={`w-full h-10 rounded-xl font-semibold text-xs transition-all flex items-center justify-center gap-1.5 ${
-                    isCurrent
-                      ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 cursor-default'
-                      : plan.highlight
-                      ? 'bg-brand-600 text-white hover:bg-brand-500 shadow-xs'
-                      : 'border bg-background hover:bg-accent text-foreground'
-                  }`}
-                >
-                  {isCurrent ? 'Current Active Plan' : plan.buttonText}
-                  {!isCurrent && <ArrowRight className="h-3.5 w-3.5" />}
-                </button>
-              </div>
-            </motion.div>
-          )
-        })}
-      </div>
+                  {/* Core Specs */}
+                  <div className="space-y-1.5 text-xs font-semibold">
+                    <div className="flex items-center justify-between text-muted-foreground">
+                      <span>AI Credits:</span>
+                      <span className="text-foreground">{plan.aiCredits}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-muted-foreground">
+                      <span>Branches:</span>
+                      <span className="text-foreground">{plan.branches === 999 ? 'Unlimited' : plan.branches}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-muted-foreground">
+                      <span>Storage:</span>
+                      <span className="text-foreground">{plan.storage}</span>
+                    </div>
+                  </div>
+
+                  {/* Features List */}
+                  <div className="space-y-2 pt-2 border-t text-xs">
+                    <p className="font-bold text-foreground text-[11px]">Included Features:</p>
+                    {plan.features?.map((feat: string) => (
+                      <div key={feat} className="flex items-start gap-2">
+                        <Check className="h-3.5 w-3.5 shrink-0 text-emerald-500 mt-0.5" />
+                        <span className="text-muted-foreground text-[11px]">{feat}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-6">
+                  <button
+                    type="button"
+                    onClick={() => handleUpgradeClick(plan)}
+                    disabled={isCurrent}
+                    className={`w-full h-10 rounded-xl font-semibold text-xs transition-all flex items-center justify-center gap-1.5 ${
+                      isCurrent
+                        ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 cursor-default'
+                        : plan.highlight
+                        ? 'bg-brand-600 text-white hover:bg-brand-500 shadow-xs'
+                        : 'border bg-background hover:bg-accent text-foreground'
+                    }`}
+                  >
+                    {isCurrent ? 'Current Active Plan' : plan.buttonText || 'Upgrade Plan'}
+                    {!isCurrent && <ArrowRight className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              </motion.div>
+            )
+          })}
+        </div>
+      )}
 
       {/* Gateway Architecture Note */}
       <div className="rounded-2xl border bg-card p-6 shadow-xs flex flex-wrap items-center justify-between gap-4 text-xs">
