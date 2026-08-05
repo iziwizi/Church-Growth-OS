@@ -20,9 +20,13 @@ const PUBLIC_ROUTES = [
   '/cookies',
 ]
 
+// Admin routes — the admin login page must also be public
+const ADMIN_PUBLIC_ROUTES = ['/admin/login']
+
 /**
  * AuthInitializer — Centralized Authentication & Production Route Guard.
  * Enforces email verification gate, church onboarding redirect, and super admin access.
+ * Super Admins are NEVER redirected to /setup or /verify-email.
  */
 export function AuthInitializer({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -33,7 +37,7 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
     useAuthStore()
   const { church, setChurch } = useChurchStore()
 
-  // 1. Observer for Firebase Auth & Firestore synchronization
+  // 1. Firebase Auth observer — syncs auth state + Firestore profile
   useEffect(() => {
     const unsubscribe = onAuthChange(async (firebaseUser) => {
       try {
@@ -46,7 +50,7 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
             await ensureSuperAdminProfile(firebaseUser.uid, firebaseUser.email).catch(() => null)
           }
 
-          // Fetch User Profile from Firestore
+          // Fetch Firestore profile
           const profile = await getUserProfile(firebaseUser.uid).catch(() => null)
 
           let activeChurchId = profile?.churchId ?? null
@@ -54,13 +58,16 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
           const isSuperAdmin = isSuperAdminEmail || activeRole === 'super_admin'
 
           let churchDoc = null
-          if (activeChurchId) {
-            churchDoc = await getUserChurch(firebaseUser.uid).catch(() => null)
-          } else if (!isSuperAdmin) {
-            churchDoc = await getUserChurch(firebaseUser.uid).catch(() => null)
-            if (churchDoc) {
-              activeChurchId = churchDoc.id
-              activeRole = 'owner'
+          if (!isSuperAdmin) {
+            // Only fetch church for non-super-admins
+            if (activeChurchId) {
+              churchDoc = await getUserChurch(firebaseUser.uid).catch(() => null)
+            } else {
+              churchDoc = await getUserChurch(firebaseUser.uid).catch(() => null)
+              if (churchDoc) {
+                activeChurchId = churchDoc.id
+                activeRole = 'owner'
+              }
             }
           }
 
@@ -95,15 +102,27 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
     if (!isInitialized) return
 
     const isPublic = PUBLIC_ROUTES.includes(pathname)
+    const isAdminPublic = ADMIN_PUBLIC_ROUTES.includes(pathname)
     const isVerifyEmailPage = pathname === '/verify-email'
     const isSetup = pathname === '/setup'
     const isAdminRoute = pathname.startsWith('/admin')
     const hasChurch = !!church?.id
-    const isSuperAdmin = user?.email?.endsWith('@mujteknify.com')
 
-    // Case A: Unauthenticated User
+    // Determine if the current user is super admin
+    const isSuperAdmin =
+      user?.email?.endsWith('@mujteknify.com') || false
+
+    // Admin login page — always accessible, no redirect
+    if (isAdminPublic) {
+      setCheckingRoute(false)
+      return
+    }
+
+    // Case A: Unauthenticated
     if (!user) {
-      if (!isPublic) {
+      if (isAdminRoute) {
+        router.replace('/admin/login')
+      } else if (!isPublic) {
         router.replace(`/login?from=${encodeURIComponent(pathname)}`)
       } else {
         setCheckingRoute(false)
@@ -111,8 +130,19 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // Case B: Authenticated User BUT Email NOT Verified (Skip check for super admin)
-    if (!user.emailVerified && !isSuperAdmin) {
+    // Case B: Super Admin — bypass ALL onboarding checks
+    if (isSuperAdmin) {
+      // Super Admin should never land on setup or verify-email
+      if (isSetup || isVerifyEmailPage) {
+        router.replace('/admin')
+      } else {
+        setCheckingRoute(false)
+      }
+      return
+    }
+
+    // Case C: Church user — email not verified
+    if (!user.emailVerified) {
       if (!isVerifyEmailPage) {
         router.replace('/verify-email')
       } else {
@@ -121,20 +151,14 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // Case C: Authenticated User AND Email Verified, sitting on /verify-email
+    // Case D: Email verified, sitting on /verify-email → go to setup
     if (isVerifyEmailPage) {
-      if (!hasChurch && !isSuperAdmin) {
-        router.replace('/setup')
-      } else if (isSuperAdmin) {
-        router.replace('/admin')
-      } else {
-        router.replace('/dashboard')
-      }
+      router.replace(hasChurch ? '/dashboard' : '/setup')
       return
     }
 
-    // Case D: User without Church Setup completed (Super admins don't need a church)
-    if (!hasChurch && !isSuperAdmin) {
+    // Case E: Church user with no church setup → force /setup
+    if (!hasChurch) {
       if (!isSetup && !isAdminRoute) {
         router.replace('/setup')
       } else {
@@ -143,23 +167,34 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // Case E: Authenticated User sitting on setup or public pages
+    // Case F: Church user already set up, sitting on /setup → dashboard
     if (isSetup && hasChurch) {
       router.replace('/dashboard')
-    } else if (isPublic && pathname !== '/' && !isAdminRoute) {
-      router.replace(isSuperAdmin ? '/admin' : '/dashboard')
-    } else {
-      setCheckingRoute(false)
+      return
     }
+
+    // Case G: Authenticated church user on public pages → redirect to dashboard
+    if (isPublic && pathname !== '/' && !isAdminRoute) {
+      router.replace('/dashboard')
+      return
+    }
+
+    setCheckingRoute(false)
   }, [user, church, isInitialized, pathname, router])
 
-  // Loading Screen
-  if (!isInitialized || (checkingRoute && !PUBLIC_ROUTES.includes(pathname))) {
+  // Show loading screen during auth initialization (not on public pages)
+  const isAdminPublicPath = ADMIN_PUBLIC_ROUTES.includes(pathname)
+  if (
+    (!isInitialized || (checkingRoute && !PUBLIC_ROUTES.includes(pathname))) &&
+    !isAdminPublicPath
+  ) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-brand-600" />
-          <p className="text-sm font-medium text-muted-foreground">Authenticating Church Growth OS...</p>
+          <p className="text-sm font-medium text-muted-foreground">
+            Authenticating Church Growth OS...
+          </p>
         </div>
       </div>
     )

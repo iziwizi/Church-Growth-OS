@@ -6,246 +6,240 @@ service cloud.firestore {
     // HELPER FUNCTIONS
     // ============================================================================
 
-    // Check if request is from an authenticated user
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Check if the current user matches the requested UID
     function isUser(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Check if user is platform Super Admin
     function isSuperAdmin() {
-      return isAuthenticated() && request.auth.token.superAdmin == true;
-    }
-
-    // Get user's custom claim role or fallback to user document role
-    function getUserRole() {
-      return request.auth.token.role;
-    }
-
-    // Check if user has one of the allowed roles
-    function hasRole(roles) {
       return isAuthenticated() && (
-        getUserRole() in roles ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in roles
+        request.auth.token.superAdmin == true ||
+        request.auth.token.role == 'super_admin'
       );
     }
 
-    // Check if the user belongs to or owns the specified church
+    // Safe user doc getter — used only for reads, not creates
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Check church membership — safe for both create and read/update/delete
+    // On create, resource does not exist, so we cannot reference resource.data
     function isChurchMember(churchId) {
       return isAuthenticated() && (
+        isSuperAdmin() ||
         request.auth.token.churchId == churchId ||
-        resource.data.ownerId == request.auth.uid ||
-        get(/databases/$(database)/documents/churches/$(churchId)).data.ownerId == request.auth.uid ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.churchId == churchId ||
-        isSuperAdmin()
+        getUserData().churchId == churchId ||
+        get(/databases/$(database)/documents/churches/$(churchId)).data.ownerId == request.auth.uid
       );
     }
 
-    // Check if the user is the owner or administrator of the specified church
-    function isChurchOwnerOrAdmin(churchId) {
-      return isChurchMember(churchId) && (
-        resource.data.ownerId == request.auth.uid ||
+    // Check church owner or admin — safe for creates (does not use resource.data)
+    function isChurchOwner(churchId) {
+      return isAuthenticated() && (
+        isSuperAdmin() ||
         get(/databases/$(database)/documents/churches/$(churchId)).data.ownerId == request.auth.uid ||
-        hasRole(['owner', 'super_admin', 'admin']) ||
-        isSuperAdmin()
+        request.auth.token.churchId == churchId && (
+          request.auth.token.role == 'owner' ||
+          request.auth.token.role == 'admin'
+        ) ||
+        getUserData().role in ['owner', 'admin', 'super_admin']
       );
     }
 
     // ============================================================================
-    // GLOBAL USERS COLLECTION (/users/{userId})
+    // USERS (/users/{userId})
     // ============================================================================
 
     match /users/{userId} {
-      // Authenticated users can read their own profile or users in their church
       allow read: if isAuthenticated() && (
         isUser(userId) ||
-        resource.data.churchId == request.auth.token.churchId ||
-        isSuperAdmin()
+        isSuperAdmin() ||
+        (resource != null && resource.data.churchId == request.auth.token.churchId)
       );
-
-      // Authenticated user creates their own profile document during registration
       allow create: if isAuthenticated() && request.auth.uid == userId;
-
-      // Users can update their own profile; Super Admins can manage any profile
-      allow update: if isAuthenticated() && (
-        isUser(userId) || isSuperAdmin()
-      );
-
-      // Only Super Admins can delete user profiles
+      allow update: if isAuthenticated() && (isUser(userId) || isSuperAdmin());
       allow delete: if isSuperAdmin();
     }
 
     // ============================================================================
-    // CHURCHES COLLECTION (/churches/{churchId})
+    // CHURCHES (/churches/{churchId}) + ALL SUBCOLLECTIONS
     // ============================================================================
 
     match /churches/{churchId} {
-      // Allow reading church doc if user owns it, belongs to it, or is super admin
       allow read: if isAuthenticated() && (
+        isSuperAdmin() ||
         resource.data.ownerId == request.auth.uid ||
         request.auth.token.churchId == churchId ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.churchId == churchId ||
-        isSuperAdmin()
+        getUserData().churchId == churchId
       );
 
-      // Setup Wizard: Authenticated user creates a church where they are assigned as ownerId
+      // Setup Wizard creates this — user is authenticated, sets themselves as ownerId
       allow create: if isAuthenticated() && (
-        request.resource.data.ownerId == request.auth.uid || isSuperAdmin()
+        isSuperAdmin() ||
+        request.resource.data.ownerId == request.auth.uid
       );
 
-      // Only church owner or admin can update church settings/branding
       allow update: if isAuthenticated() && (
+        isSuperAdmin() ||
         resource.data.ownerId == request.auth.uid ||
         request.auth.token.churchId == churchId ||
-        isSuperAdmin()
+        getUserData().churchId == churchId
       );
 
-      // Only Super Admin can delete a church
       allow delete: if isSuperAdmin();
 
-      // ── Subcollection: People (Unified People Engine) ──────────────────────
+      // ── People (Unified People Engine) ────────────────────────────────────
       match /people/{personId} {
-        allow read: if isChurchMember(churchId);
-        allow create, update: if isChurchMember(churchId);
-        allow delete: if isChurchOwnerOrAdmin(churchId);
+        allow read, create, update: if isChurchMember(churchId);
+        allow delete: if isChurchOwner(churchId);
       }
 
-      // ── Subcollection: Members ─────────────────────────────────────────────
+      // ── Members ───────────────────────────────────────────────────────────
       match /members/{memberId} {
-        allow read: if isChurchMember(churchId);
-        allow create, update: if isChurchMember(churchId);
-        allow delete: if isChurchOwnerOrAdmin(churchId);
+        allow read, create, update: if isChurchMember(churchId);
+        allow delete: if isChurchOwner(churchId);
       }
 
-      // ── Subcollection: Visitors ────────────────────────────────────────────
+      // ── Visitors ──────────────────────────────────────────────────────────
       match /visitors/{visitorId} {
-        allow read: if isChurchMember(churchId);
-        allow create, update: if isChurchMember(churchId);
-        allow delete: if isChurchOwnerOrAdmin(churchId);
+        allow read, create, update: if isChurchMember(churchId);
+        allow delete: if isChurchOwner(churchId);
       }
 
-      // ── Subcollection: Events ──────────────────────────────────────────────
+      // ── Events ────────────────────────────────────────────────────────────
       match /events/{eventId} {
-        allow read: if isChurchMember(churchId);
-        allow create, update: if isChurchMember(churchId);
-        allow delete: if isChurchOwnerOrAdmin(churchId);
+        allow read, create, update: if isChurchMember(churchId);
+        allow delete: if isChurchOwner(churchId);
       }
 
-      // ── Subcollection: Attendance ──────────────────────────────────────────
+      // ── Attendance ────────────────────────────────────────────────────────
       match /attendance/{attendanceId} {
-        allow read: if isChurchMember(churchId);
-        allow create, update: if isChurchMember(churchId);
-        allow delete: if isChurchOwnerOrAdmin(churchId);
+        allow read, create, update: if isChurchMember(churchId);
+        allow delete: if isChurchOwner(churchId);
       }
 
-      // ── Subcollection: Prayer Requests ─────────────────────────────────────
+      // ── Prayer Requests ───────────────────────────────────────────────────
       match /prayerRequests/{requestId} {
-        allow read: if isChurchMember(churchId);
-        allow create: if isAuthenticated() || isChurchMember(churchId);
-        allow update, delete: if isChurchMember(churchId);
+        allow read, create, update: if isChurchMember(churchId);
+        allow delete: if isChurchOwner(churchId);
       }
 
-      // ── Subcollection: Sermons ─────────────────────────────────────────────
+      // ── Sermons ───────────────────────────────────────────────────────────
       match /sermons/{sermonId} {
-        allow read: if isChurchMember(churchId);
-        allow create, update: if isChurchMember(churchId);
-        allow delete: if isChurchOwnerOrAdmin(churchId);
+        allow read, create, update: if isChurchMember(churchId);
+        allow delete: if isChurchOwner(churchId);
       }
 
-      // ── Subcollection: Donations & Offerings ──────────────────────────────
+      // ── Donations & Offerings ─────────────────────────────────────────────
       match /donations/{donationId} {
-        allow read, create, update: if isChurchOwnerOrAdmin(churchId);
-        allow delete: if isChurchOwnerOrAdmin(churchId);
+        allow read, create, update: if isChurchOwner(churchId);
+        allow delete: if isChurchOwner(churchId);
       }
 
       match /offerings/{offeringId} {
-        allow read, create, update: if isChurchOwnerOrAdmin(churchId);
-        allow delete: if isChurchOwnerOrAdmin(churchId);
+        allow read, create, update: if isChurchOwner(churchId);
+        allow delete: if isChurchOwner(churchId);
       }
 
-      // ── Subcollection: Communications ──────────────────────────────────────
+      // ── Communications ────────────────────────────────────────────────────
       match /communications/{commId} {
         allow read, create, update: if isChurchMember(churchId);
-        allow delete: if isChurchOwnerOrAdmin(churchId);
+        allow delete: if isChurchOwner(churchId);
       }
 
-      // ── Subcollection: Automation Workflows ──────────────────────────────
+      // ── Automation Workflows ──────────────────────────────────────────────
       match /automationWorkflows/{workflowId} {
         allow read, create, update: if isChurchMember(churchId);
-        allow delete: if isChurchOwnerOrAdmin(churchId);
+        allow delete: if isChurchOwner(churchId);
       }
 
       match /automations/{automationId} {
         allow read, create, update: if isChurchMember(churchId);
-        allow delete: if isChurchOwnerOrAdmin(churchId);
+        allow delete: if isChurchOwner(churchId);
       }
 
-      // ── Subcollection: Settings ───────────────────────────────────────────
+      // ── Settings ──────────────────────────────────────────────────────────
       match /settings/{settingId} {
         allow read: if isChurchMember(churchId);
-        allow write: if isChurchOwnerOrAdmin(churchId);
+        allow write: if isChurchOwner(churchId);
       }
 
-      // ── Subcollection: Audit Logs ─────────────────────────────────────────
+      // ── Audit Logs (server-write only) ────────────────────────────────────
       match /auditLogs/{logId} {
-        allow read: if isChurchOwnerOrAdmin(churchId);
-        allow write: if false; // Cloud Functions / Admin SDK only
+        allow read: if isChurchOwner(churchId);
+        allow write: if false;
       }
 
-      // ── Subcollection: Testimonies & Partnerships ────────────────────────
+      // ── Testimonies ───────────────────────────────────────────────────────
       match /testimonies/{testimonyId} {
         allow read, create, update: if isChurchMember(churchId);
-        allow delete: if isChurchOwnerOrAdmin(churchId);
+        allow delete: if isChurchOwner(churchId);
       }
 
+      // ── Partnerships ──────────────────────────────────────────────────────
       match /partnerships/{partnerId} {
-        allow read, create, update: if isChurchOwnerOrAdmin(churchId);
-        allow delete: if isChurchOwnerOrAdmin(churchId);
+        allow read, create, update: if isChurchOwner(churchId);
+        allow delete: if isChurchOwner(churchId);
       }
 
-      // ── Subcollection: Live Service Sessions ─────────────────────────────
+      // ── Live Service Sessions ─────────────────────────────────────────────
       match /liveServices/{sessionId} {
         allow read: if isChurchMember(churchId);
-        allow create, update: if isChurchOwnerOrAdmin(churchId);
-        allow delete: if isChurchOwnerOrAdmin(churchId);
+        allow create, update: if isChurchOwner(churchId);
+        allow delete: if isChurchOwner(churchId);
       }
 
-      // ── Subcollection: AI Generated Content & Profiles ────────────────────
+      // ── AI Profile & Generated Content ────────────────────────────────────
+      // Path: churches/{churchId}/ai/profile
       match /ai/{aiId} {
         allow read, create, update: if isChurchMember(churchId);
-        allow delete: if isChurchOwnerOrAdmin(churchId);
+        allow delete: if isChurchOwner(churchId);
       }
 
+      // Legacy path alias
       match /aiProfile/{aiId} {
         allow read, create, update: if isChurchMember(churchId);
-        allow delete: if isChurchOwnerOrAdmin(churchId);
+        allow delete: if isChurchOwner(churchId);
       }
 
       match /aiContent/{contentId} {
         allow read, create, update: if isChurchMember(churchId);
-        allow delete: if isChurchOwnerOrAdmin(churchId);
+        allow delete: if isChurchOwner(churchId);
       }
 
-      // ── Subcollection: Support Tickets ────────────────────────────────────
+      // ── Support Tickets ───────────────────────────────────────────────────
       match /supportTickets/{ticketId} {
         allow read, create, update: if isChurchMember(churchId);
-        allow delete: if isChurchOwnerOrAdmin(churchId);
+        allow delete: if isChurchOwner(churchId);
       }
 
-      // ── Subcollection: Satellite Branches ─────────────────────────────────
+      // ── Satellite Branches ────────────────────────────────────────────────
       match /branches/{branchId} {
         allow read, create, update: if isChurchMember(churchId);
-        allow delete: if isChurchOwnerOrAdmin(churchId);
+        allow delete: if isChurchOwner(churchId);
       }
 
-      // ── Subcollection: Subscriptions ──────────────────────────────────────
+      // ── Subscription ──────────────────────────────────────────────────────
       match /subscription/{subId} {
         allow read: if isChurchMember(churchId);
-        allow write: if isChurchOwnerOrAdmin(churchId);
+        allow write: if isChurchOwner(churchId);
+      }
+
+      // ── Reports ───────────────────────────────────────────────────────────
+      match /reports/{reportId} {
+        allow read: if isChurchMember(churchId);
+        allow create, update: if isChurchOwner(churchId);
+        allow delete: if isChurchOwner(churchId);
+      }
+
+      // ── Social Links & Ingestion Config ───────────────────────────────────
+      match /socialConfig/{configId} {
+        allow read, create, update: if isChurchMember(churchId);
+        allow delete: if isChurchOwner(churchId);
       }
     }
 
@@ -255,25 +249,24 @@ service cloud.firestore {
 
     match /aiReports/{churchId}/daily/{reportId} {
       allow read: if isAuthenticated() && (
+        isSuperAdmin() ||
         request.auth.token.churchId == churchId ||
         get(/databases/$(database)/documents/churches/$(churchId)).data.ownerId == request.auth.uid ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.churchId == churchId ||
-        isSuperAdmin()
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.churchId == churchId
       );
-      allow write: if false; // Generated exclusively by Cloud Functions / Firebase Admin SDK
+      allow write: if false;
     }
 
     // ============================================================================
-    // SYSTEM INFRASTRUCTURE & PRICING SECRETS (/system/infrastructure, /system/pricing)
+    // SYSTEM — Infrastructure Secrets & Pricing Engine
+    // (/system/infrastructure, /system/pricing, /system/*)
     // ============================================================================
 
     match /system/{document=**} {
+      // All authenticated users can READ system/pricing (needed by Pricing page + feature gating)
       allow read: if isAuthenticated();
-      allow write: if isAuthenticated() && (
-        isSuperAdmin() ||
-        request.auth.token.role == 'super_admin' ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin'
-      );
+      // Only Super Admins can WRITE system config
+      allow write: if isSuperAdmin();
     }
 
     // ============================================================================
@@ -282,24 +275,27 @@ service cloud.firestore {
 
     match /platformSupportTickets/{ticketId} {
       allow read, create, update: if isAuthenticated();
+      allow delete: if isSuperAdmin();
+    }
+
+    // ============================================================================
+    // NOTIFICATIONS (/notifications/{notificationId})
+    // ============================================================================
+
+    match /notifications/{notificationId} {
+      allow read, update: if isAuthenticated() && (
+        resource == null || resource.data.userId == request.auth.uid
+      );
+      allow create: if isAuthenticated();
       allow delete: if isAuthenticated() && (
-        isSuperAdmin() ||
-        request.auth.token.role == 'super_admin' ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin'
+        resource == null || resource.data.userId == request.auth.uid
       );
     }
 
     // ============================================================================
-    // NOTIFICATIONS COLLECTION (/notifications/{notificationId})
+    // DEFAULT DENY ALL
     // ============================================================================
 
-    match /notifications/{notificationId} {
-      allow read, update: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      allow create: if isAuthenticated();
-      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
-    }
-
-    // Default deny all unmapped documents
     match /{document=**} {
       allow read, write: if false;
     }

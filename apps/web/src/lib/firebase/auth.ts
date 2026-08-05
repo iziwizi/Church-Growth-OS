@@ -8,6 +8,7 @@ import {
   updateProfile,
   type User,
   type UserCredential,
+  type ActionCodeSettings,
 } from 'firebase/auth'
 import { doc, setDoc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore'
 import { auth, db } from './client'
@@ -91,10 +92,15 @@ export async function signUpUser(
 
   await setDoc(userDocRef, profilePayload)
 
-  // 4. Send Email Verification
+  // 4. Send Email Verification with continueUrl so clicking the link returns to our app
   let verificationSent = false
   try {
-    await sendEmailVerification(user)
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+    const actionCodeSettings: ActionCodeSettings = {
+      url: `${appUrl}/verify-email`,
+      handleCodeInApp: false,
+    }
+    await sendEmailVerification(user, actionCodeSettings)
     verificationSent = true
   } catch (emailErr) {
     console.error('Failed to send verification email:', emailErr)
@@ -162,7 +168,12 @@ export async function sendPasswordReset(email: string): Promise<void> {
 export async function resendVerification(): Promise<boolean> {
   if (!auth.currentUser) return false
   try {
-    await sendEmailVerification(auth.currentUser)
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+    const actionCodeSettings: ActionCodeSettings = {
+      url: `${appUrl}/verify-email`,
+      handleCodeInApp: false,
+    }
+    await sendEmailVerification(auth.currentUser, actionCodeSettings)
     return true
   } catch (err) {
     console.error('Failed to resend verification email:', err)

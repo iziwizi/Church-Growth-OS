@@ -330,6 +330,19 @@ export default function SetupWizardPage() {
 
   return (
     <div className="w-full max-w-2xl mx-auto py-8 px-4">
+      {/* Setup Wizard Header — Logo + Title */}
+      <div className="mb-6 flex items-center gap-3">
+        <img
+          src="/logo.png"
+          alt="Church Growth OS"
+          className="h-11 w-auto object-contain rounded-lg border bg-background p-1 shadow-xs"
+        />
+        <div>
+          <h1 className="font-display text-xl font-bold text-foreground">Church Setup</h1>
+          <p className="text-xs text-muted-foreground">Configure your ministry platform</p>
+        </div>
+      </div>
+
       {/* Step Indicator */}
       <div className="mb-8 flex items-center justify-between">
         {STEPS.map((step, idx) => {
@@ -391,7 +404,7 @@ export default function SetupWizardPage() {
                 <div className="mt-1 flex items-center gap-4">
                   {logoPreview ? (
                     <div className="relative">
-                      <img src={logoPreview} alt="Logo" className="h-16 w-16 rounded-xl object-contain border bg-background p-1" />
+                      <img src={logoPreview} alt="Logo" className="h-16 w-16 rounded-lg object-contain border bg-background p-1" />
                       <button
                         type="button"
                         onClick={() => { setLogoFile(null); setLogoPreview(null) }}
