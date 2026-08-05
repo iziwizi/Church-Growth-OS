@@ -1,115 +1,286 @@
 'use client'
 
-import { useState } from 'react'
-import { Sparkles, Bot, Copy, Check, Loader2, BookOpen, MessageSquare, Send } from 'lucide-react'
-import { useChurchStore } from '@/store'
+import { useState, useEffect } from 'react'
+import { Sparkles, Bot, Copy, Check, Loader2, Clock, Trash2 } from 'lucide-react'
+import {
+  collection,
+  query,
+  getDocs,
+  addDoc,
+  deleteDoc,
+  doc,
+  serverTimestamp,
+  orderBy,
+  limit,
+} from 'firebase/firestore'
+import { db } from '@/lib/firebase/client'
+import { useChurchStore, useAuthStore } from '@/store'
 import { toast } from 'sonner'
+
+const CONTENT_TYPES = [
+  { value: 'sermon_reels', label: 'Sermon Reel Script' },
+  { value: 'announcement', label: 'Church Announcement' },
+  { value: 'newsletter', label: 'Newsletter Section' },
+  { value: 'prayer_content', label: 'Prayer Guide / Devotional' },
+  { value: 'event_promo', label: 'Event Promotion Copy' },
+  { value: 'follow_up', label: 'Visitor Follow-Up Message' },
+]
 
 export default function AIStudioPage() {
   const { church } = useChurchStore()
+  const { user } = useAuthStore()
   const [prompt, setPrompt] = useState('')
   const [contentType, setContentType] = useState('sermon_reels')
   const [generating, setGenerating] = useState(false)
   const [result, setResult] = useState('')
   const [copied, setCopied] = useState(false)
+  const [history, setHistory] = useState<any[]>([])
+  const [loadingHistory, setLoadingHistory] = useState(true)
 
-  const handleGenerate = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!prompt.trim()) return
-    setGenerating(true)
-    setTimeout(() => {
-      setGenerating(false)
-      setResult(
-        `[AI Generated Content for ${church?.name ?? 'Church'}]\n\n` +
-          `Key Message: "${prompt}"\n\n` +
-          `1. Social Media Hook: "Did you know God is working behind the scenes for your breakthrough?"\n` +
-          `2. Scripture Focus: Psalm 23:1 — "The Lord is my shepherd; I shall not want."\n` +
-          `3. Call to Action: Join us this Sunday at ${church?.name ?? 'our service'}!`
+  useEffect(() => {
+    if (!church?.id) return
+    loadHistory()
+  }, [church?.id])
+
+  async function loadHistory() {
+    if (!church?.id) return
+    setLoadingHistory(true)
+    try {
+      const q = query(
+        collection(db, 'churches', church.id, 'aiContent'),
+        orderBy('createdAt', 'desc'),
+        limit(10)
       )
-      toast.success('AI content generated!')
-    }, 1500)
+      const snap = await getDocs(q).catch(() => null)
+      const list: any[] = []
+      if (snap && !snap.empty) {
+        snap.docs.forEach((d) => list.push({ id: d.id, ...d.data() }))
+      }
+      setHistory(list)
+    } catch (err) {
+      console.error('Error loading AI history:', err)
+    } finally {
+      setLoadingHistory(false)
+    }
+  }
+
+  const handleGenerate = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!prompt.trim() || !church?.id) return
+    setGenerating(true)
+    setResult('')
+    try {
+      const response = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: prompt.trim(),
+          contentType,
+          churchName: church.name,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || data.error) {
+        throw new Error(data.error ?? 'Generation failed')
+      }
+
+      const generated = data.result as string
+      setResult(generated)
+
+      // Persist to Firestore
+      const ref = await addDoc(collection(db, 'churches', church.id, 'aiContent'), {
+        prompt: prompt.trim(),
+        contentType,
+        result: generated,
+        generatedBy: user?.uid ?? null,
+        churchId: church.id,
+        createdAt: serverTimestamp(),
+      })
+
+      // Optimistically add to history
+      setHistory((prev) => [
+        {
+          id: ref.id,
+          prompt: prompt.trim(),
+          contentType,
+          result: generated,
+          createdAt: new Date(),
+        },
+        ...prev.slice(0, 9),
+      ])
+
+      toast.success('AI content generated and saved!')
+    } catch (err: any) {
+      toast.error(err.message ?? 'Failed to generate content.')
+    } finally {
+      setGenerating(false)
+    }
   }
 
   const handleCopy = () => {
+    if (!result) return
     navigator.clipboard.writeText(result)
     setCopied(true)
     toast.success('Copied to clipboard!')
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const handleLoadHistoryItem = (item: any) => {
+    setPrompt(item.prompt)
+    setContentType(item.contentType)
+    setResult(item.result)
+  }
+
+  const handleDeleteHistoryItem = async (id: string) => {
+    if (!church?.id) return
+    try {
+      await deleteDoc(doc(db, 'churches', church.id, 'aiContent', id))
+      setHistory((prev) => prev.filter((h) => h.id !== id))
+      toast.success('Content removed from history.')
+    } catch {
+      toast.error('Failed to delete.')
+    }
+  }
+
+  const contentTypeLabel = CONTENT_TYPES.find((t) => t.value === contentType)?.label ?? contentType
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl flex items-center gap-2">
           <Sparkles className="h-6 w-6 text-brand-500" />
-          AI Studio & Content Generator
+          AI Studio &amp; Content Generator
         </h1>
         <p className="mt-1 text-xs text-muted-foreground">
-          Autonomous AI content studio powered by Claude 3.5 Sonnet for {church?.name}.
+          Autonomous AI content studio powered by Gemini for {church?.name}.
         </p>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Generator Form */}
         <div className="rounded-2xl border bg-card p-6 shadow-xs space-y-4">
-          <h2 className="font-display text-sm font-bold text-foreground">Content Generator</h2>
+          <h2 className="font-display text-sm font-bold text-foreground flex items-center gap-2">
+            <Bot className="h-4 w-4 text-brand-500" />
+            Content Generator
+          </h2>
           <form onSubmit={handleGenerate} className="space-y-3 text-xs">
             <div>
               <label className="font-semibold">Content Type</label>
               <select
                 value={contentType}
                 onChange={(e) => setContentType(e.target.value)}
-                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+                className="mt-1 flex h-9 w-full rounded-xl border border-input bg-background px-3 focus:outline-none focus:ring-2 focus:ring-ring"
               >
-                <option value="sermon_reels">Sermon Clips & Reels Captions</option>
-                <option value="visitor_followup">Visitor Follow-Up Message</option>
-                <option value="devotional">Daily Devotional Prompt</option>
-                <option value="event_announcement">Event Promotion Post</option>
+                {CONTENT_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
               </select>
             </div>
 
             <div>
-              <label className="font-semibold">Sermon Theme / Topic *</label>
+              <label className="font-semibold">Theme / Message / Topic *</label>
               <textarea
                 rows={4}
                 required
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Enter sermon topic, scriptures, or key points..."
-                className="mt-1 flex w-full rounded-xl border bg-background px-3 py-2 resize-none"
+                placeholder={`Describe the message or topic for your ${contentTypeLabel.toLowerCase()}...`}
+                className="mt-1 flex w-full rounded-xl border border-input bg-background px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
 
             <button
               type="submit"
-              disabled={generating}
-              className="inline-flex h-9 items-center gap-2 rounded-xl bg-brand-600 px-4 font-semibold text-white hover:bg-brand-500 disabled:opacity-50"
+              disabled={generating || !prompt.trim()}
+              className="inline-flex w-full h-9 items-center justify-center gap-1.5 rounded-xl bg-brand-600 text-xs font-semibold text-white hover:bg-brand-500 disabled:opacity-50"
             >
-              {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-              Generate AI Content
+              {generating ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Generate Content
+                </>
+              )}
             </button>
           </form>
         </div>
 
-        {/* AI Output Window */}
-        <div className="rounded-2xl border bg-card p-6 shadow-xs flex flex-col justify-between space-y-4">
-          <div className="flex items-center justify-between border-b pb-3">
+        {/* Output Panel */}
+        <div className="rounded-2xl border bg-card p-6 shadow-xs space-y-4">
+          <div className="flex items-center justify-between">
             <h2 className="font-display text-sm font-bold text-foreground">Generated Output</h2>
             {result && (
               <button
                 type="button"
                 onClick={handleCopy}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-500 hover:underline"
+                className="inline-flex h-7 items-center gap-1 rounded-lg border px-3 text-xs font-semibold hover:bg-accent"
               >
-                {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-                {copied ? 'Copied!' : 'Copy Text'}
+                {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                {copied ? 'Copied!' : 'Copy'}
               </button>
             )}
           </div>
 
-          <div className="flex-1 rounded-xl border bg-muted/20 p-4 text-xs font-mono whitespace-pre-wrap text-foreground overflow-y-auto min-h-[200px]">
-            {result || 'Generated content will appear here...'}
-          </div>
+          {result ? (
+            <div className="rounded-xl border bg-muted/20 p-4 text-xs leading-relaxed whitespace-pre-wrap text-foreground max-h-72 overflow-y-auto">
+              {result}
+            </div>
+          ) : (
+            <div className="flex h-48 flex-col items-center justify-center rounded-xl border border-dashed bg-muted/10 text-center space-y-2">
+              <Sparkles className="h-8 w-8 text-brand-500/40" />
+              <p className="text-xs text-muted-foreground">
+                Generated content will appear here.
+              </p>
+            </div>
+          )}
         </div>
+      </div>
+
+      {/* Generation History */}
+      <div className="rounded-2xl border bg-card shadow-xs overflow-hidden">
+        <div className="flex items-center gap-2 border-b px-4 py-3">
+          <Clock className="h-4 w-4 text-muted-foreground" />
+          <h2 className="font-display text-sm font-bold text-foreground">Recent Generations</h2>
+        </div>
+        {loadingHistory ? (
+          <div className="flex h-28 items-center justify-center">
+            <Loader2 className="h-5 w-5 animate-spin text-brand-600" />
+          </div>
+        ) : history.length === 0 ? (
+          <div className="p-8 text-center text-xs text-muted-foreground">
+            No generated content yet. Use the generator above to create your first piece.
+          </div>
+        ) : (
+          <div className="divide-y divide-border text-xs">
+            {history.map((h) => (
+              <div key={h.id} className="flex items-start justify-between gap-4 p-3.5 hover:bg-muted/20">
+                <button
+                  type="button"
+                  onClick={() => handleLoadHistoryItem(h)}
+                  className="flex-1 text-left space-y-0.5"
+                >
+                  <p className="font-semibold text-foreground truncate max-w-md">{h.prompt}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {CONTENT_TYPES.find((t) => t.value === h.contentType)?.label ?? h.contentType}
+                  </p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteHistoryItem(h.id)}
+                  className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border hover:bg-rose-500/10 text-muted-foreground hover:text-rose-500"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

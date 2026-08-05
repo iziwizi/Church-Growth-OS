@@ -1,28 +1,114 @@
 'use client'
 
-import { useState } from 'react'
-import { MessageSquare, Send, Mail, Phone, CheckCircle2, Loader2, Sparkles, Filter } from 'lucide-react'
-import { useChurchStore } from '@/store'
+import { useState, useEffect } from 'react'
+import { Send, Loader2, CheckCircle2, Clock, Trash2 } from 'lucide-react'
+import {
+  collection,
+  query,
+  getDocs,
+  addDoc,
+  deleteDoc,
+  doc,
+  serverTimestamp,
+  orderBy,
+  limit,
+} from 'firebase/firestore'
+import { db } from '@/lib/firebase/client'
+import { useChurchStore, useAuthStore } from '@/store'
 import { toast } from 'sonner'
 
 export default function CommunicationsPage() {
   const { church } = useChurchStore()
+  const { user } = useAuthStore()
   const [channel, setChannel] = useState<'whatsapp' | 'email' | 'sms'>('whatsapp')
   const [recipientTag, setRecipientTag] = useState('all')
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
+  const [history, setHistory] = useState<any[]>([])
+  const [loadingHistory, setLoadingHistory] = useState(true)
 
-  const handleSendBroadcast = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!church?.id) return
+    loadHistory()
+  }, [church?.id])
+
+  async function loadHistory() {
+    if (!church?.id) return
+    setLoadingHistory(true)
+    try {
+      const q = query(
+        collection(db, 'churches', church.id, 'communications'),
+        orderBy('createdAt', 'desc'),
+        limit(20)
+      )
+      const snap = await getDocs(q).catch(() => null)
+      const list: any[] = []
+      if (snap && !snap.empty) {
+        snap.docs.forEach((d) => list.push({ id: d.id, ...d.data() }))
+      }
+      setHistory(list)
+    } catch (err) {
+      console.error('Error loading communication history:', err)
+    } finally {
+      setLoadingHistory(false)
+    }
+  }
+
+  const handleSendBroadcast = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!message.trim()) return
+    if (!message.trim() || !church?.id) return
     setSending(true)
-    setTimeout(() => {
-      setSending(false)
-      toast.success(`Broadcast message sent via ${channel.toUpperCase()} to ${recipientTag} list!`)
+    try {
+      // Persist broadcast record to Firestore
+      const broadcastData = {
+        channel,
+        recipientTag,
+        subject: subject.trim() || null,
+        message: message.trim(),
+        status: 'sent',
+        sentBy: user?.uid ?? null,
+        sentByEmail: user?.email ?? null,
+        churchId: church.id,
+        createdAt: serverTimestamp(),
+      }
+      const ref = await addDoc(
+        collection(db, 'churches', church.id, 'communications'),
+        broadcastData
+      )
+      // Optimistically add to history
+      setHistory((prev) => [{ id: ref.id, ...broadcastData, createdAt: new Date() }, ...prev])
+      toast.success(`Broadcast queued via ${channel.toUpperCase()} to "${recipientTag}" recipients.`)
       setSubject('')
       setMessage('')
-    }, 1200)
+    } catch {
+      toast.error('Failed to send broadcast. Check your provider configuration in Settings.')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const handleDeleteHistory = async (id: string) => {
+    if (!church?.id) return
+    try {
+      await deleteDoc(doc(db, 'churches', church.id, 'communications', id))
+      setHistory((prev) => prev.filter((h) => h.id !== id))
+      toast.success('Record removed.')
+    } catch {
+      toast.error('Failed to remove record.')
+    }
+  }
+
+  const channelColor = {
+    whatsapp: 'bg-emerald-500 text-white',
+    email: 'bg-brand-600 text-white',
+    sms: 'bg-purple-600 text-white',
+  }
+
+  const channelBadge = {
+    whatsapp: 'bg-emerald-500/10 text-emerald-500',
+    email: 'bg-brand-500/10 text-brand-500',
+    sms: 'bg-purple-500/10 text-purple-500',
   }
 
   return (
@@ -42,33 +128,18 @@ export default function CommunicationsPage() {
           <div className="flex items-center justify-between border-b pb-3">
             <h2 className="font-display text-sm font-bold text-foreground">Compose Broadcast</h2>
             <div className="flex gap-1.5">
-              <button
-                type="button"
-                onClick={() => setChannel('whatsapp')}
-                className={`rounded-xl px-3 py-1 text-xs font-semibold transition-all ${
-                  channel === 'whatsapp' ? 'bg-emerald-500 text-white' : 'border hover:bg-accent'
-                }`}
-              >
-                WhatsApp
-              </button>
-              <button
-                type="button"
-                onClick={() => setChannel('email')}
-                className={`rounded-xl px-3 py-1 text-xs font-semibold transition-all ${
-                  channel === 'email' ? 'bg-brand-600 text-white' : 'border hover:bg-accent'
-                }`}
-              >
-                Email
-              </button>
-              <button
-                type="button"
-                onClick={() => setChannel('sms')}
-                className={`rounded-xl px-3 py-1 text-xs font-semibold transition-all ${
-                  channel === 'sms' ? 'bg-purple-600 text-white' : 'border hover:bg-accent'
-                }`}
-              >
-                SMS
-              </button>
+              {(['whatsapp', 'email', 'sms'] as const).map((ch) => (
+                <button
+                  key={ch}
+                  type="button"
+                  onClick={() => setChannel(ch)}
+                  className={`rounded-xl px-3 py-1 text-xs font-semibold transition-all capitalize ${
+                    channel === ch ? channelColor[ch] : 'border hover:bg-accent'
+                  }`}
+                >
+                  {ch}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -78,12 +149,14 @@ export default function CommunicationsPage() {
               <select
                 value={recipientTag}
                 onChange={(e) => setRecipientTag(e.target.value)}
-                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+                className="mt-1 flex h-9 w-full rounded-xl border border-input bg-background px-3 focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <option value="all">All Congregation Members</option>
                 <option value="first_time_visitors">First-Time Visitors Only</option>
-                <option value="workers">Church Workers & Leaders</option>
-                <option value="tithers">Partners & Donors</option>
+                <option value="workers">Church Workers &amp; Leaders</option>
+                <option value="tithers">Partners &amp; Donors</option>
+                <option value="members">Members Only</option>
+                <option value="visitors">All Visitors</option>
               </select>
             </div>
 
@@ -96,7 +169,7 @@ export default function CommunicationsPage() {
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   placeholder="e.g. Special Invitation to Sunday Service"
-                  className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+                  className="mt-1 flex h-9 w-full rounded-xl border border-input bg-background px-3 focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
             )}
@@ -109,7 +182,7 @@ export default function CommunicationsPage() {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="Type broadcast message..."
-                className="mt-1 flex w-full rounded-xl border bg-background px-3 py-2 resize-none"
+                className="mt-1 flex w-full rounded-xl border border-input bg-background px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
 
@@ -117,7 +190,7 @@ export default function CommunicationsPage() {
               <button
                 type="submit"
                 disabled={sending}
-                className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-4 font-semibold text-white hover:bg-brand-500 disabled:opacity-50"
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-4 font-semibold text-white hover:bg-brand-500 disabled:opacity-50 text-xs"
               >
                 {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                 Dispatch Broadcast
@@ -126,26 +199,109 @@ export default function CommunicationsPage() {
           </form>
         </div>
 
-        {/* Infrastructure Status */}
+        {/* Provider Status Sidebar */}
         <div className="space-y-4">
           <div className="rounded-2xl border bg-card p-5 shadow-xs space-y-3">
             <h2 className="font-display text-sm font-bold text-foreground">Delivery Pipeline</h2>
             <div className="space-y-2 text-xs">
-              <div className="flex items-center justify-between p-2 rounded-xl bg-muted/20">
-                <span>WhatsApp Meta Cloud</span>
-                <span className="font-bold text-emerald-500">Active</span>
-              </div>
-              <div className="flex items-center justify-between p-2 rounded-xl bg-muted/20">
-                <span>Resend Email Engine</span>
-                <span className="font-bold text-emerald-500">Active</span>
-              </div>
-              <div className="flex items-center justify-between p-2 rounded-xl bg-muted/20">
-                <span>Termii SMS Gateway</span>
-                <span className="font-bold text-emerald-500">Active</span>
-              </div>
+              {[
+                { name: 'WhatsApp Meta Cloud', key: 'whatsapp' },
+                { name: 'Resend Email Engine', key: 'email' },
+                { name: 'Termii SMS Gateway', key: 'sms' },
+              ].map((provider) => {
+                const isConfigured = !!church?.settings?.communicationProviders?.[provider.key as 'whatsapp' | 'email' | 'sms']
+                return (
+                  <div
+                    key={provider.key}
+                    className="flex items-center justify-between p-2 rounded-xl bg-muted/20"
+                  >
+                    <span>{provider.name}</span>
+                    <span
+                      className={`font-bold text-[10px] ${
+                        isConfigured ? 'text-emerald-500' : 'text-amber-500'
+                      }`}
+                    >
+                      {isConfigured ? 'Configured' : 'Not Configured'}
+                    </span>
+                  </div>
+                )
+              })}
             </div>
+            <p className="text-[10px] text-muted-foreground">
+              Configure API keys in Settings → Communication Providers.
+            </p>
           </div>
         </div>
+      </div>
+
+      {/* Broadcast History */}
+      <div className="rounded-2xl border bg-card shadow-xs overflow-hidden">
+        <div className="flex items-center justify-between border-b px-4 py-3">
+          <h2 className="font-display text-sm font-bold text-foreground flex items-center gap-2">
+            <Clock className="h-4 w-4 text-muted-foreground" />
+            Recent Broadcasts
+          </h2>
+        </div>
+        {loadingHistory ? (
+          <div className="flex h-32 items-center justify-center">
+            <Loader2 className="h-5 w-5 animate-spin text-brand-600" />
+          </div>
+        ) : history.length === 0 ? (
+          <div className="p-8 text-center text-xs text-muted-foreground">
+            No broadcasts sent yet. Compose and dispatch your first message above.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-muted/20 text-muted-foreground font-semibold border-b">
+                <tr>
+                  <th className="p-3.5">Channel</th>
+                  <th className="p-3.5">Recipients</th>
+                  <th className="p-3.5">Message Preview</th>
+                  <th className="p-3.5">Status</th>
+                  <th className="p-3.5 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {history.map((h) => (
+                  <tr key={h.id} className="hover:bg-muted/20">
+                    <td className="p-3.5">
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold capitalize ${
+                          channelBadge[h.channel as keyof typeof channelBadge] ?? 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {h.channel}
+                      </span>
+                    </td>
+                    <td className="p-3.5 text-muted-foreground capitalize">
+                      {h.recipientTag?.replace(/_/g, ' ')}
+                    </td>
+                    <td className="p-3.5 text-foreground max-w-xs truncate">
+                      {h.subject ? <span className="font-semibold">{h.subject}: </span> : null}
+                      {h.message}
+                    </td>
+                    <td className="p-3.5">
+                      <span className="flex items-center gap-1 text-emerald-500 font-semibold">
+                        <CheckCircle2 className="h-3 w-3" />
+                        {h.status ?? 'sent'}
+                      </span>
+                    </td>
+                    <td className="p-3.5 text-right">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteHistory(h.id)}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-lg border hover:bg-rose-500/10 text-muted-foreground hover:text-rose-500"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   )

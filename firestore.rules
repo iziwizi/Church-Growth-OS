@@ -206,6 +206,25 @@ service cloud.firestore {
         allow read, create, update: if isChurchOwnerOrAdmin(churchId);
         allow delete: if isChurchOwnerOrAdmin(churchId);
       }
+
+      // ── Subcollection: Live Service Sessions ─────────────────────────────
+      match /liveServices/{sessionId} {
+        allow read: if isChurchMember(churchId);
+        allow create, update: if isChurchOwnerOrAdmin(churchId);
+        allow delete: if isChurchOwnerOrAdmin(churchId);
+      }
+
+      // ── Subcollection: AI Generated Content ──────────────────────────────
+      match /aiContent/{contentId} {
+        allow read, create, update: if isChurchMember(churchId);
+        allow delete: if isChurchOwnerOrAdmin(churchId);
+      }
+
+      // ── Subcollection: Support Tickets ────────────────────────────────────
+      match /supportTickets/{ticketId} {
+        allow read, create, update: if isChurchMember(churchId);
+        allow delete: if isChurchOwnerOrAdmin(churchId);
+      }
     }
 
     // ============================================================================
