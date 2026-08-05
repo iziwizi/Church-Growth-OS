@@ -22,6 +22,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Bot,
+  HelpCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useUIStore, useChurchStore } from '@/store'
@@ -96,6 +97,11 @@ const NAV_ITEMS = [
     label: 'Reports',
     href: '/reports',
     icon: BarChart3,
+  },
+  {
+    label: 'Support',
+    href: '/support',
+    icon: HelpCircle,
   },
   {
     label: 'Settings',

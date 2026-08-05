@@ -36,50 +36,55 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
   // 1. Observer for Firebase Auth & Firestore synchronization
   useEffect(() => {
     const unsubscribe = onAuthChange(async (firebaseUser) => {
-      if (firebaseUser) {
-        setUser(firebaseUser)
+      try {
+        if (firebaseUser) {
+          setUser(firebaseUser)
 
-        // Fetch User Profile from Firestore
-        const profile = await getUserProfile(firebaseUser.uid)
+          const isSuperAdminEmail = firebaseUser.email?.endsWith('@mujteknify.com') ?? false
 
-        let activeChurchId = profile?.churchId ?? null
-        let activeRole = profile?.role ?? 'owner'
-
-        // Check if user is Super Admin (either profile role === 'super_admin' or claims)
-        const isSuperAdmin = activeRole === 'super_admin' || firebaseUser.email?.endsWith('@mujteknify.com')
-        if (isSuperAdmin && firebaseUser.email) {
-          await ensureSuperAdminProfile(firebaseUser.uid, firebaseUser.email)
-        }
-
-        let churchDoc = null
-        if (activeChurchId) {
-          churchDoc = await getUserChurch(firebaseUser.uid)
-        } else {
-          churchDoc = await getUserChurch(firebaseUser.uid)
-          if (churchDoc) {
-            activeChurchId = churchDoc.id
-            activeRole = 'owner'
+          if (isSuperAdminEmail && firebaseUser.email) {
+            await ensureSuperAdminProfile(firebaseUser.uid, firebaseUser.email).catch(() => null)
           }
-        }
 
-        if (churchDoc) {
-          setChurch(churchDoc)
+          // Fetch User Profile from Firestore
+          const profile = await getUserProfile(firebaseUser.uid).catch(() => null)
+
+          let activeChurchId = profile?.churchId ?? null
+          let activeRole = profile?.role ?? (isSuperAdminEmail ? 'super_admin' : 'owner')
+          const isSuperAdmin = isSuperAdminEmail || activeRole === 'super_admin'
+
+          let churchDoc = null
+          if (activeChurchId) {
+            churchDoc = await getUserChurch(firebaseUser.uid).catch(() => null)
+          } else if (!isSuperAdmin) {
+            churchDoc = await getUserChurch(firebaseUser.uid).catch(() => null)
+            if (churchDoc) {
+              activeChurchId = churchDoc.id
+              activeRole = 'owner'
+            }
+          }
+
+          if (churchDoc) {
+            setChurch(churchDoc)
+          } else {
+            setChurch(null)
+          }
+
+          setClaims({
+            churchId: activeChurchId ?? '',
+            role: activeRole,
+            superAdmin: isSuperAdmin,
+          })
         } else {
+          reset()
           setChurch(null)
         }
-
-        setClaims({
-          churchId: activeChurchId ?? '',
-          role: activeRole,
-          superAdmin: isSuperAdmin,
-        })
-      } else {
-        reset()
-        setChurch(null)
+      } catch (err) {
+        console.error('AuthInitializer sync error:', err)
+      } finally {
+        setLoading(false)
+        setInitialized(true)
       }
-
-      setLoading(false)
-      setInitialized(true)
     })
 
     return () => unsubscribe()
@@ -94,6 +99,7 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
     const isSetup = pathname === '/setup'
     const isAdminRoute = pathname.startsWith('/admin')
     const hasChurch = !!church?.id
+    const isSuperAdmin = user?.email?.endsWith('@mujteknify.com')
 
     // Case A: Unauthenticated User
     if (!user) {
@@ -105,8 +111,8 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // Case B: Authenticated User BUT Email NOT Verified
-    if (!user.emailVerified) {
+    // Case B: Authenticated User BUT Email NOT Verified (Skip check for super admin)
+    if (!user.emailVerified && !isSuperAdmin) {
       if (!isVerifyEmailPage) {
         router.replace('/verify-email')
       } else {
@@ -117,16 +123,18 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
 
     // Case C: Authenticated User AND Email Verified, sitting on /verify-email
     if (isVerifyEmailPage) {
-      if (!hasChurch) {
+      if (!hasChurch && !isSuperAdmin) {
         router.replace('/setup')
+      } else if (isSuperAdmin) {
+        router.replace('/admin')
       } else {
         router.replace('/dashboard')
       }
       return
     }
 
-    // Case D: User without Church Setup completed
-    if (!hasChurch) {
+    // Case D: User without Church Setup completed (Super admins don't need a church)
+    if (!hasChurch && !isSuperAdmin) {
       if (!isSetup && !isAdminRoute) {
         router.replace('/setup')
       } else {
@@ -135,9 +143,11 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // Case E: Authenticated User with Church Setup completed
-    if (isSetup || (isPublic && pathname !== '/' && !isAdminRoute)) {
+    // Case E: Authenticated User sitting on setup or public pages
+    if (isSetup && hasChurch) {
       router.replace('/dashboard')
+    } else if (isPublic && pathname !== '/' && !isAdminRoute) {
+      router.replace(isSuperAdmin ? '/admin' : '/dashboard')
     } else {
       setCheckingRoute(false)
     }

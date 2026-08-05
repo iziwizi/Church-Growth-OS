@@ -242,6 +242,31 @@ service cloud.firestore {
     }
 
     // ============================================================================
+    // SYSTEM INFRASTRUCTURE SECRETS (/system/infrastructure)
+    // ============================================================================
+
+    match /system/{document=**} {
+      allow read, write: if isAuthenticated() && (
+        isSuperAdmin() ||
+        request.auth.token.role == 'super_admin' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin'
+      );
+    }
+
+    // ============================================================================
+    // PLATFORM SUPPORT TICKETS (/platformSupportTickets/{ticketId})
+    // ============================================================================
+
+    match /platformSupportTickets/{ticketId} {
+      allow read, create, update: if isAuthenticated();
+      allow delete: if isAuthenticated() && (
+        isSuperAdmin() ||
+        request.auth.token.role == 'super_admin' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin'
+      );
+    }
+
+    // ============================================================================
     // NOTIFICATIONS COLLECTION (/notifications/{notificationId})
     // ============================================================================
 

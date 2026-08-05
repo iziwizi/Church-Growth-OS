@@ -40,11 +40,12 @@ function RegisterForm() {
     try {
       const { verificationSent } = await signUpUser(data.email, data.password, data.fullName)
       if (verificationSent) {
-        toast.success('Account created! Verification email sent. Redirecting to church setup...')
+        toast.success('Account created! Verification email sent. Please verify your email.')
       } else {
-        toast.success('Account created! Redirecting to church setup...')
+        toast.success('Account created! Please check your inbox for verification.')
       }
-      router.replace('/setup')
+      // Mandatory flow: Register -> Send Verification Email -> Verify Email Screen -> Setup -> Dashboard
+      router.replace('/verify-email')
     } catch (error) {
       toast.error(mapAuthError(error))
     }
