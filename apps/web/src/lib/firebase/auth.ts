@@ -95,7 +95,11 @@ export async function signUpUser(
   // 4. Send Email Verification with continueUrl so clicking the link returns to our app
   let verificationSent = false
   try {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+    // Use runtime origin so this works on localhost, Vercel preview, and custom domains without code changes
+    const appUrl =
+      typeof window !== 'undefined'
+        ? window.location.origin
+        : (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000')
     const actionCodeSettings: ActionCodeSettings = {
       url: `${appUrl}/verify-email`,
       handleCodeInApp: false,
@@ -168,7 +172,10 @@ export async function sendPasswordReset(email: string): Promise<void> {
 export async function resendVerification(): Promise<boolean> {
   if (!auth.currentUser) return false
   try {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+    const appUrl =
+      typeof window !== 'undefined'
+        ? window.location.origin
+        : (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000')
     const actionCodeSettings: ActionCodeSettings = {
       url: `${appUrl}/verify-email`,
       handleCodeInApp: false,

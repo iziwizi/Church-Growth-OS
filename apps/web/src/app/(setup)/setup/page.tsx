@@ -330,12 +330,12 @@ export default function SetupWizardPage() {
 
   return (
     <div className="w-full max-w-2xl mx-auto py-8 px-4">
-      {/* Setup Wizard Header — Logo + Title */}
-      <div className="mb-6 flex items-center gap-3">
+      {/* Setup Wizard Header — Single Logo, No Duplicate */}
+      <div className="mb-8 flex flex-col items-center gap-2 text-center">
         <img
           src="/logo.png"
           alt="Church Growth OS"
-          className="h-11 w-auto object-contain rounded-lg border bg-background p-1 shadow-xs"
+          className="h-14 w-auto object-contain rounded-lg border bg-background p-1.5 shadow-xs"
         />
         <div>
           <h1 className="font-display text-xl font-bold text-foreground">Church Setup</h1>
@@ -647,7 +647,14 @@ export default function SetupWizardPage() {
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      onClick={() => setHasBranches(true)}
+                      onClick={() => {
+                        // All users start on free_trial (branchesLimit=1) during setup.
+                        // Branches can be added after upgrading via Settings → Branch Management.
+                        toast.error(
+                          'Multi-campus branches require a Growth or Enterprise plan. You can add branches after upgrading.',
+                          { duration: 5000 }
+                        )
+                      }}
                       className={`h-7 px-3 rounded-lg text-xs font-semibold ${
                         hasBranches ? 'bg-brand-600 text-white' : 'border bg-background'
                       }`}
@@ -666,34 +673,10 @@ export default function SetupWizardPage() {
                   </div>
                 </div>
 
-                {hasBranches && (
-                  <div className="space-y-3 pt-2 border-t border-border">
-                    <p className="font-semibold text-brand-500">First Satellite Branch Setup</p>
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                      <input
-                        type="text"
-                        placeholder="Branch Name (e.g. Lekki Campus)"
-                        value={branchName}
-                        onChange={(e) => setBranchName(e.target.value)}
-                        className="flex h-9 rounded-xl border bg-background px-3"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Branch Address"
-                        value={branchAddress}
-                        onChange={(e) => setBranchAddress(e.target.value)}
-                        className="flex h-9 rounded-xl border bg-background px-3"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Resident Pastor Name"
-                        value={branchPastor}
-                        onChange={(e) => setBranchPastor(e.target.value)}
-                        className="flex h-9 rounded-xl border bg-background px-3"
-                      />
-                    </div>
-                  </div>
-                )}
+                <p className="text-[11px] text-muted-foreground">
+                  Your account starts on a <span className="font-semibold text-foreground">14-day Free Trial</span> (1 campus). Multi-campus support is available on Growth &amp; Enterprise plans.{' '}
+                  <a href="/pricing" className="text-brand-500 hover:underline font-semibold">View plans →</a>
+                </p>
               </div>
             </div>
           )}

@@ -6,6 +6,7 @@ import { doc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase/client'
 import { useChurchStore, useAuthStore } from '@/store'
 import { toast } from 'sonner'
+import { uploadService } from '@/lib/upload'
 import {
   Building2,
   Palette,
@@ -24,6 +25,9 @@ import {
   ArrowRight,
   HardDrive,
   Sparkles,
+  Upload,
+  X,
+  ImageIcon,
 } from 'lucide-react'
 import { sendPasswordReset } from '@/lib/firebase/auth'
 
@@ -375,26 +379,70 @@ function ProfileSettingsTab({ church, setChurch }: { church: any; setChurch: any
 // ── 2. Branding Settings Tab ──────────────────────────────────────────────────
 function BrandingSettingsTab({ church, setChurch }: { church: any; setChurch: any }) {
   const [saving, setSaving] = useState(false)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
   const [primaryColor, setPrimaryColor] = useState(church.branding?.primaryColor ?? '#4f46e5')
   const [secondaryColor, setSecondaryColor] = useState(church.branding?.secondaryColor ?? '#06b6d4')
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const currentLogoUrl = church.branding?.logoUrl ?? null
+
+  const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Logo must be under 5 MB')
+      return
+    }
+    setLogoFile(file)
+    setLogoPreview(URL.createObjectURL(file))
+  }
+
+  const handleRemoveSelectedLogo = () => {
+    setLogoFile(null)
+    setLogoPreview(null)
+  }
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
     try {
+      let logoUrl = currentLogoUrl ?? ''
+
+      // Upload new logo if selected
+      if (logoFile) {
+        setUploadingLogo(true)
+        try {
+          const res = await uploadService.upload(logoFile, {
+            folder: `churches/${church.id}/logos`,
+            allowedFormats: ['jpg', 'jpeg', 'png', 'webp', 'svg'],
+          })
+          logoUrl = res.url
+        } finally {
+          setUploadingLogo(false)
+        }
+      }
+
       const churchRef = doc(db, 'churches', church.id)
       await updateDoc(churchRef, {
         'branding.primaryColor': primaryColor,
         'branding.secondaryColor': secondaryColor,
+        'branding.logoUrl': logoUrl,
         updatedAt: serverTimestamp(),
       })
-      setChurch({
-        ...church,
-        branding: { ...church.branding, primaryColor, secondaryColor },
-      })
-      toast.success('Branding theme updated!')
+
+      // Update Zustand store immediately — sidebar and header reflect change
+      const updatedBranding = {
+        ...church.branding,
+        primaryColor,
+        secondaryColor,
+        logoUrl,
+      }
+      setChurch({ ...church, branding: updatedBranding })
+      setLogoFile(null)
+      setLogoPreview(null)
+      toast.success('Branding updated! Logo is now synchronized across the platform.')
     } catch {
-      toast.error('Failed to update theme.')
+      toast.error('Failed to update branding.')
     } finally {
       setSaving(false)
     }
@@ -402,6 +450,53 @@ function BrandingSettingsTab({ church, setChurch }: { church: any; setChurch: an
 
   return (
     <form onSubmit={handleSave} className="space-y-6">
+      {/* ── Logo Section ── */}
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-4">
+        <h2 className="font-display text-base font-bold text-foreground">Church Logo</h2>
+        <p className="text-xs text-muted-foreground">Your logo is displayed in the sidebar, reports, and exported PDFs. Changes sync instantly.</p>
+
+        <div className="flex items-center gap-6">
+          {/* Current / Preview */}
+          <div className="relative">
+            {(logoPreview ?? currentLogoUrl) ? (
+              <>
+                <img
+                  src={logoPreview ?? currentLogoUrl!}
+                  alt="Church Logo"
+                  className="h-20 w-20 rounded-lg object-contain border-2 border-border bg-background p-1"
+                />
+                {logoPreview && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveSelectedLogo}
+                    className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-white shadow-xs"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </>
+            ) : (
+              <div className="flex h-20 w-20 items-center justify-center rounded-lg border-2 border-dashed border-border bg-muted/20 text-muted-foreground">
+                <ImageIcon className="h-8 w-8" />
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2 text-xs">
+            <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl border bg-background px-4 font-semibold text-foreground hover:bg-accent transition-colors">
+              <Upload className="h-3.5 w-3.5" />
+              {logoFile ? 'Change Logo' : 'Upload Logo'}
+              <input type="file" accept="image/*" className="hidden" onChange={handleLogoSelect} />
+            </label>
+            <p className="text-muted-foreground">PNG, JPG, SVG or WebP — Max 5 MB.</p>
+            {logoFile && (
+              <p className="text-brand-500 font-semibold">✓ New logo ready to save</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Theme Colors Section ── */}
       <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-4">
         <h2 className="font-display text-base font-bold text-foreground">Theme Colors</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-xs">
@@ -445,11 +540,11 @@ function BrandingSettingsTab({ church, setChurch }: { church: any; setChurch: an
         <div className="flex justify-end pt-2">
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || uploadingLogo}
             className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-4 text-xs font-semibold text-white hover:bg-brand-500 disabled:opacity-50"
           >
-            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-            Save Branding Theme
+            {(saving || uploadingLogo) ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+            {uploadingLogo ? 'Uploading logo...' : saving ? 'Saving...' : 'Save Branding'}
           </button>
         </div>
       </div>
@@ -717,9 +812,18 @@ function BranchSettingsTab({ church, setChurch }: { church: any; setChurch: any 
   const [newBranchPastor, setNewBranchPastor] = useState('')
   const [adding, setAdding] = useState(false)
 
+  // Read branch limit from Firestore-backed subscription — no hardcoding
+  const branchesLimit: number = church.subscription?.branchesLimit ?? 1
+  const canAddBranch = branchesLimit > 1 || branchesLimit === -1 // -1 = unlimited
+  const planId: string = church.subscription?.planId ?? 'free_trial'
+
   const handleAddBranch = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newBranchName.trim()) return
+    if (!canAddBranch) {
+      toast.error('Upgrade your plan to add satellite branches.')
+      return
+    }
     setAdding(true)
     try {
       const newBranch = {
@@ -763,43 +867,70 @@ function BranchSettingsTab({ church, setChurch }: { church: any; setChurch: any 
         ))}
       </div>
 
-      <form onSubmit={handleAddBranch} className="rounded-xl border bg-muted/20 p-4 space-y-3 pt-4 border-t">
-        <p className="font-bold text-foreground">Add New Satellite Branch</p>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <input
-            type="text"
-            required
-            placeholder="Branch Name *"
-            value={newBranchName}
-            onChange={(e) => setNewBranchName(e.target.value)}
-            className="flex h-9 rounded-xl border bg-background px-3"
-          />
-          <input
-            type="text"
-            placeholder="Address"
-            value={newBranchAddr}
-            onChange={(e) => setNewBranchAddr(e.target.value)}
-            className="flex h-9 rounded-xl border bg-background px-3"
-          />
-          <input
-            type="text"
-            placeholder="Resident Pastor Name"
-            value={newBranchPastor}
-            onChange={(e) => setNewBranchPastor(e.target.value)}
-            className="flex h-9 rounded-xl border bg-background px-3"
-          />
-        </div>
-        <div className="flex justify-end">
-          <button
-            type="submit"
-            disabled={adding}
-            className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-brand-600 px-3 font-semibold text-white hover:bg-brand-500"
+      {canAddBranch ? (
+        /* ── Plan allows branches — show Add Branch form ── */
+        <form onSubmit={handleAddBranch} className="rounded-xl border bg-muted/20 p-4 space-y-3">
+          <p className="font-bold text-foreground">Add New Satellite Branch</p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <input
+              type="text"
+              required
+              placeholder="Branch Name *"
+              value={newBranchName}
+              onChange={(e) => setNewBranchName(e.target.value)}
+              className="flex h-9 rounded-xl border bg-background px-3"
+            />
+            <input
+              type="text"
+              placeholder="Address"
+              value={newBranchAddr}
+              onChange={(e) => setNewBranchAddr(e.target.value)}
+              className="flex h-9 rounded-xl border bg-background px-3"
+            />
+            <input
+              type="text"
+              placeholder="Resident Pastor Name"
+              value={newBranchPastor}
+              onChange={(e) => setNewBranchPastor(e.target.value)}
+              className="flex h-9 rounded-xl border bg-background px-3"
+            />
+          </div>
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={adding}
+              className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-brand-600 px-3 font-semibold text-white hover:bg-brand-500"
+            >
+              {adding ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+              Add Campus Branch
+            </button>
+          </div>
+        </form>
+      ) : (
+        /* ── Free plan: show Upgrade Card ── */
+        <div className="rounded-xl border-2 border-dashed border-brand-500/30 bg-brand-500/5 p-6 text-center space-y-3">
+          <div className="flex justify-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-500/10 text-brand-500">
+              <Network className="h-6 w-6" />
+            </div>
+          </div>
+          <div>
+            <p className="font-bold text-foreground text-sm">Multi-Campus Branches</p>
+            <p className="text-muted-foreground mt-1">
+              Your current plan <span className="font-semibold text-foreground capitalize">{planId.replace('_', ' ')}</span> supports{' '}
+              <span className="font-semibold text-brand-500">1 campus</span> only. Upgrade to Growth or Enterprise to add satellite branches.
+            </p>
+          </div>
+          <a
+            href="/pricing"
+            className="inline-flex h-9 items-center gap-2 rounded-xl bg-brand-600 px-5 text-xs font-semibold text-white hover:bg-brand-500 shadow-xs"
           >
-            {adding ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
-            Add Campus Branch
-          </button>
+            <Sparkles className="h-3.5 w-3.5" />
+            Upgrade Plan
+            <ArrowRight className="h-3.5 w-3.5" />
+          </a>
         </div>
-      </form>
+      )}
     </div>
   )
 }

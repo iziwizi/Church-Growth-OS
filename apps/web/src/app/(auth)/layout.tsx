@@ -45,9 +45,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <Image
             src="/logo.png"
             alt="Church Growth OS"
-            width={180}
-            height={48}
-            className="h-10 w-auto object-contain"
+            width={220}
+            height={60}
+            className="h-14 w-auto object-contain rounded-lg"
             priority
           />
         </div>
@@ -102,14 +102,14 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
       {/* ── RIGHT SIDE: Authentication Form (Mobile & Desktop) ────────────── */}
       <div className="flex lg:col-span-6 flex-col items-center justify-center p-6 sm:p-12 relative">
-        {/* Mobile Header Logo — single logo, properly rounded */}
-        <div className="lg:hidden mb-8 text-center">
+        {/* Mobile Header Logo — larger, perfectly centered, one logo only */}
+        <div className="lg:hidden mb-8 flex flex-col items-center">
           <Image
             src="/logo.png"
             alt="Church Growth OS"
-            width={160}
-            height={42}
-            className="h-11 w-auto mx-auto object-contain rounded-lg"
+            width={220}
+            height={60}
+            className="h-16 w-auto object-contain rounded-lg"
             priority
           />
         </div>

@@ -85,7 +85,7 @@ export const useChurchStore = create<ChurchState>()(
     }),
     {
       name: 'church-store',
-      storage: createJSONStorage(() => sessionStorage),
+      storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({ church: state.church }),
     }
   )
