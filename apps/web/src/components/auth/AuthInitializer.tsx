@@ -33,7 +33,7 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const [checkingRoute, setCheckingRoute] = useState(true)
 
-  const { user, isInitialized, setUser, setClaims, setLoading, setInitialized, reset } =
+  const { user, isSuperAdmin: storeIsSuperAdmin, role, isInitialized, setUser, setClaims, setLoading, setInitialized, reset } =
     useAuthStore()
   const { church, setChurch } = useChurchStore()
 
@@ -110,7 +110,10 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
 
     // Determine if the current user is super admin
     const isSuperAdmin =
-      user?.email?.endsWith('@mujteknify.com') || false
+      storeIsSuperAdmin ||
+      role === 'super_admin' ||
+      user?.email?.endsWith('@mujteknify.com') ||
+      false
 
     // Admin login page — always accessible, no redirect
     if (isAdminPublic) {

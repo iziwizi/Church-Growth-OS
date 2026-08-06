@@ -330,16 +330,16 @@ export default function SetupWizardPage() {
 
   return (
     <div className="w-full max-w-2xl mx-auto py-8 px-4">
-      {/* Setup Wizard Header — Single Logo, No Duplicate */}
+      {/* Setup Wizard Header — Single Logo, Crisp White Header for Dark Background */}
       <div className="mb-8 flex flex-col items-center gap-2 text-center">
         <img
           src="/logo.png"
           alt="Church Growth OS"
-          className="h-14 w-auto object-contain rounded-lg border bg-background p-1.5 shadow-xs"
+          className="h-14 w-auto object-contain rounded-lg border border-white/20 bg-background/90 p-1.5 shadow-md"
         />
         <div>
-          <h1 className="font-display text-xl font-bold text-foreground">Church Setup</h1>
-          <p className="text-xs text-muted-foreground">Configure your ministry platform</p>
+          <h1 className="font-display text-2xl font-extrabold text-white tracking-tight drop-shadow-sm">Church Setup</h1>
+          <p className="text-xs font-medium text-brand-200/90">Configure your ministry platform</p>
         </div>
       </div>
 

@@ -95,7 +95,7 @@ export async function signUpUser(
 
   await setDoc(userDocRef, profilePayload)
 
-  // 4. Send Email Verification with domain-safe fallback
+  // 4. Send Email Verification with domain-safe fallback & explicit logging
   let verificationSent = false
   try {
     const appUrl =
@@ -107,25 +107,23 @@ export async function signUpUser(
       handleCodeInApp: false,
     }
     try {
+      console.log('[Registration] Sending email verification with ActionCodeSettings:', actionCodeSettings.url)
       await sendEmailVerification(user, actionCodeSettings)
       verificationSent = true
+      console.log('[Registration] Email verification sent successfully with ActionCodeSettings.')
     } catch (actionErr: any) {
-      console.warn('sendEmailVerification with custom actionCodeSettings failed:', actionErr?.code, actionErr?.message)
-      // Retry basic sendEmailVerification ONLY if error was related to invalid/unauthorized URI
-      if (actionErr?.code === 'auth/unauthorized-continue-uri' || actionErr?.code === 'auth/invalid-continue-uri') {
+      console.error('[Registration Email Error] Code:', actionErr?.code, 'Message:', actionErr?.message)
+      try {
+        console.log('[Registration] Falling back to basic sendEmailVerification...')
         await sendEmailVerification(user)
         verificationSent = true
-      } else if (actionErr?.code === 'auth/too-many-requests') {
-        // Initial email was already sent or rate-limited by Firebase
-        verificationSent = true
-      } else {
-        // Fallback basic send
-        await sendEmailVerification(user)
-        verificationSent = true
+        console.log('[Registration] Basic email verification sent successfully.')
+      } catch (basicErr: any) {
+        console.error('[Registration Email Fallback Error] Code:', basicErr?.code, 'Message:', basicErr?.message)
       }
     }
-  } catch (emailErr) {
-    console.error('Failed to send verification email during signup:', emailErr)
+  } catch (emailErr: any) {
+    console.error('[Registration Email Outer Error] Code:', emailErr?.code, 'Message:', emailErr?.message)
   }
 
   return { user, verificationSent }
@@ -190,6 +188,7 @@ export async function sendPasswordReset(email: string): Promise<void> {
 export async function resendVerification(): Promise<boolean> {
   const user = auth.currentUser
   if (!user) {
+    console.error('[Resend Verification Error] Code: auth/no-user Message: No user is currently signed in.')
     throw new Error('No user is currently signed in. Please sign in to request a verification email.')
   }
   const appUrl =
@@ -202,15 +201,22 @@ export async function resendVerification(): Promise<boolean> {
   }
 
   try {
+    console.log('[Resend Verification] Attempting send with ActionCodeSettings:', actionCodeSettings.url)
     await sendEmailVerification(user, actionCodeSettings)
+    console.log('[Resend Verification] Email sent successfully with ActionCodeSettings.')
   } catch (actionErr: any) {
-    console.warn('resendVerification with actionCodeSettings failed:', actionErr?.code, actionErr?.message)
-    // If rate limited by Firebase, re-throw so the UI displays user-friendly cooldown warning
+    console.error('[Resend Verification Error] Code:', actionErr?.code, 'Message:', actionErr?.message)
     if (actionErr?.code === 'auth/too-many-requests') {
       throw actionErr
     }
-    // For URI or other config errors, fallback to basic sendEmailVerification
-    await sendEmailVerification(user)
+    try {
+      console.log('[Resend Verification] Falling back to basic sendEmailVerification...')
+      await sendEmailVerification(user)
+      console.log('[Resend Verification] Basic email sent successfully.')
+    } catch (fallbackErr: any) {
+      console.error('[Resend Verification Fallback Error] Code:', fallbackErr?.code, 'Message:', fallbackErr?.message)
+      throw fallbackErr
+    }
   }
 
   return true

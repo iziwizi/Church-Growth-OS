@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useAuthStore } from '@/store'
+import { useAuthStore, useChurchStore } from '@/store'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -169,6 +169,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const handleAdminLogout = async () => {
     try {
       await logOut()
+      useAuthStore.getState().reset()
+      useChurchStore.getState().setChurch(null)
       toast.success('Signed out of Super Admin Console.')
       router.replace('/admin/login')
     } catch {
