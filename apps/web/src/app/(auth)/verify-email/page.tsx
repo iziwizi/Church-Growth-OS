@@ -6,7 +6,7 @@ import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { Mail, CheckCircle2, RefreshCw, LogOut, ArrowRight, ExternalLink, Loader2, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
-import { auth, resendVerification, logOut } from '@/lib/firebase/auth'
+import { auth, resendVerification, logOut, mapAuthError } from '@/lib/firebase/auth'
 
 function VerifyEmailForm() {
   const router = useRouter()
@@ -54,14 +54,10 @@ function VerifyEmailForm() {
   const handleResend = async () => {
     setResending(true)
     try {
-      const sent = await resendVerification()
-      if (sent) {
-        toast.success('Verification email sent! Check your inbox.')
-      } else {
-        toast.error('Could not send email. Try again shortly.')
-      }
-    } catch {
-      toast.error('Error resending verification email.')
+      await resendVerification()
+      toast.success('Verification email sent! Check your inbox and spam folder.')
+    } catch (err: any) {
+      toast.error(mapAuthError(err))
     } finally {
       setResending(false)
     }

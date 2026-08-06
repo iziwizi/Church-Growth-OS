@@ -43,7 +43,10 @@ export function mapAuthError(error: unknown): string {
       case 'auth/weak-password':
         return 'Password should be at least 8 characters long and contain a mix of characters.'
       case 'auth/too-many-requests':
-        return 'Access to this account has been temporarily disabled due to many failed login attempts. You can reset your password or try again later.'
+        return 'Firebase recently sent a verification email to this address. Please wait 1-2 minutes before trying again or check your inbox/spam folder.'
+      case 'auth/unauthorized-continue-uri':
+      case 'auth/invalid-continue-uri':
+        return 'Could not process redirect URL. A standard verification email has been requested instead.'
       case 'auth/user-disabled':
         return 'This account has been disabled by a system administrator.'
       case 'auth/network-request-failed':
@@ -92,10 +95,9 @@ export async function signUpUser(
 
   await setDoc(userDocRef, profilePayload)
 
-  // 4. Send Email Verification with continueUrl so clicking the link returns to our app
+  // 4. Send Email Verification with continueUrl and basic fallback
   let verificationSent = false
   try {
-    // Use runtime origin so this works on localhost, Vercel preview, and custom domains without code changes
     const appUrl =
       typeof window !== 'undefined'
         ? window.location.origin
@@ -104,7 +106,12 @@ export async function signUpUser(
       url: `${appUrl}/verify-email`,
       handleCodeInApp: false,
     }
-    await sendEmailVerification(user, actionCodeSettings)
+    try {
+      await sendEmailVerification(user, actionCodeSettings)
+    } catch (actionErr) {
+      console.warn('sendEmailVerification with actionCodeSettings failed, falling back to basic:', actionErr)
+      await sendEmailVerification(user)
+    }
     verificationSent = true
   } catch (emailErr) {
     console.error('Failed to send verification email:', emailErr)
@@ -170,22 +177,32 @@ export async function sendPasswordReset(email: string): Promise<void> {
 }
 
 export async function resendVerification(): Promise<boolean> {
-  if (!auth.currentUser) return false
-  try {
-    const appUrl =
-      typeof window !== 'undefined'
-        ? window.location.origin
-        : (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000')
-    const actionCodeSettings: ActionCodeSettings = {
-      url: `${appUrl}/verify-email`,
-      handleCodeInApp: false,
-    }
-    await sendEmailVerification(auth.currentUser, actionCodeSettings)
-    return true
-  } catch (err) {
-    console.error('Failed to resend verification email:', err)
-    return false
+  const user = auth.currentUser
+  if (!user) {
+    throw new Error('No user is currently signed in. Please sign in to request a verification email.')
   }
+  const appUrl =
+    typeof window !== 'undefined'
+      ? window.location.origin
+      : (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000')
+  const actionCodeSettings: ActionCodeSettings = {
+    url: `${appUrl}/verify-email`,
+    handleCodeInApp: false,
+  }
+
+  try {
+    await sendEmailVerification(user, actionCodeSettings)
+  } catch (actionErr: any) {
+    console.warn('sendEmailVerification with actionCodeSettings failed, retrying basic:', actionErr)
+    // If it's a rate limit error (auth/too-many-requests), throw it directly
+    if (actionErr?.code === 'auth/too-many-requests') {
+      throw actionErr
+    }
+    // Otherwise try basic sendEmailVerification without custom actionCodeSettings
+    await sendEmailVerification(user)
+  }
+
+  return true
 }
 
 export async function logOut(): Promise<void> {
