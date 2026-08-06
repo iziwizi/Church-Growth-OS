@@ -293,6 +293,36 @@ service cloud.firestore {
     }
 
     // ============================================================================
+    // PAYMENTS, INVOICES, COUPONS, ANNOUNCEMENTS, AUDIT LOGS
+    // ============================================================================
+
+    match /payments/{paymentId} {
+      allow read, create, update: if isAuthenticated();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /invoices/{invoiceId} {
+      allow read, create, update: if isAuthenticated();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /coupons/{couponId} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
+    }
+
+    match /announcements/{announcementId} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
+    }
+
+    match /auditLogs/{logId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow delete: if isSuperAdmin();
+    }
+
+    // ============================================================================
     // DEFAULT DENY ALL
     // ============================================================================
 

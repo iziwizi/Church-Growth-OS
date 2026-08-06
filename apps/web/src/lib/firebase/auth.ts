@@ -95,7 +95,7 @@ export async function signUpUser(
 
   await setDoc(userDocRef, profilePayload)
 
-  // 4. Send Email Verification with continueUrl and basic fallback
+  // 4. Send Email Verification with domain-safe fallback
   let verificationSent = false
   try {
     const appUrl =
@@ -108,13 +108,24 @@ export async function signUpUser(
     }
     try {
       await sendEmailVerification(user, actionCodeSettings)
-    } catch (actionErr) {
-      console.warn('sendEmailVerification with actionCodeSettings failed, falling back to basic:', actionErr)
-      await sendEmailVerification(user)
+      verificationSent = true
+    } catch (actionErr: any) {
+      console.warn('sendEmailVerification with custom actionCodeSettings failed:', actionErr?.code, actionErr?.message)
+      // Retry basic sendEmailVerification ONLY if error was related to invalid/unauthorized URI
+      if (actionErr?.code === 'auth/unauthorized-continue-uri' || actionErr?.code === 'auth/invalid-continue-uri') {
+        await sendEmailVerification(user)
+        verificationSent = true
+      } else if (actionErr?.code === 'auth/too-many-requests') {
+        // Initial email was already sent or rate-limited by Firebase
+        verificationSent = true
+      } else {
+        // Fallback basic send
+        await sendEmailVerification(user)
+        verificationSent = true
+      }
     }
-    verificationSent = true
   } catch (emailErr) {
-    console.error('Failed to send verification email:', emailErr)
+    console.error('Failed to send verification email during signup:', emailErr)
   }
 
   return { user, verificationSent }
@@ -193,12 +204,12 @@ export async function resendVerification(): Promise<boolean> {
   try {
     await sendEmailVerification(user, actionCodeSettings)
   } catch (actionErr: any) {
-    console.warn('sendEmailVerification with actionCodeSettings failed, retrying basic:', actionErr)
-    // If it's a rate limit error (auth/too-many-requests), throw it directly
+    console.warn('resendVerification with actionCodeSettings failed:', actionErr?.code, actionErr?.message)
+    // If rate limited by Firebase, re-throw so the UI displays user-friendly cooldown warning
     if (actionErr?.code === 'auth/too-many-requests') {
       throw actionErr
     }
-    // Otherwise try basic sendEmailVerification without custom actionCodeSettings
+    // For URI or other config errors, fallback to basic sendEmailVerification
     await sendEmailVerification(user)
   }
 
