@@ -94,23 +94,45 @@ export async function signUpUser(
 
   await setDoc(userDocRef, profilePayload)
 
-  // 4. Send Email Verification
-  // We intentionally do NOT pass ActionCodeSettings to avoid auth/unauthorized-continue-uri
-  // errors when the continue URL (e.g. localhost) is not whitelisted in Firebase Console.
-  // Firebase will send a standard verification email using the default template.
+  // 4. Send Email Verification via our server-side Resend API route.
+  //    We do NOT use Firebase's client sendEmailVerification() because:
+  //    - Firebase's free tier has silent email quotas (no error, email just never arrives)
+  //    - Firebase's noreply@<project>.firebaseapp.com has poor deliverability
+  //    - Firebase silently drops emails without throwing errors
+  //    Instead: Admin SDK generates the real verification link → Resend delivers it.
   let verificationSent = false
   try {
-    console.log('[signUpUser] Calling sendEmailVerification for uid:', user.uid)
-    await sendEmailVerification(user)
-    verificationSent = true
-    console.log('[signUpUser] Verification email sent successfully.')
-  } catch (emailErr: any) {
-    // Log exact Firebase error — do NOT swallow
-    console.error('[signUpUser] FIREBASE EMAIL VERIFICATION ERROR')
-    console.error('  error.code   :', emailErr?.code)
-    console.error('  error.message:', emailErr?.message)
-    console.error('  full error   :', emailErr)
-    // verificationSent stays false — UI will show appropriate message
+    console.log('[signUpUser] Calling /api/auth/send-verification for:', user.email)
+    const res = await fetch('/api/auth/send-verification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: user.email, fullName }),
+    })
+    const data = await res.json()
+    if (res.ok && data.success) {
+      verificationSent = true
+      console.log('[signUpUser] Verification email sent via Resend. messageId:', data.messageId)
+    } else {
+      console.error('[signUpUser] Resend API error:', data.error)
+      // Fallback: try Firebase's own sendEmailVerification
+      try {
+        await sendEmailVerification(user)
+        verificationSent = true
+        console.log('[signUpUser] Fallback Firebase verification email sent.')
+      } catch (fbErr: any) {
+        console.error('[signUpUser] Firebase fallback error:', fbErr?.code, fbErr?.message)
+      }
+    }
+  } catch (fetchErr: any) {
+    console.error('[signUpUser] Could not reach /api/auth/send-verification:', fetchErr?.message)
+    // Fallback: try Firebase's own sendEmailVerification
+    try {
+      await sendEmailVerification(user)
+      verificationSent = true
+      console.log('[signUpUser] Fallback Firebase verification email sent.')
+    } catch (fbErr: any) {
+      console.error('[signUpUser] Firebase fallback error:', fbErr?.code, fbErr?.message)
+    }
   }
 
   return { user, verificationSent }
@@ -179,19 +201,40 @@ export async function resendVerification(): Promise<boolean> {
     throw new Error('No user is currently signed in. Please sign in to request a verification email.')
   }
 
+  if (!user.email) {
+    throw new Error('No email address associated with this account.')
+  }
+
+  // Use server-side Resend API — same as registration flow
   try {
-    console.log('[resendVerification] Calling sendEmailVerification for uid:', user.uid)
-    // Plain call — no ActionCodeSettings to avoid unauthorized-continue-uri errors
+    console.log('[resendVerification] Calling /api/auth/send-verification for:', user.email)
+    const res = await fetch('/api/auth/send-verification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: user.email,
+        fullName: user.displayName ?? 'Pastor',
+      }),
+    })
+    const data = await res.json()
+    if (res.ok && data.success) {
+      console.log('[resendVerification] Email re-sent via Resend. messageId:', data.messageId)
+      return true
+    }
+    // Fallback to Firebase if Resend fails
+    console.error('[resendVerification] Resend error, falling back to Firebase:', data.error)
     await sendEmailVerification(user)
-    console.log('[resendVerification] Verification email sent successfully.')
     return true
   } catch (err: any) {
-    // Log exact Firebase error — do NOT swallow
-    console.error('[resendVerification] FIREBASE EMAIL VERIFICATION ERROR')
-    console.error('  error.code   :', err?.code)
-    console.error('  error.message:', err?.message)
-    console.error('  full error   :', err)
-    throw err
+    console.error('[resendVerification] Error:', err?.code, err?.message)
+    // Final fallback
+    try {
+      await sendEmailVerification(user)
+      return true
+    } catch (fbErr: any) {
+      console.error('[resendVerification] Firebase fallback error:', fbErr?.code, fbErr?.message)
+      throw fbErr
+    }
   }
 }
 
