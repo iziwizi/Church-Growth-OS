@@ -23,6 +23,7 @@ import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db, auth } from '@/lib/firebase/client'
 import { uploadService } from '@/lib/upload'
 import { useChurchStore, useAuthStore } from '@/store'
+import { sanitizeFirestoreData } from '@/lib/firestore/sanitize'
 import type { Church, ChurchBranch, ChurchAIProfile } from '@church-growth-os/shared'
 
 const STEPS = [
@@ -175,22 +176,22 @@ export default function SetupWizardPage() {
         })
       }
 
-      // Church Payload
-      const churchData: Partial<Church> = {
+      // Church Payload — all optional fields sanitized before Firestore write
+      const churchData: Record<string, any> = {
         id: generatedChurchId,
         name: name.trim(),
         slug: slug.trim() || 'church',
-        description: description.trim(),
-        missionStatement: mission.trim(),
-        visionStatement: vision.trim(),
+        description: description.trim() || null,
+        missionStatement: mission.trim() || null,
+        visionStatement: vision.trim() || null,
         churchEmail: churchEmail.trim() || user.email || '',
-        churchPhone: churchPhone.trim(),
-        website: website.trim(),
-        address: address.trim(),
-        city: city.trim(),
-        state: state.trim(),
-        denomination: denomination.trim(),
-        yearFounded: yearFounded ? parseInt(yearFounded) : undefined,
+        churchPhone: churchPhone.trim() || null,
+        website: website.trim() || null,
+        address: address.trim() || null,
+        city: city.trim() || null,
+        state: state.trim() || null,
+        denomination: denomination.trim() || 'Pentecostal',
+        yearFounded: yearFounded && yearFounded.trim() ? parseInt(yearFounded, 10) : null,
         averageAttendance: attendance ? parseInt(attendance) || 250 : 250,
         plan: 'free_trial',
         status: 'active',
@@ -198,12 +199,12 @@ export default function SetupWizardPage() {
         seniorPastor: {
           name: pastorName.trim() || user.displayName || 'Senior Pastor',
           email: pastorEmail.trim() || user.email || '',
-          phone: pastorPhone.trim(),
+          phone: pastorPhone.trim() || null,
         },
         branches: branchesList,
         ministryGoals: selectedGoals,
         branding: {
-          logoUrl: logoUrl || '',
+          logoUrl: logoUrl || null,
           primaryColor: '#4f46e5',
           secondaryColor: '#06b6d4',
           country,
@@ -245,12 +246,15 @@ export default function SetupWizardPage() {
         },
       }
 
-      // 1. Write church document to Firestore
-      await setDoc(doc(db, 'churches', generatedChurchId), {
-        ...churchData,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      })
+      // 1. Write church document to Firestore — sanitized to remove any remaining undefined
+      await setDoc(
+        doc(db, 'churches', generatedChurchId),
+        sanitizeFirestoreData({
+          ...churchData,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        } as Record<string, unknown>)
+      )
 
       // 2. Update user document in Firestore with churchId immediately
       await setDoc(
@@ -400,7 +404,9 @@ export default function SetupWizardPage() {
           {currentStep === 1 && (
             <div className="space-y-4 text-xs">
               <div>
-                <label className="font-semibold">Church Logo (Optional)</label>
+                <label className="font-semibold text-foreground">
+                  Church Logo <span className="text-muted-foreground font-normal text-[10px]">(Optional)</span>
+                </label>
                 <div className="mt-1 flex items-center gap-4">
                   {logoPreview ? (
                     <div className="relative">
@@ -425,7 +431,9 @@ export default function SetupWizardPage() {
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="font-semibold">Church Name *</label>
+                  <label className="font-semibold text-foreground">
+                    Church Name <span className="text-rose-500 font-bold text-sm">*</span>
+                  </label>
                   <input
                     type="text"
                     required
@@ -436,7 +444,9 @@ export default function SetupWizardPage() {
                   />
                 </div>
                 <div>
-                  <label className="font-semibold">Church Slug (URL)</label>
+                  <label className="font-semibold text-foreground">
+                    Church Slug (URL) <span className="text-muted-foreground font-normal text-[10px]">(Optional)</span>
+                  </label>
                   <input
                     type="text"
                     value={slug}
@@ -446,7 +456,9 @@ export default function SetupWizardPage() {
                   />
                 </div>
                 <div>
-                  <label className="font-semibold">Church Official Email</label>
+                  <label className="font-semibold text-foreground">
+                    Church Official Email <span className="text-muted-foreground font-normal text-[10px]">(Optional)</span>
+                  </label>
                   <input
                     type="email"
                     value={churchEmail}
@@ -456,7 +468,9 @@ export default function SetupWizardPage() {
                   />
                 </div>
                 <div>
-                  <label className="font-semibold">Church Phone</label>
+                  <label className="font-semibold text-foreground">
+                    Church Phone <span className="text-muted-foreground font-normal text-[10px]">(Optional)</span>
+                  </label>
                   <input
                     type="text"
                     value={churchPhone}
@@ -469,7 +483,9 @@ export default function SetupWizardPage() {
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div>
-                  <label className="font-semibold">Country</label>
+                  <label className="font-semibold text-foreground">
+                    Country <span className="text-rose-500 font-bold text-sm">*</span>
+                  </label>
                   <select
                     value={country}
                     onChange={(e) => setCountry(e.target.value)}
@@ -484,7 +500,9 @@ export default function SetupWizardPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="font-semibold">State / Region</label>
+                  <label className="font-semibold text-foreground">
+                    State / Region <span className="text-muted-foreground font-normal text-[10px]">(Optional)</span>
+                  </label>
                   <input
                     type="text"
                     value={state}
@@ -494,7 +512,9 @@ export default function SetupWizardPage() {
                   />
                 </div>
                 <div>
-                  <label className="font-semibold">City</label>
+                  <label className="font-semibold text-foreground">
+                    City <span className="text-muted-foreground font-normal text-[10px]">(Optional)</span>
+                  </label>
                   <input
                     type="text"
                     value={city}
@@ -506,7 +526,9 @@ export default function SetupWizardPage() {
               </div>
 
               <div>
-                <label className="font-semibold">Full Address</label>
+                <label className="font-semibold text-foreground">
+                  Full Address <span className="text-muted-foreground font-normal text-[10px]">(Optional)</span>
+                </label>
                 <input
                   type="text"
                   value={address}
@@ -518,7 +540,9 @@ export default function SetupWizardPage() {
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div>
-                  <label className="font-semibold">Website</label>
+                  <label className="font-semibold text-foreground">
+                    Website <span className="text-muted-foreground font-normal text-[10px]">(Optional)</span>
+                  </label>
                   <input
                     type="url"
                     value={website}
@@ -528,7 +552,9 @@ export default function SetupWizardPage() {
                   />
                 </div>
                 <div>
-                  <label className="font-semibold">Denomination</label>
+                  <label className="font-semibold text-foreground">
+                    Denomination <span className="text-muted-foreground font-normal text-[10px]">(Optional)</span>
+                  </label>
                   <input
                     type="text"
                     value={denomination}
@@ -538,7 +564,9 @@ export default function SetupWizardPage() {
                   />
                 </div>
                 <div>
-                  <label className="font-semibold">Year Founded</label>
+                  <label className="font-semibold text-foreground">
+                    Year Founded <span className="text-muted-foreground font-normal text-[10px]">(Optional)</span>
+                  </label>
                   <input
                     type="number"
                     value={yearFounded}
@@ -556,7 +584,9 @@ export default function SetupWizardPage() {
             <div className="space-y-4 text-xs">
               <p className="text-muted-foreground">Information about your Senior Pastor &amp; Ministry Head.</p>
               <div>
-                <label className="font-semibold">Senior Pastor Name *</label>
+                <label className="font-semibold text-foreground">
+                  Senior Pastor Name <span className="text-rose-500 font-bold text-sm">*</span>
+                </label>
                 <input
                   type="text"
                   required
@@ -568,7 +598,9 @@ export default function SetupWizardPage() {
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="font-semibold">Pastor Direct Email</label>
+                  <label className="font-semibold text-foreground">
+                    Pastor Direct Email <span className="text-muted-foreground font-normal text-[10px]">(Optional)</span>
+                  </label>
                   <input
                     type="email"
                     value={pastorEmail}
@@ -578,7 +610,9 @@ export default function SetupWizardPage() {
                   />
                 </div>
                 <div>
-                  <label className="font-semibold">Pastor Direct Phone / WhatsApp</label>
+                  <label className="font-semibold text-foreground">
+                    Pastor Direct Phone / WhatsApp <span className="text-muted-foreground font-normal text-[10px]">(Optional)</span>
+                  </label>
                   <input
                     type="text"
                     value={pastorPhone}
@@ -595,7 +629,9 @@ export default function SetupWizardPage() {
           {currentStep === 3 && (
             <div className="space-y-4 text-xs">
               <div>
-                <label className="font-semibold">Mission Statement</label>
+                <label className="font-semibold text-foreground">
+                  Mission Statement <span className="text-muted-foreground font-normal text-[10px]">(Optional)</span>
+                </label>
                 <textarea
                   rows={2}
                   value={mission}
@@ -605,7 +641,9 @@ export default function SetupWizardPage() {
                 />
               </div>
               <div>
-                <label className="font-semibold">Vision Statement</label>
+                <label className="font-semibold text-foreground">
+                  Vision Statement <span className="text-muted-foreground font-normal text-[10px]">(Optional)</span>
+                </label>
                 <textarea
                   rows={2}
                   value={vision}
@@ -615,7 +653,9 @@ export default function SetupWizardPage() {
                 />
               </div>
               <div>
-                <label className="font-semibold">Church Overview / Description</label>
+                <label className="font-semibold text-foreground">
+                  Church Overview / Description <span className="text-muted-foreground font-normal text-[10px]">(Optional)</span>
+                </label>
                 <textarea
                   rows={2}
                   value={description}
@@ -626,7 +666,9 @@ export default function SetupWizardPage() {
               </div>
 
               <div>
-                <label className="font-semibold">Average Weekly Attendance</label>
+                <label className="font-semibold text-foreground">
+                  Average Weekly Attendance <span className="text-rose-500 font-bold text-sm">*</span>
+                </label>
                 <select
                   value={attendance}
                   onChange={(e) => setAttendance(e.target.value)}
@@ -686,10 +728,10 @@ export default function SetupWizardPage() {
             <div className="space-y-4 text-xs">
               <div>
                 <h3 className="font-display text-sm font-bold text-foreground">
-                  What would you like Church Growth OS to help you achieve?
+                  What would you like Church Growth OS to help you achieve? <span className="text-rose-500 font-bold">*</span>
                 </h3>
                 <p className="text-muted-foreground mt-0.5">
-                  Select all that apply. Your choices personalize AI automation and workflow recommendations.
+                  Select at least one. Your choices personalize AI automation and workflow recommendations.
                 </p>
               </div>
 
@@ -730,7 +772,7 @@ export default function SetupWizardPage() {
             <div className="space-y-4 text-xs">
               <div>
                 <h3 className="font-display text-sm font-bold text-foreground">
-                  How should Church Growth OS operate?
+                  How should Church Growth OS operate? <span className="text-rose-500 font-bold">*</span>
                 </h3>
                 <p className="text-muted-foreground mt-0.5">
                   Select your primary operational mode. You can edit this anytime in Settings.

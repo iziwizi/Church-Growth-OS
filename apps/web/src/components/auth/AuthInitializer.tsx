@@ -183,7 +183,7 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
     }
 
     setCheckingRoute(false)
-  }, [user, church, isInitialized, pathname, router])
+  }, [user, church, isInitialized, pathname, router, storeIsSuperAdmin, role])
 
   // Show loading screen during auth initialization (not on public pages)
   const isAdminPublicPath = ADMIN_PUBLIC_ROUTES.includes(pathname)
