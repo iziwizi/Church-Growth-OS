@@ -42,16 +42,11 @@ export function mapAuthError(error: unknown): string {
       case 'auth/weak-password':
         return 'Password should be at least 8 characters long and contain a mix of characters.'
       case 'auth/too-many-requests':
-        return 'Firebase recently sent a verification email to this address. Please wait 1-2 minutes before trying again or check your inbox/spam folder.'
-      case 'auth/unauthorized-continue-uri':
-      case 'auth/invalid-continue-uri':
-        return 'Could not process redirect URL. A standard verification email has been requested instead.'
+        return 'Too many requests. Please wait 1-2 minutes before trying again.'
       case 'auth/user-disabled':
         return 'This account has been disabled by a system administrator.'
       case 'auth/network-request-failed':
         return 'Network connection error. Please check your internet connection and try again.'
-      case 'auth/requires-recent-login':
-        return 'Please sign out and sign back in to perform this sensitive action.'
       default:
         return (error as { message?: string }).message ?? 'An unexpected authentication error occurred.'
     }
@@ -64,83 +59,124 @@ export async function signUpUser(
   password: string,
   fullName: string
 ): Promise<{ user: User; verificationSent: boolean }> {
+  console.log('[AUTH_DEBUG] (lib/firebase/auth.ts:signUpUser) Registration started for email:', email)
+
   // 1. Create Firebase Authentication account
-  const credential = await createUserWithEmailAndPassword(auth, email, password)
+  let credential: UserCredential
+  try {
+    credential = await createUserWithEmailAndPassword(auth, email, password)
+    console.log('[AUTH_DEBUG] (lib/firebase/auth.ts:signUpUser) Firebase createUserWithEmailAndPassword SUCCESS!')
+    console.log('[AUTH_DEBUG]   UID          :', credential.user.uid)
+    console.log('[AUTH_DEBUG]   Email        :', credential.user.email)
+    console.log('[AUTH_DEBUG]   emailVerified:', credential.user.emailVerified)
+  } catch (createErr: any) {
+    console.error('[AUTH_DEBUG] (lib/firebase/auth.ts:signUpUser) Firebase createUserWithEmailAndPassword FAILED!')
+    console.error('  code   :', createErr?.code)
+    console.error('  message:', createErr?.message)
+    console.error('  stack  :', createErr?.stack)
+    throw createErr
+  }
+
   const user = credential.user
 
   // 2. Set display name
   try {
     await updateProfile(user, { displayName: fullName })
-  } catch (profileErr) {
-    console.warn('[signUpUser] Could not update displayName:', profileErr)
+    console.log('[AUTH_DEBUG] (lib/firebase/auth.ts:signUpUser) Display name updated to:', fullName)
+  } catch (profileErr: any) {
+    console.error('[AUTH_DEBUG] (lib/firebase/auth.ts:signUpUser) Could not update displayName:', profileErr?.code, profileErr?.message, profileErr?.stack)
   }
 
-  // 3. Create Firestore User Profile Document in /users/{uid}
-  const userDocRef = doc(db, 'users', user.uid)
-  const profilePayload: UserProfileData = {
-    uid: user.uid,
-    fullName,
-    email: user.email ?? email,
-    photoURL: user.photoURL ?? null,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-    role: 'owner',
-    subscriptionStatus: 'trial',
-    churchId: null,
-    emailVerified: user.emailVerified,
-    lastLogin: serverTimestamp(),
-    status: 'active',
-  }
-
-  await setDoc(userDocRef, profilePayload)
-
-  // 4. Send Email Verification via our server-side Resend API route.
-  //    We do NOT use Firebase's client sendEmailVerification() because:
-  //    - Firebase's free tier has silent email quotas (no error, email just never arrives)
-  //    - Firebase's noreply@<project>.firebaseapp.com has poor deliverability
-  //    - Firebase silently drops emails without throwing errors
-  //    Instead: Admin SDK generates the real verification link → Resend delivers it.
-  let verificationSent = false
+  // 3. Create Firestore User Profile Document
   try {
-    console.log('[signUpUser] Calling /api/auth/send-verification for:', user.email)
+    const userDocRef = doc(db, 'users', user.uid)
+    const profilePayload: UserProfileData = {
+      uid: user.uid,
+      fullName,
+      email: user.email ?? email,
+      photoURL: user.photoURL ?? null,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      role: 'owner',
+      subscriptionStatus: 'trial',
+      churchId: null,
+      emailVerified: user.emailVerified,
+      lastLogin: serverTimestamp(),
+      status: 'active',
+    }
+    await setDoc(userDocRef, profilePayload)
+    console.log('[AUTH_DEBUG] (lib/firebase/auth.ts:signUpUser) Firestore user profile doc setDoc SUCCESS!')
+  } catch (docErr: any) {
+    console.error('[AUTH_DEBUG] (lib/firebase/auth.ts:signUpUser) Firestore setDoc user profile FAILED!')
+    console.error('  code   :', docErr?.code)
+    console.error('  message:', docErr?.message)
+    console.error('  stack  :', docErr?.stack)
+  }
+
+  // 4. Send Email Verification via server-side API route
+  let verificationSent = false
+  console.log('[AUTH_DEBUG] (lib/firebase/auth.ts:signUpUser) Calling /api/auth/send-verification endpoint...')
+  try {
     const res = await fetch('/api/auth/send-verification', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: user.email, fullName }),
     })
+
+    console.log('[AUTH_DEBUG] /api/auth/send-verification response status:', res.status)
     const data = await res.json()
+    console.log('[AUTH_DEBUG] /api/auth/send-verification response body:', data)
+
     if (res.ok && data.success) {
       verificationSent = true
-      console.log('[signUpUser] Verification email sent via Resend. messageId:', data.messageId)
+      console.log('[AUTH_DEBUG] Verification email sent successfully via Resend. MessageID:', data.messageId)
     } else {
-      console.error('[signUpUser] Resend API error:', data.error)
-      // Fallback: try Firebase's own sendEmailVerification
+      console.error('[AUTH_DEBUG] /api/auth/send-verification API returned error:', data.error)
+      // Fallback: try Firebase built-in
       try {
+        console.log('[AUTH_DEBUG] Attempting Firebase fallback sendEmailVerification(user)...')
         await sendEmailVerification(user)
         verificationSent = true
-        console.log('[signUpUser] Fallback Firebase verification email sent.')
+        console.log('[AUTH_DEBUG] Fallback sendEmailVerification SUCCESS!')
       } catch (fbErr: any) {
-        console.error('[signUpUser] Firebase fallback error:', fbErr?.code, fbErr?.message)
+        console.error('[AUTH_DEBUG] Fallback sendEmailVerification FAILED!')
+        console.error('  code   :', fbErr?.code)
+        console.error('  message:', fbErr?.message)
+        console.error('  stack  :', fbErr?.stack)
       }
     }
   } catch (fetchErr: any) {
-    console.error('[signUpUser] Could not reach /api/auth/send-verification:', fetchErr?.message)
-    // Fallback: try Firebase's own sendEmailVerification
+    console.error('[AUTH_DEBUG] Could not reach /api/auth/send-verification API route!')
+    console.error('  error  :', fetchErr)
+    console.error('  message:', fetchErr?.message)
+    console.error('  stack  :', fetchErr?.stack)
+    // Fallback: try Firebase built-in
     try {
+      console.log('[AUTH_DEBUG] Attempting Firebase fallback sendEmailVerification(user)...')
       await sendEmailVerification(user)
       verificationSent = true
-      console.log('[signUpUser] Fallback Firebase verification email sent.')
+      console.log('[AUTH_DEBUG] Fallback sendEmailVerification SUCCESS!')
     } catch (fbErr: any) {
-      console.error('[signUpUser] Firebase fallback error:', fbErr?.code, fbErr?.message)
+      console.error('[AUTH_DEBUG] Fallback sendEmailVerification FAILED!')
+      console.error('  code   :', fbErr?.code)
+      console.error('  message:', fbErr?.message)
+      console.error('  stack  :', fbErr?.stack)
     }
   }
 
+  console.log('[AUTH_DEBUG] (lib/firebase/auth.ts:signUpUser) Completed. Returning { user, verificationSent:', verificationSent, '}')
   return { user, verificationSent }
 }
 
 export async function signInUser(email: string, password: string): Promise<UserCredential> {
+  console.log('[AUTH_DEBUG] (lib/firebase/auth.ts:signInUser) signInUser started for:', email)
   const credential = await signInWithEmailAndPassword(auth, email, password)
   const user = credential.user
+
+  console.log('[AUTH_DEBUG] (lib/firebase/auth.ts:signInUser) signInWithEmailAndPassword SUCCESS!')
+  console.log('[AUTH_DEBUG]   UID          :', user.uid)
+  console.log('[AUTH_DEBUG]   Email        :', user.email)
+  console.log('[AUTH_DEBUG]   emailVerified:', user.emailVerified)
 
   // Update lastLogin timestamp and emailVerified in Firestore
   try {
@@ -150,8 +186,9 @@ export async function signInUser(email: string, password: string): Promise<UserC
       emailVerified: user.emailVerified,
       updatedAt: serverTimestamp(),
     })
-  } catch {
-    // If profile document missing, create it
+    console.log('[AUTH_DEBUG] (lib/firebase/auth.ts:signInUser) User profile updated with lastLogin.')
+  } catch (updateErr: any) {
+    console.warn('[AUTH_DEBUG] (lib/firebase/auth.ts:signInUser) Profile updateDoc warning:', updateErr?.code, updateErr?.message, updateErr?.stack)
     try {
       const userDocRef = doc(db, 'users', user.uid)
       await setDoc(userDocRef, {
@@ -168,8 +205,9 @@ export async function signInUser(email: string, password: string): Promise<UserC
         lastLogin: serverTimestamp(),
         status: 'active',
       }, { merge: true })
-    } catch (setErr) {
-      console.warn('Could not sync user profile on login:', setErr)
+      console.log('[AUTH_DEBUG] (lib/firebase/auth.ts:signInUser) User profile fallback setDoc SUCCESS.')
+    } catch (setErr: any) {
+      console.error('[AUTH_DEBUG] (lib/firebase/auth.ts:signInUser) Could not sync profile on login:', setErr?.code, setErr?.message, setErr?.stack)
     }
   }
 
@@ -184,8 +222,8 @@ export async function getUserProfile(uid: string): Promise<UserProfileData | nul
       return snap.data() as UserProfileData
     }
     return null
-  } catch (err) {
-    console.error('Error fetching user profile:', err)
+  } catch (err: any) {
+    console.error('[AUTH_DEBUG] (lib/firebase/auth.ts:getUserProfile) Error fetching user profile:', err?.code, err?.message, err?.stack)
     return null
   }
 }
@@ -197,7 +235,7 @@ export async function sendPasswordReset(email: string): Promise<void> {
 export async function resendVerification(): Promise<boolean> {
   const user = auth.currentUser
   if (!user) {
-    console.error('[resendVerification] No authenticated user in auth.currentUser')
+    console.error('[AUTH_DEBUG] (resendVerification) No authenticated user in auth.currentUser')
     throw new Error('No user is currently signed in. Please sign in to request a verification email.')
   }
 
@@ -205,9 +243,9 @@ export async function resendVerification(): Promise<boolean> {
     throw new Error('No email address associated with this account.')
   }
 
-  // Use server-side Resend API — same as registration flow
+  console.log('[AUTH_DEBUG] (resendVerification) Resending verification for user:', user.email, 'uid:', user.uid)
+
   try {
-    console.log('[resendVerification] Calling /api/auth/send-verification for:', user.email)
     const res = await fetch('/api/auth/send-verification', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -216,29 +254,34 @@ export async function resendVerification(): Promise<boolean> {
         fullName: user.displayName ?? 'Pastor',
       }),
     })
+    console.log('[AUTH_DEBUG] (resendVerification) API status:', res.status)
     const data = await res.json()
+    console.log('[AUTH_DEBUG] (resendVerification) API data:', data)
+
     if (res.ok && data.success) {
-      console.log('[resendVerification] Email re-sent via Resend. messageId:', data.messageId)
+      console.log('[AUTH_DEBUG] (resendVerification) Resend verification email SUCCESS! MessageID:', data.messageId)
       return true
     }
-    // Fallback to Firebase if Resend fails
-    console.error('[resendVerification] Resend error, falling back to Firebase:', data.error)
+
+    console.error('[AUTH_DEBUG] (resendVerification) Resend API returned error, trying fallback:', data.error)
     await sendEmailVerification(user)
+    console.log('[AUTH_DEBUG] (resendVerification) Fallback sendEmailVerification SUCCESS.')
     return true
   } catch (err: any) {
-    console.error('[resendVerification] Error:', err?.code, err?.message)
-    // Final fallback
+    console.error('[AUTH_DEBUG] (resendVerification) Resend error:', err?.code, err?.message, err?.stack)
     try {
       await sendEmailVerification(user)
+      console.log('[AUTH_DEBUG] (resendVerification) Fallback sendEmailVerification SUCCESS.')
       return true
     } catch (fbErr: any) {
-      console.error('[resendVerification] Firebase fallback error:', fbErr?.code, fbErr?.message)
+      console.error('[AUTH_DEBUG] (resendVerification) Firebase fallback error:', fbErr?.code, fbErr?.message, fbErr?.stack)
       throw fbErr
     }
   }
 }
 
 export async function logOut(): Promise<void> {
+  console.log('[AUTH_DEBUG] (lib/firebase/auth.ts:logOut) Signing out user...')
   return signOut(auth)
 }
 

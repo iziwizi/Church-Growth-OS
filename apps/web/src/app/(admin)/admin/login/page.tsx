@@ -18,24 +18,42 @@ export default function AdminLoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('====================================================')
+    console.log('[ADMIN_LOGIN_DEBUG] (apps/web/src/app/(admin)/admin/login/page.tsx:19) handleLogin started for email:', email)
+    console.log('====================================================')
+
     if (!email || !password) {
       toast.error('Email and password are required.')
       return
     }
     setLoading(true)
+
     try {
+      console.log('[ADMIN_LOGIN_DEBUG] (admin/login/page.tsx:28) Calling signInWithEmailAndPassword...')
       const credential = await signInWithEmailAndPassword(auth, email, password)
       const uid = credential.user.uid
 
+      console.log('[ADMIN_LOGIN_DEBUG] (admin/login/page.tsx:32) Firebase login SUCCESS!')
+      console.log('  UID          :', uid)
+      console.log('  Email        :', credential.user.email)
+      console.log('  Email Verified:', credential.user.emailVerified)
+
       // Verify Super Admin role in Firestore
+      console.log('[ADMIN_LOGIN_DEBUG] (admin/login/page.tsx:38) Fetching Firestore user profile from /users/' + uid)
       const userSnap = await getDoc(doc(db, 'users', uid))
       const userData = userSnap.data()
+
+      console.log('[ADMIN_LOGIN_DEBUG] (admin/login/page.tsx:42) Firestore snap exists:', userSnap.exists())
+      console.log('[ADMIN_LOGIN_DEBUG] (admin/login/page.tsx:43) Firestore profile data:', userData)
 
       const isSuperAdmin =
         userData?.role === 'super_admin' ||
         credential.user.email?.endsWith('@mujteknify.com')
 
+      console.log('[ADMIN_LOGIN_DEBUG] (admin/login/page.tsx:48) Computed isSuperAdmin:', isSuperAdmin, '(userData.role:', userData?.role, ', email:', credential.user.email, ')')
+
       if (!isSuperAdmin) {
+        console.error('[ADMIN_LOGIN_DEBUG] (admin/login/page.tsx:51) ACCESS DENIED: User is NOT a Super Admin!')
         await auth.signOut()
         toast.error(
           'Access denied. This portal is restricted to MUJTEKNIFY platform administrators.'
@@ -44,9 +62,19 @@ export default function AdminLoginPage() {
         return
       }
 
+      console.log('[ADMIN_LOGIN_DEBUG] (admin/login/page.tsx:59) ACCESS GRANTED! Calling router.replace(\'/admin\')...')
       toast.success('Welcome, Super Admin!')
       router.replace('/admin')
+      console.log('[ADMIN_LOGIN_DEBUG] (admin/login/page.tsx:62) router.replace(\'/admin\') executed.')
     } catch (err: any) {
+      console.error('====================================================')
+      console.error('[ADMIN_LOGIN_DEBUG] (admin/login/page.tsx:65) ADMIN LOGIN ERROR EXCEPTION!')
+      console.error('  Error  :', err)
+      console.error('  Code   :', err?.code)
+      console.error('  Message:', err?.message)
+      console.error('  Stack  :', err?.stack)
+      console.error('====================================================')
+
       const code = err?.code ?? ''
       if (
         code === 'auth/user-not-found' ||

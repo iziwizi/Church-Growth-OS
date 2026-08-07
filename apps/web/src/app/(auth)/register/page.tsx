@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { motion } from 'framer-motion'
-import { Loader2, UserPlus, Eye, EyeOff, Church } from 'lucide-react'
+import { Loader2, UserPlus, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
 import { signUpUser, mapAuthError } from '@/lib/firebase/auth'
 import { z } from 'zod'
@@ -37,16 +37,37 @@ function RegisterForm() {
   })
 
   const onSubmit = async (data: RegisterFormData) => {
+    console.log('====================================================')
+    console.log('[REGISTRATION_DEBUG] (apps/web/src/app/(auth)/register/page.tsx:40) onSubmit started for:', data.email)
+    console.log('====================================================')
+
     try {
-      const { verificationSent } = await signUpUser(data.email, data.password, data.fullName)
+      console.log('[REGISTRATION_DEBUG] (register/page.tsx:44) Calling signUpUser...')
+      const { user, verificationSent } = await signUpUser(data.email, data.password, data.fullName)
+
+      console.log('[REGISTRATION_DEBUG] (register/page.tsx:47) signUpUser result:', {
+        uid: user.uid,
+        email: user.email,
+        emailVerified: user.emailVerified,
+        verificationSent,
+      })
+
       if (verificationSent) {
         toast.success('Account created! Verification email sent. Please verify your email.')
       } else {
         toast.success('Account created! Please check your inbox for verification.')
       }
-      // Mandatory flow: Register -> Send Verification Email -> Verify Email Screen -> Setup -> Dashboard
+
+      console.log('[REGISTRATION_DEBUG] (register/page.tsx:57) Calling router.replace(\'/verify-email\')...')
       router.replace('/verify-email')
-    } catch (error) {
+    } catch (error: any) {
+      console.error('====================================================')
+      console.error('[REGISTRATION_DEBUG] (register/page.tsx:61) REGISTRATION FORM EXCEPTION!')
+      console.error('  Error  :', error)
+      console.error('  Code   :', error?.code)
+      console.error('  Message:', error?.message)
+      console.error('  Stack  :', error?.stack)
+      console.error('====================================================')
       toast.error(mapAuthError(error))
     }
   }

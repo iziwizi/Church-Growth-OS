@@ -101,13 +101,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [darkMode])
 
+  console.log('[ADMIN_LAYOUT_DEBUG] (apps/web/src/app/(admin)/admin/layout.tsx:105) AdminLayout rendered. Pathname:', pathname)
+  console.log('  isInitialized :', isInitialized)
+  console.log('  timedOut      :', timedOut)
+  console.log('  user          :', user ? { uid: user.uid, email: user.email, emailVerified: user.emailVerified } : null)
+  console.log('  isSuperAdmin  :', isSuperAdmin)
+  console.log('  role          :', role)
+
   // Public admin login page — skip layout guard
   if (pathname === '/admin/login') {
+    console.log('[ADMIN_LAYOUT_DEBUG] (AdminLayout.tsx:112) Public route /admin/login — skipping layout access guard.')
     return <>{children}</>
   }
 
   // Show spinner during auth initialization
   if (!isInitialized && !timedOut) {
+    console.log('[ADMIN_LAYOUT_DEBUG] (AdminLayout.tsx:118) Waiting for auth initialization...')
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background flex-col gap-3">
         <Loader2 className="h-8 w-8 animate-spin text-brand-600" />
@@ -123,8 +132,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     role === 'super_admin' ||
     user?.email?.endsWith('@mujteknify.com')
 
+  console.log('[ADMIN_LAYOUT_DEBUG] (AdminLayout.tsx:132) Computed hasAdminAccess:', hasAdminAccess)
+
   // Unauthenticated → redirect to admin login
   if (!user) {
+    console.error('====================================================')
+    console.error('[ADMIN_LAYOUT_REDIRECT] REDIRECTED BY: AdminLayout.tsx line 137')
+    console.error('  Reason: user is null (unauthenticated)')
+    console.error('  Target: /admin/login')
+    console.error('====================================================')
     if (typeof window !== 'undefined') {
       router.replace('/admin/login')
     }
@@ -137,6 +153,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   // Restricted Access screen for regular users
   if (!hasAdminAccess) {
+    console.error('====================================================')
+    console.error('[ADMIN_LAYOUT_RESTRICTED] ACCESS DENIED BY: AdminLayout.tsx line 152')
+    console.error('  User         :', user.email, 'UID:', user.uid)
+    console.error('  isSuperAdmin :', isSuperAdmin)
+    console.error('  role         :', role)
+    console.error('====================================================')
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background p-6 text-center space-y-4">
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-500 border border-rose-500/20">
@@ -149,14 +171,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="flex flex-col items-center gap-2">
           <button
             type="button"
-            onClick={() => router.replace('/dashboard')}
+            onClick={() => {
+              console.log('[ADMIN_LAYOUT_DEBUG] User clicked Return to Church Dashboard → router.replace(\'/dashboard\')')
+              router.replace('/dashboard')
+            }}
             className="inline-flex h-9 items-center gap-2 rounded-xl bg-brand-600 px-4 text-xs font-semibold text-white hover:bg-brand-500 shadow-xs"
           >
             <ArrowLeft className="h-4 w-4" /> Return to Church Dashboard
           </button>
           <button
             type="button"
-            onClick={() => router.replace('/admin/login')}
+            onClick={() => {
+              console.log('[ADMIN_LAYOUT_DEBUG] User clicked Sign in with admin credentials → router.replace(\'/admin/login\')')
+              router.replace('/admin/login')
+            }}
             className="text-xs text-muted-foreground hover:text-foreground hover:underline pt-2"
           >
             Sign in with administrator credentials

@@ -2,7 +2,6 @@
 
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { Mail, CheckCircle2, RefreshCw, LogOut, ArrowRight, ExternalLink, Loader2, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
@@ -15,36 +14,58 @@ function VerifyEmailForm() {
 
   // Auto polling Firebase Auth status every 3 seconds
   useEffect(() => {
+    console.log('[VERIFY_EMAIL_DEBUG] (app/(auth)/verify-email/page.tsx:18) Starting auto-polling interval for email verification status...')
     const interval = setInterval(async () => {
-      if (!auth.currentUser) return
+      if (!auth.currentUser) {
+        console.log('[VERIFY_EMAIL_DEBUG] (verify-email/page.tsx:21) Polling tick: auth.currentUser is null')
+        return
+      }
       try {
+        console.log('[VERIFY_EMAIL_DEBUG] (verify-email/page.tsx:25) Polling tick: calling auth.currentUser.reload() for uid:', auth.currentUser.uid)
         await auth.currentUser.reload()
+        console.log('[VERIFY_EMAIL_DEBUG] (verify-email/page.tsx:27) Reload complete. emailVerified status:', auth.currentUser.emailVerified)
+
         if (auth.currentUser.emailVerified) {
           clearInterval(interval)
+          console.log('[VERIFY_EMAIL_DEBUG] (verify-email/page.tsx:31) EMAIL IS VERIFIED! Calling router.replace(\'/setup\')...')
           toast.success('Email verified! Redirecting to setup...')
           router.replace('/setup')
         }
-      } catch (err) {
-        console.warn('Auto reload error:', err)
+      } catch (err: any) {
+        console.error('[VERIFY_EMAIL_DEBUG] (verify-email/page.tsx:36) Auto reload polling error:')
+        console.error('  code   :', err?.code)
+        console.error('  message:', err?.message)
+        console.error('  stack  :', err?.stack)
       }
     }, 3000)
 
-    return () => clearInterval(interval)
+    return () => {
+      console.log('[VERIFY_EMAIL_DEBUG] (verify-email/page.tsx:44) Clearing auto-polling interval.')
+      clearInterval(interval)
+    }
   }, [router])
 
   const handleManualCheck = async () => {
+    console.log('[VERIFY_EMAIL_DEBUG] (verify-email/page.tsx:49) Manual check requested...')
     setChecking(true)
     try {
       if (auth.currentUser) {
+        console.log('[VERIFY_EMAIL_DEBUG] (verify-email/page.tsx:53) Reloading auth.currentUser...')
         await auth.currentUser.reload()
+        console.log('[VERIFY_EMAIL_DEBUG] (verify-email/page.tsx:55) emailVerified:', auth.currentUser.emailVerified)
         if (auth.currentUser.emailVerified) {
           toast.success('Email verified!')
+          console.log('[VERIFY_EMAIL_DEBUG] (verify-email/page.tsx:58) Calling router.replace(\'/setup\')...')
           router.replace('/setup')
           return
         }
       }
       toast.info('Email not verified yet. Please check your inbox or spam folder.')
-    } catch {
+    } catch (err: any) {
+      console.error('[VERIFY_EMAIL_DEBUG] (verify-email/page.tsx:65) Manual check error:')
+      console.error('  code   :', err?.code)
+      console.error('  message:', err?.message)
+      console.error('  stack  :', err?.stack)
       toast.error('Failed to refresh status.')
     } finally {
       setChecking(false)
@@ -52,11 +73,21 @@ function VerifyEmailForm() {
   }
 
   const handleResend = async () => {
+    console.log('[VERIFY_EMAIL_DEBUG] (verify-email/page.tsx:75) Resend button clicked...')
     setResending(true)
     try {
+      console.log('[VERIFY_EMAIL_DEBUG] (verify-email/page.tsx:78) Calling resendVerification()...')
       await resendVerification()
+      console.log('[VERIFY_EMAIL_DEBUG] (verify-email/page.tsx:80) resendVerification() SUCCESS!')
       toast.success('Verification email sent! Check your inbox and spam folder.')
     } catch (err: any) {
+      console.error('====================================================')
+      console.error('[VERIFY_EMAIL_DEBUG] (verify-email/page.tsx:84) RESEND VERIFICATION EXCEPTION!')
+      console.error('  Error  :', err)
+      console.error('  Code   :', err?.code)
+      console.error('  Message:', err?.message)
+      console.error('  Stack  :', err?.stack)
+      console.error('====================================================')
       toast.error(mapAuthError(err))
     } finally {
       setResending(false)
@@ -64,6 +95,7 @@ function VerifyEmailForm() {
   }
 
   const handleSignOut = async () => {
+    console.log('[VERIFY_EMAIL_DEBUG] (verify-email/page.tsx:97) Use another email clicked -> signing out...')
     await logOut()
     router.replace('/login')
   }
