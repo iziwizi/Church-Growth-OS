@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
 
     // 2. Build HTML template
     const name = fullName ?? 'Pastor'
-    const fromEmail = process.env.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev'
+    const fromEmail = process.env.RESEND_FROM_EMAIL ?? 'noreply@mujteknify.com'
     console.log('[VERIFICATION_DEBUG] Using sender email (RESEND_FROM_EMAIL):', fromEmail)
 
     const emailHtml = `
@@ -80,12 +80,13 @@ export async function POST(req: NextRequest) {
       <table width="600" cellpadding="0" cellspacing="0" style="background:#18181b;border-radius:16px;border:1px solid #27272a;">
         <tr><td style="background:linear-gradient(135deg,#4f46e5,#6d28d9);padding:40px;text-align:center;color:#fff;font-size:24px;font-weight:bold;">Church Growth OS</td></tr>
         <tr><td style="padding:40px;color:#f4f4f5;">
-          <h2>Verify Your Email</h2>
+          <h2>Verify Your Email Address</h2>
           <p>Hi ${name}, welcome to Church Growth OS!</p>
+          <p>Please click the button below to verify your email address and continue setting up your church account:</p>
           <div style="text-align:center;margin:32px 0;">
             <a href="${verificationLink}" style="background:#4f46e5;color:#fff;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:bold;display:inline-block;">Verify Email Address</a>
           </div>
-          <p style="font-size:12px;color:#71717a;">Or copy this link: ${verificationLink}</p>
+          <p style="font-size:12px;color:#71717a;">Or copy and paste this link in your browser: ${verificationLink}</p>
         </td></tr>
       </table>
     </td></tr>
@@ -138,6 +139,7 @@ export async function POST(req: NextRequest) {
       console.error('====================================================')
       return NextResponse.json(
         {
+          status: 'REQUEST_FAILED',
           error: `Resend API rejected email (Status ${resendStatus}): ${resendData?.message ?? resendText}`,
           resendStatus,
           resendData,
@@ -147,12 +149,14 @@ export async function POST(req: NextRequest) {
     }
 
     console.log('====================================================')
-    console.log('[VERIFICATION_DEBUG] RESEND EMAIL DELIVERED SUCCESSFULLY!')
+    console.log('[VERIFICATION_DEBUG] RESEND EMAIL ACCEPTED FOR DELIVERY!')
     console.log('  Resend Message ID:', resendData?.id)
     console.log('====================================================')
 
     return NextResponse.json({
       success: true,
+      status: 'REQUEST_ACCEPTED',
+      message: 'Verification email accepted for delivery.',
       messageId: resendData?.id,
       resendStatus,
       resendData,

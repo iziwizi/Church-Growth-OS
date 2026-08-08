@@ -20,71 +20,69 @@ const PUBLIC_ROUTES = [
   '/cookies',
 ]
 
-// Admin routes — the admin login page must also be public
 const ADMIN_PUBLIC_ROUTES = ['/admin/login']
 
 /**
  * AuthInitializer — Centralized Authentication & Production Route Guard.
- * Enforces email verification gate, church onboarding redirect, and super admin access.
+ * Strictly separates Super Admin routing from Church Tenant onboarding.
  * Super Admins are NEVER redirected to /setup or /verify-email.
- *
- * FULLY INSTRUMENTED FOR ROUTE GUARD DEBUGGING.
  */
 export function AuthInitializer({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const [checkingRoute, setCheckingRoute] = useState(true)
 
-  const { user, isSuperAdmin: storeIsSuperAdmin, role, isInitialized, setUser, setClaims, setLoading, setInitialized, reset } =
-    useAuthStore()
+  const {
+    user,
+    isSuperAdmin: storeIsSuperAdmin,
+    role,
+    isInitialized,
+    setUser,
+    setClaims,
+    setLoading,
+    setInitialized,
+    reset,
+  } = useAuthStore()
+
   const { church, setChurch } = useChurchStore()
 
   // 1. Firebase Auth observer — syncs auth state + Firestore profile
   useEffect(() => {
-    console.log('[AUTH_INITIALIZER_DEBUG] (AuthInitializer.tsx:41) Subscribing to onAuthChange listener...')
+    console.log('[AUTH_INIT] Subscribing to onAuthChange...')
     const unsubscribe = onAuthChange(async (firebaseUser) => {
-      console.log('[AUTH_INITIALIZER_DEBUG] (AuthInitializer.tsx:43) onAuthChange fired!')
-      console.log('  firebaseUser:', firebaseUser ? { uid: firebaseUser.uid, email: firebaseUser.email, emailVerified: firebaseUser.emailVerified } : null)
+      console.log('[AUTH_INIT] onAuthChange event fired. User:', firebaseUser?.email ?? 'null')
       try {
         if (firebaseUser) {
           setUser(firebaseUser)
 
           const isSuperAdminEmail = firebaseUser.email?.endsWith('@mujteknify.com') ?? false
-          console.log('[AUTH_INITIALIZER_DEBUG] (AuthInitializer.tsx:48) isSuperAdminEmail:', isSuperAdminEmail)
 
           if (isSuperAdminEmail && firebaseUser.email) {
-            console.log('[AUTH_INITIALIZER_DEBUG] (AuthInitializer.tsx:51) Ensuring Super Admin profile for:', firebaseUser.email)
-            await ensureSuperAdminProfile(firebaseUser.uid, firebaseUser.email).catch((seedErr) => {
-              console.error('[AUTH_INITIALIZER_DEBUG] ensureSuperAdminProfile error:', seedErr)
-              return null
-            })
+            await ensureSuperAdminProfile(firebaseUser.uid, firebaseUser.email).catch((e) =>
+              console.warn('[AUTH_INIT] ensureSuperAdminProfile notice:', e?.message)
+            )
           }
 
           // Fetch Firestore profile
-          console.log('[AUTH_INITIALIZER_DEBUG] (AuthInitializer.tsx:58) Fetching user profile from Firestore...')
-          const profile = await getUserProfile(firebaseUser.uid).catch((profErr) => {
-            console.error('[AUTH_INITIALIZER_DEBUG] getUserProfile error:', profErr)
+          const profile = await getUserProfile(firebaseUser.uid).catch((e) => {
+            console.warn('[AUTH_INIT] getUserProfile notice:', e?.message)
             return null
           })
-          console.log('[AUTH_INITIALIZER_DEBUG] (AuthInitializer.tsx:63) Firestore profile fetched:', profile)
 
           let activeChurchId = profile?.churchId ?? null
           let activeRole = profile?.role ?? (isSuperAdminEmail ? 'super_admin' : 'owner')
           const isSuperAdmin = isSuperAdminEmail || activeRole === 'super_admin'
 
-          console.log('[AUTH_INITIALIZER_DEBUG] (AuthInitializer.tsx:69) Computed sync state:', { activeChurchId, activeRole, isSuperAdmin })
-
           let churchDoc = null
           if (!isSuperAdmin) {
-            console.log('[AUTH_INITIALIZER_DEBUG] (AuthInitializer.tsx:73) Non-super-admin user. Fetching church doc...')
-            churchDoc = await getUserChurch(firebaseUser.uid).catch((chErr) => {
-              console.error('[AUTH_INITIALIZER_DEBUG] getUserChurch error:', chErr)
-              return null
-            })
-            if (churchDoc) {
-              activeChurchId = churchDoc.id
-              activeRole = 'owner'
-              console.log('[AUTH_INITIALIZER_DEBUG] (AuthInitializer.tsx:81) Found church doc:', churchDoc.id)
+            if (activeChurchId) {
+              churchDoc = await getUserChurch(firebaseUser.uid).catch(() => null)
+            } else {
+              churchDoc = await getUserChurch(firebaseUser.uid).catch(() => null)
+              if (churchDoc) {
+                activeChurchId = churchDoc.id
+                activeRole = 'owner'
+              }
             }
           }
 
@@ -94,29 +92,20 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
             setChurch(null)
           }
 
-          console.log('[AUTH_INITIALIZER_DEBUG] (AuthInitializer.tsx:91) Calling setClaims:', { churchId: activeChurchId ?? '', role: activeRole, superAdmin: isSuperAdmin })
           setClaims({
             churchId: activeChurchId ?? '',
             role: activeRole,
             superAdmin: isSuperAdmin,
           })
         } else {
-          console.log('[AUTH_INITIALIZER_DEBUG] (AuthInitializer.tsx:98) No Firebase user — calling reset() and setChurch(null)')
           reset()
           setChurch(null)
         }
       } catch (err: any) {
-        console.error('====================================================')
-        console.error('[AUTH_INITIALIZER_DEBUG] (AuthInitializer.tsx:104) EXCEPTION IN ONAUTHCHANGE!')
-        console.error('  Error  :', err)
-        console.error('  Code   :', err?.code)
-        console.error('  Message:', err?.message)
-        console.error('  Stack  :', err?.stack)
-        console.error('====================================================')
+        console.error('[AUTH_INIT] Exception in onAuthChange:', err?.message, err?.stack)
       } finally {
         setLoading(false)
         setInitialized(true)
-        console.log('[AUTH_INITIALIZER_DEBUG] (AuthInitializer.tsx:114) Auth initialization cycle complete. isInitialized set to true.')
       }
     })
 
@@ -125,16 +114,8 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
 
   // 2. Centralized Production Route Protection Guard
   useEffect(() => {
-    console.log('[ROUTE_GUARD_DEBUG] (AuthInitializer.tsx:123) Route guard evaluated!')
-    console.log('  Pathname           :', pathname)
-    console.log('  isInitialized      :', isInitialized)
-    console.log('  user               :', user ? { uid: user.uid, email: user.email, emailVerified: user.emailVerified } : null)
-    console.log('  storeIsSuperAdmin  :', storeIsSuperAdmin)
-    console.log('  role               :', role)
-    console.log('  church             :', church ? church.id : null)
-
     if (!isInitialized) {
-      console.log('[ROUTE_GUARD_DEBUG] (AuthInitializer.tsx:132) Waiting for auth store initialization...')
+      console.log('[ROUTE_GUARD] Auth not initialized yet. Delaying route guard evaluation.')
       return
     }
 
@@ -145,146 +126,101 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
     const isAdminRoute = pathname.startsWith('/admin')
     const hasChurch = !!church?.id
 
-    // Determine if the current user is super admin
     const isSuperAdmin =
       storeIsSuperAdmin ||
       role === 'super_admin' ||
       user?.email?.endsWith('@mujteknify.com') ||
       false
 
-    console.log('[ROUTE_GUARD_DEBUG] (AuthInitializer.tsx:149) Evaluated guard flags:', {
-      isPublic,
-      isAdminPublic,
-      isVerifyEmailPage,
-      isSetup,
-      isAdminRoute,
-      hasChurch,
+    console.log('[ROUTE_GUARD] Evaluating route:', {
+      pathname,
+      user: user?.email,
       isSuperAdmin,
+      role,
+      hasChurch,
+      isInitialized,
     })
 
-    // Admin login page — always accessible, no redirect
-    if (isAdminPublic) {
-      console.log('[ROUTE_GUARD_DEBUG] (AuthInitializer.tsx:160) Path is /admin/login — allowing access.')
+    // Case A: Super Admin Users — Independent Routing
+    if (isSuperAdmin) {
+      if (isAdminPublic) {
+        console.log('[ROUTE_GUARD] Authenticated Super Admin on /admin/login → Redirecting to /admin')
+        router.replace('/admin')
+        return
+      }
+      if (isSetup || isVerifyEmailPage) {
+        console.log('[ROUTE_GUARD] Super Admin on setup/verify-email → Redirecting to /admin')
+        router.replace('/admin')
+        return
+      }
       setCheckingRoute(false)
       return
     }
 
-    // Case A: Unauthenticated
+    // Case B: Admin Login Page for Non-Admins / Unauthenticated
+    if (isAdminPublic) {
+      setCheckingRoute(false)
+      return
+    }
+
+    // Case C: Unauthenticated Users
     if (!user) {
       if (isAdminRoute) {
-        console.error('====================================================')
-        console.error('[ROUTE_GUARD_REDIRECT] REDIRECTED BY: AuthInitializer.tsx line 169')
-        console.error('  Case   : Case A (Unauthenticated on Admin route)')
-        console.error('  Path   :', pathname)
-        console.error('  Target :', '/admin/login')
-        console.error('====================================================')
+        console.log('[ROUTE_GUARD] Unauthenticated on /admin/* → Redirecting to /admin/login')
         router.replace('/admin/login')
       } else if (!isPublic) {
-        const target = `/login?from=${encodeURIComponent(pathname)}`
-        console.error('====================================================')
-        console.error('[ROUTE_GUARD_REDIRECT] REDIRECTED BY: AuthInitializer.tsx line 178')
-        console.error('  Case   : Case A (Unauthenticated on Private route)')
-        console.error('  Path   :', pathname)
-        console.error('  Target :', target)
-        console.error('====================================================')
-        router.replace(target)
+        console.log('[ROUTE_GUARD] Unauthenticated on private route → Redirecting to /login')
+        router.replace(`/login?from=${encodeURIComponent(pathname)}`)
       } else {
-        console.log('[ROUTE_GUARD_DEBUG] (AuthInitializer.tsx:184) Unauthenticated on Public route — allowing access.')
         setCheckingRoute(false)
       }
       return
     }
 
-    // Case B: Super Admin — bypass ALL onboarding checks
-    if (isSuperAdmin) {
-      console.log('[ROUTE_GUARD_DEBUG] (AuthInitializer.tsx:191) User is Super Admin.')
-      if (isSetup || isVerifyEmailPage) {
-        console.error('====================================================')
-        console.error('[ROUTE_GUARD_REDIRECT] REDIRECTED BY: AuthInitializer.tsx line 194')
-        console.error('  Case   : Case B (Super Admin on setup/verify-email)')
-        console.error('  Path   :', pathname)
-        console.error('  Target :', '/admin')
-        console.error('====================================================')
-        router.replace('/admin')
-      } else {
-        console.log('[ROUTE_GUARD_DEBUG] (AuthInitializer.tsx:201) Super Admin on valid route (' + pathname + ') — allowing access.')
-        setCheckingRoute(false)
-      }
-      return
-    }
-
-    // Case C: Church user — email not verified
+    // Case D: Church Users — Email Verification Gate
     if (!user.emailVerified) {
-      console.log('[ROUTE_GUARD_DEBUG] (AuthInitializer.tsx:208) Church user email NOT verified.')
       if (!isVerifyEmailPage) {
-        console.error('====================================================')
-        console.error('[ROUTE_GUARD_REDIRECT] REDIRECTED BY: AuthInitializer.tsx line 211')
-        console.error('  Case   : Case C (Unverified email)')
-        console.error('  Path   :', pathname)
-        console.error('  Target :', '/verify-email')
-        console.error('====================================================')
+        console.log('[ROUTE_GUARD] Unverified email → Redirecting to /verify-email')
         router.replace('/verify-email')
       } else {
-        console.log('[ROUTE_GUARD_DEBUG] (AuthInitializer.tsx:218) Unverified user on /verify-email — allowing access.')
         setCheckingRoute(false)
       }
       return
     }
 
-    // Case D: Email verified, sitting on /verify-email → go to setup
+    // Case E: Email Verified Sitting on /verify-email → Proceed to Setup or Dashboard
     if (isVerifyEmailPage) {
       const target = hasChurch ? '/dashboard' : '/setup'
-      console.error('====================================================')
-      console.error('[ROUTE_GUARD_REDIRECT] REDIRECTED BY: AuthInitializer.tsx line 226')
-      console.error('  Case   : Case D (Verified email sitting on /verify-email)')
-      console.error('  Path   :', pathname)
-      console.error('  Target :', target)
-      console.error('====================================================')
+      console.log('[ROUTE_GUARD] Verified email sitting on /verify-email → Redirecting to', target)
       router.replace(target)
       return
     }
 
-    // Case E: Church user with no church setup → force /setup
+    // Case F: Church Users — Onboarding Setup Gate
     if (!hasChurch) {
       if (!isSetup && !isAdminRoute) {
-        console.error('====================================================')
-        console.error('[ROUTE_GUARD_REDIRECT] REDIRECTED BY: AuthInitializer.tsx line 237')
-        console.error('  Case   : Case E (No church setup)')
-        console.error('  Path   :', pathname)
-        console.error('  Target :', '/setup')
-        console.error('====================================================')
+        console.log('[ROUTE_GUARD] No church setup completed → Redirecting to /setup')
         router.replace('/setup')
       } else {
-        console.log('[ROUTE_GUARD_DEBUG] (AuthInitializer.tsx:244) User with no church on /setup or /admin — allowing access.')
         setCheckingRoute(false)
       }
       return
     }
 
-    // Case F: Church user already set up, sitting on /setup → dashboard
+    // Case G: Church Users Already Set Up Sitting on /setup → Redirect to Dashboard
     if (isSetup && hasChurch) {
-      console.error('====================================================')
-      console.error('[ROUTE_GUARD_REDIRECT] REDIRECTED BY: AuthInitializer.tsx line 252')
-      console.error('  Case   : Case F (Already set up, sitting on /setup)')
-      console.error('  Path   :', pathname)
-      console.error('  Target :', '/dashboard')
-      console.error('====================================================')
+      console.log('[ROUTE_GUARD] Church user already set up sitting on /setup → Redirecting to /dashboard')
       router.replace('/dashboard')
       return
     }
 
-    // Case G: Authenticated church user on public pages → redirect to dashboard
+    // Case H: Authenticated Church Users on Public Auth Pages → Redirect to Dashboard
     if (isPublic && pathname !== '/' && !isAdminRoute) {
-      console.error('====================================================')
-      console.error('[ROUTE_GUARD_REDIRECT] REDIRECTED BY: AuthInitializer.tsx line 263')
-      console.error('  Case   : Case G (Authenticated user on public route ' + pathname + ')')
-      console.error('  Target :', '/dashboard')
-      console.error('====================================================')
+      console.log('[ROUTE_GUARD] Authenticated user on public auth page → Redirecting to /dashboard')
       router.replace('/dashboard')
       return
     }
 
-    console.log('[ROUTE_GUARD_DEBUG] (AuthInitializer.tsx:270) Route guard PASSED for pathname:', pathname)
     setCheckingRoute(false)
   }, [user, church, isInitialized, pathname, router, storeIsSuperAdmin, role])
 

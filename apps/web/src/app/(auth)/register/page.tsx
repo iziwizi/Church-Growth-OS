@@ -53,7 +53,7 @@ function RegisterForm() {
       })
 
       if (verificationSent) {
-        toast.success('Account created! Verification email sent. Please verify your email.')
+        toast.success('Account created! Verification email accepted for delivery. Please check your inbox.')
       } else {
         toast.success('Account created! Please check your inbox for verification.')
       }

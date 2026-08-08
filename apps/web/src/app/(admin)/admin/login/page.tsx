@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { signInWithEmailAndPassword } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
 import { auth, db } from '@/lib/firebase/client'
+import { useAuthStore } from '@/store'
 
 export default function AdminLoginPage() {
   const router = useRouter()
@@ -18,9 +19,7 @@ export default function AdminLoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('====================================================')
-    console.log('[ADMIN_LOGIN_DEBUG] (apps/web/src/app/(admin)/admin/login/page.tsx:19) handleLogin started for email:', email)
-    console.log('====================================================')
+    console.log('[ADMIN_LOGIN] Login sequence started for:', email)
 
     if (!email || !password) {
       toast.error('Email and password are required.')
@@ -29,51 +28,56 @@ export default function AdminLoginPage() {
     setLoading(true)
 
     try {
-      console.log('[ADMIN_LOGIN_DEBUG] (admin/login/page.tsx:28) Calling signInWithEmailAndPassword...')
+      // 1. Authenticate with Firebase Auth
       const credential = await signInWithEmailAndPassword(auth, email, password)
-      const uid = credential.user.uid
+      const user = credential.user
+      console.log('[ADMIN_LOGIN] Firebase Auth sign-in SUCCESS. UID:', user.uid)
 
-      console.log('[ADMIN_LOGIN_DEBUG] (admin/login/page.tsx:32) Firebase login SUCCESS!')
-      console.log('  UID          :', uid)
-      console.log('  Email        :', credential.user.email)
-      console.log('  Email Verified:', credential.user.emailVerified)
+      // 2. Fetch Firestore Profile to verify Super Admin status
+      let role = 'user'
+      let isSuperAdmin = false
 
-      // Verify Super Admin role in Firestore
-      console.log('[ADMIN_LOGIN_DEBUG] (admin/login/page.tsx:38) Fetching Firestore user profile from /users/' + uid)
-      const userSnap = await getDoc(doc(db, 'users', uid))
-      const userData = userSnap.data()
+      try {
+        const userSnap = await getDoc(doc(db, 'users', user.uid))
+        if (userSnap.exists()) {
+          const userData = userSnap.data()
+          role = userData?.role ?? 'user'
+          console.log('[ADMIN_LOGIN] Firestore user role:', role)
+        }
+      } catch (fsErr: any) {
+        console.warn('[ADMIN_LOGIN] Firestore profile check warning:', fsErr?.message)
+      }
 
-      console.log('[ADMIN_LOGIN_DEBUG] (admin/login/page.tsx:42) Firestore snap exists:', userSnap.exists())
-      console.log('[ADMIN_LOGIN_DEBUG] (admin/login/page.tsx:43) Firestore profile data:', userData)
-
-      const isSuperAdmin =
-        userData?.role === 'super_admin' ||
-        credential.user.email?.endsWith('@mujteknify.com')
-
-      console.log('[ADMIN_LOGIN_DEBUG] (admin/login/page.tsx:48) Computed isSuperAdmin:', isSuperAdmin, '(userData.role:', userData?.role, ', email:', credential.user.email, ')')
+      isSuperAdmin = role === 'super_admin' || (user.email?.endsWith('@mujteknify.com') ?? false)
+      console.log('[ADMIN_LOGIN] Super Admin status resolved:', isSuperAdmin)
 
       if (!isSuperAdmin) {
-        console.error('[ADMIN_LOGIN_DEBUG] (admin/login/page.tsx:51) ACCESS DENIED: User is NOT a Super Admin!')
+        console.warn('[ADMIN_LOGIN] Access denied — user is not a Super Admin.')
         await auth.signOut()
-        toast.error(
-          'Access denied. This portal is restricted to MUJTEKNIFY platform administrators.'
-        )
+        useAuthStore.getState().reset()
+        toast.error('Access denied. This portal is restricted to MUJTEKNIFY platform administrators.')
         setLoading(false)
         return
       }
 
-      console.log('[ADMIN_LOGIN_DEBUG] (admin/login/page.tsx:59) ACCESS GRANTED! Calling router.replace(\'/admin\')...')
+      // 3. SYNCHRONOUSLY UPDATE ZUSTAND STORE BEFORE ROUTING
+      // This eliminates the race condition between router.replace('/admin') and AuthInitializer
+      useAuthStore.getState().setUser(user)
+      useAuthStore.getState().setClaims({
+        churchId: '',
+        role: 'super_admin',
+        superAdmin: true,
+      })
+      useAuthStore.getState().setLoading(false)
+      useAuthStore.getState().setInitialized(true)
+
+      console.log('[ADMIN_LOGIN] Auth store claims updated. Redirecting to /admin...')
       toast.success('Welcome, Super Admin!')
+
+      // 4. Navigate to Admin Dashboard
       router.replace('/admin')
-      console.log('[ADMIN_LOGIN_DEBUG] (admin/login/page.tsx:62) router.replace(\'/admin\') executed.')
     } catch (err: any) {
-      console.error('====================================================')
-      console.error('[ADMIN_LOGIN_DEBUG] (admin/login/page.tsx:65) ADMIN LOGIN ERROR EXCEPTION!')
-      console.error('  Error  :', err)
-      console.error('  Code   :', err?.code)
-      console.error('  Message:', err?.message)
-      console.error('  Stack  :', err?.stack)
-      console.error('====================================================')
+      console.error('[ADMIN_LOGIN] Login exception:', err?.code, err?.message, err?.stack)
 
       const code = err?.code ?? ''
       if (
