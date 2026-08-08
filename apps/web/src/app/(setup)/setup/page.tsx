@@ -35,17 +35,22 @@ const STEPS = [
 ]
 
 const GOALS_LIST = [
-  { id: 'visitor_followup', label: 'Visitor Follow-up', desc: 'Automate 7-day visitor engagement' },
-  { id: 'membership_growth', label: 'Membership Growth', desc: 'Convert visitors to active members' },
-  { id: 'evangelism', label: 'Evangelism', desc: 'Outreach campaigns and community growth' },
-  { id: 'youth_ministry', label: 'Youth Ministry', desc: 'Engage young adults and students' },
-  { id: 'prayer_management', label: 'Prayer Management', desc: 'Track and respond to prayer needs' },
-  { id: 'events', label: 'Events', desc: 'Promote services, conferences, and retreats' },
-  { id: 'giving', label: 'Giving', desc: 'Encourage tithes, offerings, and seed faith' },
-  { id: 'partnerships', label: 'Partnerships', desc: 'Manage covenant givers and vision builders' },
-  { id: 'social_growth', label: 'Social Media Growth', desc: 'AI content generation for social channels' },
-  { id: 'small_groups', label: 'Small Groups', desc: 'Cell fellowship tracking and nurture' },
-  { id: 'volunteer_management', label: 'Volunteer Management', desc: 'Organize workforce and department teams' },
+  { id: 'increase_attendance', label: 'Increase Attendance', desc: 'Grow Sunday and midweek service attendance' },
+  { id: 'increase_visitors', label: 'Increase First-Time Visitors', desc: 'Attract new guests and outreach visitors' },
+  { id: 'visitor_followup', label: 'Improve Visitor Follow-up', desc: 'Automate 7-day visitor engagement' },
+  { id: 'member_retention', label: 'Improve Member Retention', desc: 'Convert visitors to active members and prevent drop-off' },
+  { id: 'increase_engagement', label: 'Increase Engagement', desc: 'Boost member participation in church life' },
+  { id: 'social_reach', label: 'Increase Social Media Reach', desc: 'AI content generation for social channels' },
+  { id: 'online_views', label: 'Increase Online Service Views', desc: 'Grow YouTube, Facebook, and stream audiences' },
+  { id: 'whatsapp_comm', label: 'Improve WhatsApp Communication', desc: 'Automate broadcasts & 2-way engagement' },
+  { id: 'email_comm', label: 'Improve Email Communication', desc: 'Pastoral letters, newsletters & reminders' },
+  { id: 'event_participation', label: 'Increase Event Participation', desc: 'Promote services, conferences & retreats' },
+  { id: 'volunteer_engagement', label: 'Improve Volunteer Engagement', desc: 'Organize workforce and department teams' },
+  { id: 'giving_support', label: 'Increase Giving & Support', desc: 'Encourage tithes, offerings & seed faith' },
+  { id: 'resources_promo', label: 'Promote Books & Resources', desc: 'Share pastoral materials and teachings' },
+  { id: 'pastoral_followup', label: 'Strengthen Pastoral Follow-up', desc: 'Personalized care and disengagement checks' },
+  { id: 'evangelism_outreach', label: 'Improve Evangelism & Outreach', desc: 'Outreach campaigns and community growth' },
+  { id: 'other_custom', label: 'Other Custom Objective', desc: 'Personalized goals for your ministry' },
 ]
 
 export default function SetupWizardPage() {
@@ -84,12 +89,14 @@ export default function SetupWizardPage() {
   const [branchAddress, setBranchAddress] = useState('')
   const [branchPastor, setBranchPastor] = useState('')
 
-  // Step 4: Ministry Goals
+  // Step 4: Ministry Growth Objectives
+  const [primaryGoal, setPrimaryGoal] = useState<string>('visitor_followup')
   const [selectedGoals, setSelectedGoals] = useState<string[]>([
     'visitor_followup',
-    'membership_growth',
-    'events',
+    'increase_visitors',
+    'member_retention',
   ])
+  const [customObjective, setCustomObjective] = useState('')
 
   // Step 5: Automation Preference
   const [automationMode, setAutomationMode] = useState<'autonomous' | 'approval'>('autonomous')
@@ -203,6 +210,13 @@ export default function SetupWizardPage() {
         },
         branches: branchesList,
         ministryGoals: selectedGoals,
+        growthObjectives: {
+          primary: primaryGoal,
+          secondary: selectedGoals,
+          custom: customObjective.trim() || null,
+        },
+        setupCompleted: true,
+        onboardingStatus: 'completed',
         branding: {
           logoUrl: logoUrl || null,
           primaryColor: '#4f46e5',
@@ -262,6 +276,8 @@ export default function SetupWizardPage() {
         {
           churchId: generatedChurchId,
           role: 'owner',
+          setupCompleted: true,
+          onboardingStatus: 'completed',
           subscriptionStatus: 'trial',
           status: 'active',
           updatedAt: serverTimestamp(),
@@ -281,6 +297,11 @@ export default function SetupWizardPage() {
         communicationStyle: 'Pastoral, Warm & Faith-Filled',
         automationPreference: automationMode,
         ministryGoals: selectedGoals,
+        growthObjectives: {
+          primaryGoal,
+          secondaryGoals: selectedGoals,
+          customObjective: customObjective.trim(),
+        },
         branches: branchesList,
         preferredBibleTranslation: 'NIV',
         preferredTone: 'Inspirational',
@@ -723,46 +744,92 @@ export default function SetupWizardPage() {
             </div>
           )}
 
-          {/* STEP 4: Ministry Goals */}
+          {/* STEP 4: Ministry Growth Objectives */}
           {currentStep === 4 && (
-            <div className="space-y-4 text-xs">
+            <div className="space-y-5 text-xs">
               <div>
                 <h3 className="font-display text-sm font-bold text-foreground">
-                  What would you like Church Growth OS to help you achieve? <span className="text-rose-500 font-bold">*</span>
+                  What does growth mean to your church? <span className="text-rose-500 font-bold">*</span>
                 </h3>
                 <p className="text-muted-foreground mt-0.5">
-                  Select at least one. Your choices personalize AI automation and workflow recommendations.
+                  Set your growth objectives. Church Growth OS AI will tailor automations and recommendations to these targets.
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                {GOALS_LIST.map((goal) => {
-                  const selected = selectedGoals.includes(goal.id)
-                  return (
-                    <button
-                      key={goal.id}
-                      type="button"
-                      onClick={() => toggleGoal(goal.id)}
-                      className={`flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${
-                        selected
-                          ? 'border-brand-500 bg-brand-500/10 text-foreground ring-1 ring-brand-500/30'
-                          : 'border-border bg-background hover:bg-accent'
-                      }`}
-                    >
-                      <div
-                        className={`flex h-4 w-4 mt-0.5 shrink-0 items-center justify-center rounded-md border ${
-                          selected ? 'bg-brand-600 border-brand-600 text-white' : 'border-input'
+              {/* Primary Growth Goal Selector */}
+              <div>
+                <label className="font-bold text-foreground block mb-1">
+                  Primary Growth Goal <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={primaryGoal}
+                  onChange={(e) => setPrimaryGoal(e.target.value)}
+                  className="flex h-9 w-full rounded-xl border border-input bg-background px-3 font-semibold text-brand-500 focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  {GOALS_LIST.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.label} — {g.desc}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Secondary Growth Goals Selector */}
+              <div>
+                <label className="font-bold text-foreground block mb-1">
+                  Secondary Growth Goals (Select all that apply)
+                </label>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 max-h-56 overflow-y-auto pr-1">
+                  {GOALS_LIST.map((goal) => {
+                    const selected = selectedGoals.includes(goal.id)
+                    const isPrimary = primaryGoal === goal.id
+                    return (
+                      <button
+                        key={goal.id}
+                        type="button"
+                        onClick={() => toggleGoal(goal.id)}
+                        className={`flex items-start gap-3 rounded-xl border p-2.5 text-left transition-all ${
+                          selected
+                            ? 'border-brand-500 bg-brand-500/10 text-foreground ring-1 ring-brand-500/30'
+                            : 'border-border bg-background hover:bg-accent'
                         }`}
                       >
-                        {selected && <CheckCircle2 className="h-3 w-3" />}
-                      </div>
-                      <div>
-                        <p className="font-bold text-foreground">{goal.label}</p>
-                        <p className="text-[10px] text-muted-foreground leading-tight">{goal.desc}</p>
-                      </div>
-                    </button>
-                  )
-                })}
+                        <div
+                          className={`flex h-4 w-4 mt-0.5 shrink-0 items-center justify-center rounded-md border ${
+                            selected ? 'bg-brand-600 border-brand-600 text-white' : 'border-input'
+                          }`}
+                        >
+                          {selected && <CheckCircle2 className="h-3 w-3" />}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-bold text-foreground">{goal.label}</p>
+                            {isPrimary && (
+                              <span className="rounded-full bg-brand-500 px-1.5 py-0.2 text-[9px] font-bold text-white uppercase">
+                                Primary
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-muted-foreground leading-tight">{goal.desc}</p>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Free-text Growth Objective */}
+              <div>
+                <label className="font-bold text-foreground block mb-1">
+                  Specific Ministry Objective / Vision <span className="text-muted-foreground font-normal text-[10px]">(Optional)</span>
+                </label>
+                <textarea
+                  rows={2}
+                  value={customObjective}
+                  onChange={(e) => setCustomObjective(e.target.value)}
+                  placeholder="e.g., We want to plant 2 new campuses, increase youth attendance by 30%, and automate 7-day visitor engagement for our main campus..."
+                  className="flex w-full rounded-xl border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                />
               </div>
             </div>
           )}

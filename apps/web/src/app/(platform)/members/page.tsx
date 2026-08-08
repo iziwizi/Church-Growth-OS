@@ -13,15 +13,14 @@ import {
   Mail,
   Phone,
   Tag,
-  MapPin,
   X,
   CheckCircle2,
   Building,
+  Upload,
 } from 'lucide-react'
 import {
   collection,
   query,
-  where,
   getDocs,
   addDoc,
   updateDoc,
@@ -33,6 +32,7 @@ import {
 import { db } from '@/lib/firebase/client'
 import { useChurchStore } from '@/store'
 import { toast } from 'sonner'
+import { ImportWizard } from './ImportWizard'
 
 export default function MembersPage() {
   const { church } = useChurchStore()
@@ -41,6 +41,7 @@ export default function MembersPage() {
   const [search, setSearch] = useState('')
   const [tagFilter, setTagFilter] = useState('all')
   const [showModal, setShowModal] = useState(false)
+  const [showImportWizard, setShowImportWizard] = useState(false)
   const [editingPerson, setEditingPerson] = useState<any | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -161,6 +162,17 @@ export default function MembersPage() {
 
   return (
     <div className="space-y-6">
+      {/* CSV Import Wizard */}
+      <AnimatePresence>
+        {showImportWizard && church?.id && (
+          <ImportWizard
+            churchId={church.id}
+            onClose={() => setShowImportWizard(false)}
+            onImportComplete={loadPeople}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Page Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -172,14 +184,24 @@ export default function MembersPage() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={openAddModal}
-          className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-4 text-xs font-semibold text-white shadow-xs hover:bg-brand-500 transition-colors"
-        >
-          <Plus className="h-4 w-4" />
-          Add Person
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowImportWizard(true)}
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-background px-4 text-xs font-semibold text-foreground hover:bg-accent transition-colors"
+          >
+            <Upload className="h-3.5 w-3.5 text-brand-500" />
+            Import CSV
+          </button>
+          <button
+            type="button"
+            onClick={openAddModal}
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-4 text-xs font-semibold text-white shadow-xs hover:bg-brand-500 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            Add Person
+          </button>
+        </div>
       </div>
 
       {/* Controls & Search Bar */}

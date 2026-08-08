@@ -75,22 +75,24 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
 
           let churchDoc = null
           if (!isSuperAdmin) {
-            if (activeChurchId) {
-              churchDoc = await getUserChurch(firebaseUser.uid).catch(() => null)
-            } else {
-              churchDoc = await getUserChurch(firebaseUser.uid).catch(() => null)
-              if (churchDoc) {
-                activeChurchId = churchDoc.id
-                activeRole = 'owner'
-              }
+            churchDoc = await getUserChurch(firebaseUser.uid).catch(() => null)
+            if (churchDoc) {
+              activeChurchId = churchDoc.id
+              activeRole = activeRole ?? 'owner'
             }
           }
 
           if (churchDoc) {
             setChurch(churchDoc)
-          } else {
+          } else if (!activeChurchId) {
+            // Only clear church if there's definitively no churchId — prevents
+            // clearing the Zustand store during the async re-auth that fires
+            // immediately after setup completion writes to Firestore.
             setChurch(null)
           }
+          // If activeChurchId exists but getUserChurch returned null (transient
+          // Firestore read failure), preserve whatever church is currently in
+          // the store to avoid a spurious redirect back to /setup.
 
           setClaims({
             churchId: activeChurchId ?? '',
@@ -197,8 +199,14 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
     }
 
     // Case F: Church Users — Onboarding Setup Gate
+    // IMPORTANT: /dashboard is excluded from setup redirect during the first
+    // initialization pass to prevent a race condition where setup completes,
+    // writes to Firestore, and calls router.replace('/dashboard') — but the
+    // onAuthChange re-fires and getUserChurch hasn't returned yet, making
+    // hasChurch transiently false on the /dashboard route.
+    const isDashboard = pathname === '/dashboard'
     if (!hasChurch) {
-      if (!isSetup && !isAdminRoute) {
+      if (!isSetup && !isAdminRoute && !isDashboard) {
         console.log('[ROUTE_GUARD] No church setup completed → Redirecting to /setup')
         router.replace('/setup')
       } else {

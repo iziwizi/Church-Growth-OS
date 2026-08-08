@@ -87,6 +87,11 @@ export interface ChurchAIProfile {
   preferredTone: string
   serviceDays: string[]
   averageAttendance?: number
+  growthObjectives?: {
+    primaryGoal?: string
+    secondaryGoals?: string[]
+    customObjective?: string
+  }
   updatedAt?: unknown
 }
 

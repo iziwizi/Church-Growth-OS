@@ -27,7 +27,7 @@ Keep responses concise and production-ready. Use scripture references where appr
 
     const userMessage = `Create content based on this message or theme: "${prompt}"`
 
-    // Use Google Gemini API if configured, otherwise generate structured content
+    // 1. Try Google Gemini if configured
     const geminiApiKey = process.env.GEMINI_API_KEY
 
     if (geminiApiKey) {
@@ -56,7 +56,39 @@ Keep responses concise and production-ready. Use scripture references where appr
         const data = await response.json()
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
         if (text) {
-          return NextResponse.json({ result: text })
+          return NextResponse.json({ result: text, provider: 'gemini' })
+        }
+      }
+    }
+
+    // 2. Try OpenRouter as a fallback if configured
+    const openrouterKey = process.env.OPENROUTER_API_KEY
+
+    if (openrouterKey) {
+      const orResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${openrouterKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://mujteknify.com',
+          'X-Title': 'Church Growth OS',
+        },
+        body: JSON.stringify({
+          model: 'openai/gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage },
+          ],
+          max_tokens: 800,
+          temperature: 0.7,
+        }),
+      })
+
+      if (orResponse.ok) {
+        const orData = await orResponse.json()
+        const text = orData.choices?.[0]?.message?.content ?? ''
+        if (text) {
+          return NextResponse.json({ result: text, provider: 'openrouter' })
         }
       }
     }

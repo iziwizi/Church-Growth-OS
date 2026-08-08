@@ -16,6 +16,7 @@ export default function AdminInfrastructurePage() {
     claudeKey: '',
     openaiKey: '',
     geminiKey: '',
+    openrouterKey: '',
     cloudinaryCloudName: '',
     cloudinaryApiKey: '',
     cloudinaryApiSecret: '',
@@ -130,6 +131,16 @@ export default function AdminInfrastructurePage() {
                 placeholder="AIzaSy..."
                 value={config.geminiKey}
                 onChange={(e) => setConfig({ ...config, geminiKey: e.target.value })}
+                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+              />
+            </div>
+            <div>
+              <label className="font-semibold">OpenRouter API Key</label>
+              <input
+                type="password"
+                placeholder="sk-or-v1-..."
+                value={config.openrouterKey}
+                onChange={(e) => setConfig({ ...config, openrouterKey: e.target.value })}
                 className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
               />
             </div>
