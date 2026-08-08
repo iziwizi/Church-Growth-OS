@@ -1,16 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Cpu, Save, Loader2, MessageSquare, Mail, Phone, Cloud, DollarSign, ShieldCheck } from 'lucide-react'
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
-import { db } from '@/lib/firebase/client'
+import { Cpu, Save, Loader2, MessageSquare, Cloud, DollarSign, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function AdminInfrastructurePage() {
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  // 11 Required Infrastructure Configs
   const [config, setConfig] = useState({
     deepseekKey: '',
     claudeKey: '',
@@ -36,12 +33,15 @@ export default function AdminInfrastructurePage() {
   async function loadInfraConfig() {
     setLoading(true)
     try {
-      const snap = await getDoc(doc(db, 'system', 'infrastructure')).catch(() => null)
-      if (snap && snap.exists()) {
-        setConfig((prev) => ({ ...prev, ...snap.data() }))
+      const res = await fetch('/api/admin/infrastructure')
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setConfig((prev) => ({ ...prev, ...data.config }))
+      } else {
+        toast.error(data.error ?? 'Failed to load infrastructure settings.')
       }
-    } catch {
-      toast.error('Failed to load system infrastructure config.')
+    } catch (err: any) {
+      toast.error(`Failed to load system infrastructure config: ${err.message}`)
     } finally {
       setLoading(false)
     }
@@ -51,17 +51,19 @@ export default function AdminInfrastructurePage() {
     e.preventDefault()
     setSaving(true)
     try {
-      await setDoc(
-        doc(db, 'system', 'infrastructure'),
-        {
-          ...config,
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      )
-      toast.success('🔒 All 11 Platform API Secrets saved securely to Firestore!')
-    } catch {
-      toast.error('Failed to save secrets.')
+      const res = await fetch('/api/admin/infrastructure', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        toast.success('🔒 All 11 Platform API Secrets saved securely to server!')
+      } else {
+        toast.error(data.error ?? 'Failed to save secrets.')
+      }
+    } catch (err: any) {
+      toast.error(`Failed to save secrets: ${err.message}`)
     } finally {
       setSaving(false)
     }
@@ -76,14 +78,24 @@ export default function AdminInfrastructurePage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          Super Admin Infrastructure Secrets
-        </h1>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Central API credentials managed exclusively by MUJTEKNIFY LIMITED. Church administrators never manage raw API keys.
-        </p>
+    <div className="space-y-6 text-xs">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            Super Admin Infrastructure Secrets
+          </h1>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Central API credentials managed exclusively by MUJTEKNIFY LIMITED. Church administrators never manage raw API keys.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={loadInfraConfig}
+          className="inline-flex items-center gap-1.5 rounded-xl border bg-card px-3 py-1.5 font-semibold text-foreground hover:bg-accent"
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+          Refresh
+        </button>
       </div>
 
       <form onSubmit={handleSaveInfra} className="space-y-6">
@@ -91,9 +103,19 @@ export default function AdminInfrastructurePage() {
         <div className="rounded-2xl border bg-card p-6 shadow-xs space-y-4">
           <h2 className="font-display text-base font-bold text-foreground flex items-center gap-2">
             <Cpu className="h-4 w-4 text-purple-500" />
-            AI Foundation Model Keys (Claude, OpenAI, DeepSeek, Gemini)
+            AI Foundation Model Keys (Claude, OpenAI, DeepSeek, Gemini, OpenRouter)
           </h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-xs">
+            <div>
+              <label className="font-semibold">OpenRouter API Key (Unified Router)</label>
+              <input
+                type="password"
+                placeholder="sk-or-v1-..."
+                value={config.openrouterKey}
+                onChange={(e) => setConfig({ ...config, openrouterKey: e.target.value })}
+                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3 font-mono"
+              />
+            </div>
             <div>
               <label className="font-semibold">Anthropic Claude API Key</label>
               <input
@@ -101,7 +123,7 @@ export default function AdminInfrastructurePage() {
                 placeholder="sk-ant-api03-..."
                 value={config.claudeKey}
                 onChange={(e) => setConfig({ ...config, claudeKey: e.target.value })}
-                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3 font-mono"
               />
             </div>
             <div>
@@ -111,7 +133,7 @@ export default function AdminInfrastructurePage() {
                 placeholder="sk-proj-..."
                 value={config.openaiKey}
                 onChange={(e) => setConfig({ ...config, openaiKey: e.target.value })}
-                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3 font-mono"
               />
             </div>
             <div>
@@ -121,7 +143,7 @@ export default function AdminInfrastructurePage() {
                 placeholder="sk-deepseek-..."
                 value={config.deepseekKey}
                 onChange={(e) => setConfig({ ...config, deepseekKey: e.target.value })}
-                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3 font-mono"
               />
             </div>
             <div>
@@ -131,17 +153,7 @@ export default function AdminInfrastructurePage() {
                 placeholder="AIzaSy..."
                 value={config.geminiKey}
                 onChange={(e) => setConfig({ ...config, geminiKey: e.target.value })}
-                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
-              />
-            </div>
-            <div>
-              <label className="font-semibold">OpenRouter API Key</label>
-              <input
-                type="password"
-                placeholder="sk-or-v1-..."
-                value={config.openrouterKey}
-                onChange={(e) => setConfig({ ...config, openrouterKey: e.target.value })}
-                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3 font-mono"
               />
             </div>
           </div>
@@ -167,21 +179,21 @@ export default function AdminInfrastructurePage() {
             <div>
               <label className="font-semibold">API Key</label>
               <input
-                type="text"
+                type="password"
                 placeholder="1234567890"
                 value={config.cloudinaryApiKey}
                 onChange={(e) => setConfig({ ...config, cloudinaryApiKey: e.target.value })}
-                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3 font-mono"
               />
             </div>
             <div>
               <label className="font-semibold">API Secret</label>
               <input
                 type="password"
-                placeholder="Mm-O94D..."
+                placeholder="••••••••"
                 value={config.cloudinaryApiSecret}
                 onChange={(e) => setConfig({ ...config, cloudinaryApiSecret: e.target.value })}
-                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3 font-mono"
               />
             </div>
           </div>
@@ -201,7 +213,7 @@ export default function AdminInfrastructurePage() {
                 placeholder="re_123..."
                 value={config.resendKey}
                 onChange={(e) => setConfig({ ...config, resendKey: e.target.value })}
-                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3 font-mono"
               />
             </div>
             <div>
@@ -211,7 +223,7 @@ export default function AdminInfrastructurePage() {
                 placeholder="termii_sec_..."
                 value={config.termiiKey}
                 onChange={(e) => setConfig({ ...config, termiiKey: e.target.value })}
-                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3 font-mono"
               />
             </div>
             <div>
@@ -221,7 +233,7 @@ export default function AdminInfrastructurePage() {
                 placeholder="EAA..."
                 value={config.metaWhatsappToken}
                 onChange={(e) => setConfig({ ...config, metaWhatsappToken: e.target.value })}
-                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3 font-mono"
               />
             </div>
             <div>
@@ -231,7 +243,7 @@ export default function AdminInfrastructurePage() {
                 placeholder="10987654321"
                 value={config.metaWhatsappPhoneId}
                 onChange={(e) => setConfig({ ...config, metaWhatsappPhoneId: e.target.value })}
-                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3 font-mono"
               />
             </div>
           </div>
@@ -251,7 +263,7 @@ export default function AdminInfrastructurePage() {
                 placeholder="sk_live_paystack..."
                 value={config.paystackSecret}
                 onChange={(e) => setConfig({ ...config, paystackSecret: e.target.value })}
-                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3 font-mono"
               />
             </div>
             <div>
@@ -261,7 +273,7 @@ export default function AdminInfrastructurePage() {
                 placeholder="FLWSECK_..."
                 value={config.flutterwaveSecret}
                 onChange={(e) => setConfig({ ...config, flutterwaveSecret: e.target.value })}
-                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3 font-mono"
               />
             </div>
             <div>
@@ -271,7 +283,7 @@ export default function AdminInfrastructurePage() {
                 placeholder="sk_live_stripe..."
                 value={config.stripeSecret}
                 onChange={(e) => setConfig({ ...config, stripeSecret: e.target.value })}
-                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3 font-mono"
               />
             </div>
           </div>

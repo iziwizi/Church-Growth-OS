@@ -19,8 +19,10 @@ import { toast } from 'sonner'
 
 const CONTENT_TYPES = [
   { value: 'sermon_reels', label: 'Sermon Reel Script' },
+  { value: 'sermon_summary', label: 'Sermon Summary & 3 Action Points' },
+  { value: 'whatsapp_broadcast', label: 'WhatsApp Broadcast Message' },
   { value: 'announcement', label: 'Church Announcement' },
-  { value: 'newsletter', label: 'Newsletter Section' },
+  { value: 'newsletter', label: 'Newsletter Article' },
   { value: 'prayer_content', label: 'Prayer Guide / Devotional' },
   { value: 'event_promo', label: 'Event Promotion Copy' },
   { value: 'follow_up', label: 'Visitor Follow-Up Message' },
@@ -77,6 +79,7 @@ export default function AIStudioPage() {
           prompt: prompt.trim(),
           contentType,
           churchName: church.name,
+          churchId: church.id,
         }),
       })
 
@@ -94,6 +97,7 @@ export default function AIStudioPage() {
         prompt: prompt.trim(),
         contentType,
         result: generated,
+        provider: data.provider ?? 'ai',
         generatedBy: user?.uid ?? null,
         churchId: church.id,
         createdAt: serverTimestamp(),
@@ -111,7 +115,7 @@ export default function AIStudioPage() {
         ...prev.slice(0, 9),
       ])
 
-      toast.success('AI content generated and saved!')
+      toast.success('🎉 AI content generated and credits tracked!')
     } catch (err: any) {
       toast.error(err.message ?? 'Failed to generate content.')
     } finally {
@@ -147,14 +151,14 @@ export default function AIStudioPage() {
   const contentTypeLabel = CONTENT_TYPES.find((t) => t.value === contentType)?.label ?? contentType
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-xs">
       <div>
         <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl flex items-center gap-2">
           <Sparkles className="h-6 w-6 text-brand-500" />
-          AI Studio &amp; Content Generator
+          AI Studio &amp; Ministry Content Engine
         </h1>
         <p className="mt-1 text-xs text-muted-foreground">
-          Autonomous AI content studio powered by Gemini for {church?.name}.
+          Autonomous pastoral content, sermon summaries, reels, and WhatsApp broadcasts for {church?.name}.
         </p>
       </div>
 
@@ -165,13 +169,13 @@ export default function AIStudioPage() {
             <Bot className="h-4 w-4 text-brand-500" />
             Content Generator
           </h2>
-          <form onSubmit={handleGenerate} className="space-y-3 text-xs">
+          <form onSubmit={handleGenerate} className="space-y-3">
             <div>
-              <label className="font-semibold">Content Type</label>
+              <label className="font-semibold">Content Category</label>
               <select
                 value={contentType}
                 onChange={(e) => setContentType(e.target.value)}
-                className="mt-1 flex h-9 w-full rounded-xl border border-input bg-background px-3 focus:outline-none focus:ring-2 focus:ring-ring"
+                className="mt-1 flex h-9 w-full rounded-xl border border-input bg-background px-3 font-semibold text-brand-500 focus:outline-none"
               >
                 {CONTENT_TYPES.map((t) => (
                   <option key={t.value} value={t.value}>{t.label}</option>
@@ -180,31 +184,31 @@ export default function AIStudioPage() {
             </div>
 
             <div>
-              <label className="font-semibold">Theme / Message / Topic *</label>
+              <label className="font-semibold">Theme / Sermon Notes / Message Topic *</label>
               <textarea
-                rows={4}
+                rows={5}
                 required
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder={`Describe the message or topic for your ${contentTypeLabel.toLowerCase()}...`}
-                className="mt-1 flex w-full rounded-xl border border-input bg-background px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                placeholder={`Paste sermon transcript, topic, or message notes for your ${contentTypeLabel.toLowerCase()}...`}
+                className="mt-1 flex w-full rounded-xl border border-input bg-background px-3 py-2 resize-none text-xs focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
             </div>
 
             <button
               type="submit"
               disabled={generating || !prompt.trim()}
-              className="inline-flex w-full h-9 items-center justify-center gap-1.5 rounded-xl bg-brand-600 text-xs font-semibold text-white hover:bg-brand-500 disabled:opacity-50"
+              className="inline-flex w-full h-9 items-center justify-center gap-1.5 rounded-xl bg-brand-600 font-semibold text-white hover:bg-brand-500 disabled:opacity-50 transition-colors"
             >
               {generating ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Generating...
+                  Generating Ministry Content...
                 </>
               ) : (
                 <>
                   <Sparkles className="h-3.5 w-3.5" />
-                  Generate Content
+                  Generate AI Content
                 </>
               )}
             </button>
@@ -212,33 +216,35 @@ export default function AIStudioPage() {
         </div>
 
         {/* Output Panel */}
-        <div className="rounded-2xl border bg-card p-6 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-display text-sm font-bold text-foreground">Generated Output</h2>
-            {result && (
-              <button
-                type="button"
-                onClick={handleCopy}
-                className="inline-flex h-7 items-center gap-1 rounded-lg border px-3 text-xs font-semibold hover:bg-accent"
-              >
-                {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
-                {copied ? 'Copied!' : 'Copy'}
-              </button>
+        <div className="rounded-2xl border bg-card p-6 shadow-xs space-y-4 flex flex-col justify-between">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between border-b pb-2">
+              <h2 className="font-display text-sm font-bold text-foreground">Generated Output</h2>
+              {result && (
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  className="inline-flex h-7 items-center gap-1 rounded-lg border px-3 text-xs font-semibold hover:bg-accent"
+                >
+                  {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                  {copied ? 'Copied!' : 'Copy'}
+                </button>
+              )}
+            </div>
+
+            {result ? (
+              <div className="rounded-xl border bg-muted/20 p-4 text-xs leading-relaxed whitespace-pre-wrap text-foreground max-h-72 overflow-y-auto font-mono">
+                {result}
+              </div>
+            ) : (
+              <div className="flex h-48 flex-col items-center justify-center rounded-xl border border-dashed bg-muted/10 text-center space-y-2">
+                <Sparkles className="h-8 w-8 text-brand-500/40" />
+                <p className="text-xs text-muted-foreground">
+                  Generated copy will appear here ready to broadcast or post.
+                </p>
+              </div>
             )}
           </div>
-
-          {result ? (
-            <div className="rounded-xl border bg-muted/20 p-4 text-xs leading-relaxed whitespace-pre-wrap text-foreground max-h-72 overflow-y-auto">
-              {result}
-            </div>
-          ) : (
-            <div className="flex h-48 flex-col items-center justify-center rounded-xl border border-dashed bg-muted/10 text-center space-y-2">
-              <Sparkles className="h-8 w-8 text-brand-500/40" />
-              <p className="text-xs text-muted-foreground">
-                Generated content will appear here.
-              </p>
-            </div>
-          )}
         </div>
       </div>
 

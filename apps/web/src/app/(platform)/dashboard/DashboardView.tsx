@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
+import Link from 'next/link'
 import {
   Users,
   UserPlus,
@@ -24,6 +25,9 @@ import {
   AlertTriangle,
   ArrowRight,
   HardDrive,
+  Check,
+  ChevronRight,
+  X,
 } from 'lucide-react'
 import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore'
 import { db } from '@/lib/firebase/client'
@@ -49,6 +53,7 @@ export function DashboardView() {
   const { user } = useAuthStore()
   const { church } = useChurchStore()
   const [loading, setLoading] = useState(true)
+  const [onboardingDismissed, setOnboardingDismissed] = useState(false)
 
   const [stats, setStats] = useState({
     totalMembers: 0,
@@ -191,7 +196,7 @@ export function DashboardView() {
     greetingHour < 12 ? 'Good morning' : greetingHour < 17 ? 'Good afternoon' : 'Good evening'
   const firstName = user?.displayName?.split(' ')[0] ?? 'Pastor'
 
-  // Dynamic Trial Countdown Calculation (Task 8 requirement)
+  // Dynamic Trial Countdown Calculation
   const calculateDaysRemaining = (): number => {
     if (!church?.subscription?.trialEnd) return 14
     const end = new Date(church.subscription.trialEnd as string | number).getTime()
@@ -211,6 +216,30 @@ export function DashboardView() {
   const storageUsedMb = church?.subscription?.storageUsedMb ?? 0
   const storageTotalMb = church?.subscription?.storageTotalMb ?? 5000
 
+  // ── Dynamic Church Setup Onboarding Calculation (Phase 4) ────────────────
+  const ch = church as any
+  const profileDone = !!(ch?.name && ch?.slug)
+  const missionDone = !!(ch?.aiProfile?.mission || ch?.aiProfile?.vision)
+  const goalsDone = !!(ch?.aiProfile?.growthObjectives?.primaryGoal || ch?.aiProfile?.ministryGoals?.length)
+  const logoDone = !!(ch?.branding?.logoUrl)
+  const contactDone = !!(ch?.branding?.country || ch?.branding?.city || ch?.branding?.address)
+  const membersDone = stats.totalMembers > 0 || stats.visitors > 0
+  const givingDone = !!(ch?.settings?.socialLinks?.website || ch?.branding?.primaryColor)
+
+  const checklistItems = [
+    { label: 'Church Profile & Slug', done: profileDone, href: '/settings' },
+    { label: 'Mission & Vision', done: missionDone, href: '/settings' },
+    { label: 'Growth Objectives', done: goalsDone, href: '/settings' },
+    { label: 'Logo & Branding', done: logoDone, href: '/settings' },
+    { label: 'Location & Country', done: contactDone, href: '/settings' },
+    { label: 'Congregation Data (Members/Visitors)', done: membersDone, href: '/members' },
+    { label: 'Social Media & Giving', done: givingDone, href: '/settings' },
+  ]
+
+  const completedChecklistCount = checklistItems.filter((i) => i.done).length
+  const setupPercentage = Math.round((completedChecklistCount / checklistItems.length) * 100)
+  const isSetupComplete = setupPercentage === 100
+
   return (
     <motion.div
       variants={containerVariants}
@@ -218,7 +247,7 @@ export function DashboardView() {
       animate="show"
       className="space-y-8 pb-10"
     >
-      {/* ── Page Header & Welcome Banner ─────────────────────────────────── */}
+      {/* ── 1. Page Header & Welcome Banner ─────────────────────────────────── */}
       <motion.div variants={itemVariants} className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
@@ -237,17 +266,92 @@ export function DashboardView() {
             <Bot className="h-4 w-4 animate-pulse text-purple-400" />
             <span>AI Mode: {church?.settings?.aiMode === 'approval' ? 'Approval' : 'Autonomous'}</span>
           </div>
-          <a
-            href="/members?action=new"
-            className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-4 text-xs font-semibold text-white shadow-sm hover:bg-brand-500 transition-colors"
+          <Link
+            href="/members"
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-4 text-xs font-semibold text-white shadow-xs hover:bg-brand-500 transition-colors"
           >
             <Plus className="h-3.5 w-3.5" />
             Add Person
-          </a>
+          </Link>
         </div>
       </motion.div>
 
-      {/* ── Trial Reminder Banner (Task 14 Requirement) ─────────────────── */}
+      {/* ── 2. Church Setup Completion Indicator (Phase 4 Requirement) ──────── */}
+      {!onboardingDismissed && (
+        <motion.div
+          variants={itemVariants}
+          className="rounded-2xl border border-brand-500/30 bg-brand-500/5 p-5 shadow-xs space-y-4"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-brand-500/10 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-500/10 text-brand-500 font-bold">
+                <CheckCircle2 className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-display text-sm font-bold text-foreground">
+                    Church Setup: {setupPercentage}% Complete
+                  </h3>
+                  {isSetupComplete && (
+                    <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-500">
+                      Plug-and-Play Active
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  {isSetupComplete
+                    ? 'All essential church configurations are set up. Your AI engine is running smoothly.'
+                    : 'Complete the remaining checklist items below to enable fully autonomous ministry growth.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-brand-500">{completedChecklistCount} / {checklistItems.length} Complete</span>
+              {isSetupComplete && (
+                <button
+                  type="button"
+                  onClick={() => setOnboardingDismissed(true)}
+                  className="p-1 rounded-lg text-muted-foreground hover:bg-accent"
+                  title="Dismiss checklist"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+            <div
+              className={`h-full transition-all duration-500 ${
+                isSetupComplete ? 'bg-emerald-500' : 'bg-brand-500'
+              }`}
+              style={{ width: `${setupPercentage}%` }}
+            />
+          </div>
+
+          {/* Checklist Pills */}
+          <div className="flex flex-wrap gap-2 pt-1">
+            {checklistItems.map((item) => (
+              <Link
+                key={item.label}
+                href={item.href}
+                className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1 text-[11px] font-medium transition-colors ${
+                  item.done
+                    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20'
+                    : 'border-border bg-card text-muted-foreground hover:border-brand-500 hover:text-foreground'
+                }`}
+              >
+                {item.done ? <Check className="h-3 w-3" /> : <div className="h-2 w-2 rounded-full border border-muted-foreground" />}
+                <span>{item.label}</span>
+              </Link>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+      {/* ── 3. Trial Reminder Banner ────────────────────────────────────────── */}
       {isTrial && daysRemaining <= 7 && (
         <motion.div
           variants={itemVariants}
@@ -267,17 +371,17 @@ export function DashboardView() {
                 : `Trial Reminder: You have ${daysRemaining} day${daysRemaining > 1 ? 's' : ''} left on your Free Trial.`}
             </span>
           </div>
-          <a
+          <Link
             href="/pricing"
             className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-brand-600 px-3.5 text-xs font-bold text-white hover:bg-brand-500 transition-colors shadow-xs"
           >
             <span>Upgrade Plan Now</span>
             <ArrowRight className="h-3.5 w-3.5" />
-          </a>
+          </Link>
         </motion.div>
       )}
 
-      {/* ── Subscription Card (Task 11 Requirement) ──────────────────────── */}
+      {/* ── 4. Subscription & Meters Card ──────────────────────────────────── */}
       <motion.div variants={itemVariants} className="rounded-2xl border bg-card p-6 shadow-xs space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-4">
           <div className="flex items-center gap-3">
@@ -299,13 +403,13 @@ export function DashboardView() {
             </div>
           </div>
 
-          <a
+          <Link
             href="/pricing"
             className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-4 text-xs font-semibold text-white hover:bg-brand-500 transition-colors shadow-xs"
           >
             <span>Upgrade Plan</span>
             <ArrowRight className="h-3.5 w-3.5" />
-          </a>
+          </Link>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 text-xs">
@@ -321,7 +425,7 @@ export function DashboardView() {
                 style={{ width: `${Math.min(100, Math.round((daysRemaining / 14) * 100))}%` }}
               />
             </div>
-            <p className="text-[10px] text-muted-foreground">Calculated dynamically from current date</p>
+            <p className="text-[10px] text-muted-foreground">Calculated dynamically from registration date</p>
           </div>
 
           {/* AI Credits Meter */}
@@ -362,7 +466,7 @@ export function DashboardView() {
         </div>
       </motion.div>
 
-      {/* ── 12 Required Core Ministry Metric Cards ──────────────────────── */}
+      {/* ── 5. 12 Core Ministry Metric Cards ─────────────────────────────────── */}
       <motion.div variants={itemVariants} className="space-y-3">
         <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
           Real-Time Ministry Metrics
@@ -502,7 +606,7 @@ export function DashboardView() {
         </div>
       </motion.div>
 
-      {/* ── Today's Executive Report (Real Firestore Data or Empty State) ── */}
+      {/* ── 6. Today's Executive Report ─────────────────────────────────────── */}
       <motion.div variants={itemVariants}>
         {aiReportData ? (
           <ExecutiveReportCard
@@ -526,19 +630,19 @@ export function DashboardView() {
               No report generated for today yet. The AI Executive Report function executes automatically every morning at 6 AM UTC, summarizing all 24-hour attendance, broadcasts, and member engagement metrics.
             </p>
             <div className="pt-2">
-              <a
+              <Link
                 href="/reports"
                 className="inline-flex h-9 items-center gap-2 rounded-xl bg-brand-600 px-4 text-xs font-semibold text-white hover:bg-brand-500 transition-colors"
               >
                 <FileText className="h-3.5 w-3.5" />
                 View Reports Module
-              </a>
+              </Link>
             </div>
           </div>
         )}
       </motion.div>
 
-      {/* ── Growth Chart & Events ──────────── */}
+      {/* ── 7. Growth Chart & Events ────────────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         <motion.div variants={itemVariants} className="lg:col-span-3">
           {growthData.length > 0 ? (
@@ -552,13 +656,13 @@ export function DashboardView() {
               <p className="text-xs text-muted-foreground max-w-sm leading-relaxed">
                 As you add members, visitors, and run automated communications, your church growth trajectory will render here.
               </p>
-              <a
-                href="/members?action=new"
+              <Link
+                href="/members"
                 className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-background px-4 text-xs font-semibold text-foreground hover:bg-accent transition-colors"
               >
                 <Plus className="h-3.5 w-3.5 text-brand-500" />
                 Add First Member
-              </a>
+              </Link>
             </div>
           )}
         </motion.div>
@@ -575,19 +679,19 @@ export function DashboardView() {
               <p className="text-xs text-muted-foreground max-w-xs leading-relaxed">
                 Schedule services, conferences, or cell meetings to trigger automated reminders.
               </p>
-              <a
-                href="/events?action=new"
+              <Link
+                href="/events"
                 className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-background px-4 text-xs font-semibold text-foreground hover:bg-accent transition-colors"
               >
                 <Plus className="h-3.5 w-3.5 text-sky-500" />
                 Schedule Event
-              </a>
+              </Link>
             </div>
           )}
         </motion.div>
       </div>
 
-      {/* Dashboard Footer Attribution */}
+      {/* ── 8. Footer ───────────────────────────────────────────────────────── */}
       <footer className="mt-8 border-t border-border pt-6 text-center text-xs text-muted-foreground">
         Powered by <span className="font-semibold text-foreground">Church Growth OS</span> — A Product of{' '}
         <a href="https://mujteknify.com" target="_blank" rel="noopener noreferrer" className="font-semibold text-foreground hover:underline">

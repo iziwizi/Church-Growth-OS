@@ -1,9 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Users, Search, Loader2, ShieldCheck, Mail, Calendar, UserCheck } from 'lucide-react'
-import { collection, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore'
-import { db } from '@/lib/firebase/client'
+import { Search, Loader2, UserCheck, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function AdminUsersPage() {
@@ -19,12 +17,15 @@ export default function AdminUsersPage() {
   async function loadUsers() {
     setLoading(true)
     try {
-      const snap = await getDocs(collection(db, 'users'))
-      const list: any[] = []
-      snap.docs.forEach((d) => list.push({ id: d.id, ...d.data() }))
-      setUsers(list)
-    } catch {
-      toast.error('Failed to load platform users.')
+      const res = await fetch('/api/admin/users')
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setUsers(data.users ?? [])
+      } else {
+        toast.error(data.error ?? 'Failed to load platform users.')
+      }
+    } catch (err: any) {
+      toast.error(`Failed to load platform users: ${err.message}`)
     } finally {
       setLoading(false)
     }
@@ -33,14 +34,20 @@ export default function AdminUsersPage() {
   const handleUpdateRole = async (userId: string, role: string) => {
     setUpdatingId(userId)
     try {
-      await updateDoc(doc(db, 'users', userId), {
-        role,
-        updatedAt: serverTimestamp(),
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, role }),
       })
-      toast.success(`User role updated to ${role.toUpperCase()}!`)
-      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role } : u)))
-    } catch {
-      toast.error('Failed to update user role.')
+      const data = await res.json()
+      if (res.ok && data.success) {
+        toast.success(`User role updated to ${role.toUpperCase()}!`)
+        setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role } : u)))
+      } else {
+        toast.error(data.error ?? 'Failed to update user role.')
+      }
+    } catch (err: any) {
+      toast.error(`Failed to update user role: ${err.message}`)
     } finally {
       setUpdatingId(null)
     }
@@ -53,14 +60,24 @@ export default function AdminUsersPage() {
   )
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          Platform Users &amp; Identities
-        </h1>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Manage user accounts, roles (Super Admin, Owner, Admin, Pastor, Staff), and verification status across all church tenants.
-        </p>
+    <div className="space-y-6 text-xs">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            Platform Users &amp; Identities
+          </h1>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Manage user accounts, roles (Super Admin, Owner, Admin, Pastor, Staff), and verification status across all church tenants.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={loadUsers}
+          className="inline-flex items-center gap-1.5 rounded-xl border bg-card px-3 py-1.5 font-semibold text-foreground hover:bg-accent"
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+          Refresh
+        </button>
       </div>
 
       <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-xs">

@@ -18,7 +18,10 @@ service cloud.firestore {
 
     // Check if user is platform Super Admin
     function isSuperAdmin() {
-      return isAuthenticated() && request.auth.token.superAdmin == true;
+      return isAuthenticated() && (
+        request.auth.token.superAdmin == true ||
+        request.auth.token.role == 'super_admin'
+      );
     }
 
     // Get user's custom claim role or fallback to user document role
@@ -145,7 +148,7 @@ service cloud.firestore {
       // ── Subcollection: Prayer Requests ─────────────────────────────────────
       match /prayerRequests/{requestId} {
         allow read: if isChurchMember(churchId);
-        allow create: if isAuthenticated() || isChurchMember(churchId);
+        allow create: if true; // Public submission allowed
         allow update, delete: if isChurchMember(churchId);
       }
 
@@ -198,8 +201,9 @@ service cloud.firestore {
 
       // ── Subcollection: Testimonies & Partnerships ────────────────────────
       match /testimonies/{testimonyId} {
-        allow read, create, update: if isChurchMember(churchId);
-        allow delete: if isChurchOwnerOrAdmin(churchId);
+        allow read: if isChurchMember(churchId);
+        allow create: if true; // Public submission allowed
+        allow update, delete: if isChurchOwnerOrAdmin(churchId);
       }
 
       match /partnerships/{partnerId} {
@@ -223,13 +227,29 @@ service cloud.firestore {
     }
 
     // ============================================================================
-    // NOTIFICATIONS COLLECTION (/notifications/{notificationId})
+    // SYSTEM & NOTIFICATIONS COLLECTIONS
     // ============================================================================
 
     match /notifications/{notificationId} {
-      allow read, update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow read, update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
       allow create: if isAuthenticated();
-      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /system/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
+    }
+
+    match /platformSupportTickets/{ticketId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isSuperAdmin());
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isSuperAdmin());
+      allow delete: if isSuperAdmin();
+    }
+
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated() && (isSuperAdmin() || resource.data.churchId == request.auth.token.churchId);
+      allow write: if false; // Server SDK / webhooks only
     }
 
     // Default deny all unmapped documents

@@ -1,9 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { CreditCard, Search, Loader2, CheckCircle2, AlertTriangle, ArrowRight } from 'lucide-react'
-import { collection, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore'
-import { db } from '@/lib/firebase/client'
+import { CreditCard, Loader2, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function AdminSubscriptionsPage() {
@@ -18,23 +16,15 @@ export default function AdminSubscriptionsPage() {
   async function loadSubscriptions() {
     setLoading(true)
     try {
-      const snap = await getDocs(collection(db, 'churches'))
-      const list: any[] = []
-      snap.docs.forEach((d) => {
-        const data = d.data()
-        list.push({
-          id: d.id,
-          churchName: data.name,
-          planId: data.subscription?.planId ?? data.plan ?? 'free_trial',
-          status: data.subscription?.status ?? 'trialing',
-          branchesLimit: data.subscription?.branchesLimit ?? 1,
-          aiCreditsRemaining: data.subscription?.aiCreditsRemaining ?? 2500,
-          trialEnd: data.subscription?.trialEnd ?? null,
-        })
-      })
-      setSubscriptions(list)
-    } catch {
-      toast.error('Could not load subscriptions.')
+      const res = await fetch('/api/admin/subscriptions')
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setSubscriptions(data.subscriptions ?? [])
+      } else {
+        toast.error(data.error ?? 'Could not load subscriptions.')
+      }
+    } catch (err: any) {
+      toast.error(`Could not load subscriptions: ${err.message}`)
     } finally {
       setLoading(false)
     }
@@ -44,38 +34,59 @@ export default function AdminSubscriptionsPage() {
     setUpdatingId(churchId)
     try {
       const branchesLimit = planId === 'enterprise' ? -1 : planId === 'growth' ? 5 : 1
-      await updateDoc(doc(db, 'churches', churchId), {
-        'subscription.status': status,
-        'subscription.planId': planId,
-        'subscription.branchesLimit': branchesLimit,
-        plan: planId,
-        updatedAt: serverTimestamp(),
+      const res = await fetch('/api/admin/subscriptions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ churchId, status, planId, branchesLimit }),
       })
-      toast.success(`Subscription status updated to ${status.toUpperCase()} (${planId})!`)
-      setSubscriptions((prev) =>
-        prev.map((s) => (s.id === churchId ? { ...s, status, planId, branchesLimit } : s))
-      )
-    } catch {
-      toast.error('Failed to update subscription.')
+      const data = await res.json()
+      if (res.ok && data.success) {
+        toast.success(`Subscription status updated to ${status.toUpperCase()} (${planId})!`)
+        setSubscriptions((prev) =>
+          prev.map((s) => (s.id === churchId ? { ...s, status, planId, branchesLimit } : s))
+        )
+      } else {
+        toast.error(data.error ?? 'Failed to update subscription.')
+      }
+    } catch (err: any) {
+      toast.error(`Failed to update subscription: ${err.message}`)
     } finally {
       setUpdatingId(null)
     }
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          SaaS Subscriptions Management
-        </h1>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Monitor subscription statuses (Trialing, Active, Past Due, Canceled), quotas, and tier allocations across all tenant churches.
-        </p>
+    <div className="space-y-6 text-xs">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            SaaS Subscriptions Management
+          </h1>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Monitor subscription statuses (Trialing, Active, Past Due, Canceled), quotas, and tier allocations across all tenant churches.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={loadSubscriptions}
+          className="inline-flex items-center gap-1.5 rounded-xl border bg-card px-3 py-1.5 font-semibold text-foreground hover:bg-accent"
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+          Refresh
+        </button>
       </div>
 
       {loading ? (
         <div className="flex h-64 items-center justify-center rounded-2xl border bg-card">
           <Loader2 className="h-6 w-6 animate-spin text-brand-600" />
+        </div>
+      ) : subscriptions.length === 0 ? (
+        <div className="rounded-2xl border bg-card p-12 text-center shadow-xs space-y-3 flex flex-col items-center">
+          <CreditCard className="h-10 w-10 text-brand-500" />
+          <h3 className="font-display text-base font-bold text-foreground">No Subscriptions Found</h3>
+          <p className="text-muted-foreground max-w-sm">
+            When church tenants register, their subscription quotas and status will render here.
+          </p>
         </div>
       ) : (
         <div className="rounded-2xl border bg-card shadow-xs overflow-hidden">
@@ -111,7 +122,7 @@ export default function AdminSubscriptionsPage() {
                   <td className="p-3.5 font-semibold text-foreground">
                     {s.branchesLimit === -1 ? 'Unlimited' : `${s.branchesLimit} Campus`}
                   </td>
-                  <td className="p-3.5 font-mono text-muted-foreground">{s.aiCreditsRemaining.toLocaleString()}</td>
+                  <td className="p-3.5 font-mono text-muted-foreground">{s.aiCreditsRemaining?.toLocaleString()}</td>
                   <td className="p-3.5 text-right">
                     <select
                       value={`${s.planId}:${s.status}`}
@@ -123,6 +134,7 @@ export default function AdminSubscriptionsPage() {
                       className="rounded-xl border bg-background px-2 py-1 text-xs font-semibold text-foreground"
                     >
                       <option value="free_trial:trialing">Set Free Trial</option>
+                      <option value="starter:active">Set Active (Starter)</option>
                       <option value="growth:active">Set Active (Growth)</option>
                       <option value="enterprise:active">Set Active (Enterprise)</option>
                       <option value="starter:past_due">Set Past Due</option>

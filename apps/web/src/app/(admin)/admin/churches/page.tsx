@@ -1,9 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Building2, Search, Loader2, CheckCircle2, AlertTriangle, ShieldAlert, Eye, UserCheck, Users, Ban } from 'lucide-react'
-import { collection, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore'
-import { db } from '@/lib/firebase/client'
+import { Building2, Search, Loader2, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function AdminChurchesPage() {
@@ -19,31 +17,13 @@ export default function AdminChurchesPage() {
   async function loadChurches() {
     setLoading(true)
     try {
-      const snap = await getDocs(collection(db, 'churches')).catch((err) => {
-        console.error('[ADMIN_CHURCHES] Firestore query error:', err)
-        return null
-      })
-      const list: any[] = []
-      if (snap && !snap.empty) {
-        for (const d of snap.docs) {
-          const data = d.data()
-          // Sample member/visitor count best-effort
-          const pSnap = await getDocs(collection(db, 'churches', d.id, 'people')).catch(() => null)
-          let members = 0, visitors = 0
-          pSnap?.docs.forEach((p) => {
-            const tags = p.data().tags ?? []
-            if (tags.includes('visitor')) visitors++
-            else members++
-          })
-          list.push({
-            id: d.id,
-            ...data,
-            membersCount: members,
-            visitorsCount: visitors,
-          })
-        }
+      const res = await fetch('/api/admin/churches')
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setChurches(data.churches ?? [])
+      } else {
+        toast.error(data.error ?? 'Could not load church list.')
       }
-      setChurches(list)
     } catch (err: any) {
       console.error('[ADMIN_CHURCHES] Error loading church list:', err)
       toast.error(`Could not load church list: ${err.message ?? 'Unknown error'}`)
@@ -55,15 +35,18 @@ export default function AdminChurchesPage() {
   const handleUpdatePlan = async (churchId: string, plan: string) => {
     setUpdatingId(churchId)
     try {
-      const branchesLimit = plan === 'enterprise' ? -1 : plan === 'growth' ? 5 : 1
-      await updateDoc(doc(db, 'churches', churchId), {
-        plan,
-        'subscription.planId': plan,
-        'subscription.branchesLimit': branchesLimit,
-        updatedAt: serverTimestamp(),
+      const res = await fetch('/api/admin/churches', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ churchId, plan }),
       })
-      toast.success(`Subscription tier updated to ${plan.toUpperCase()}!`)
-      setChurches((prev) => prev.map((c) => (c.id === churchId ? { ...c, plan } : c)))
+      const data = await res.json()
+      if (res.ok && data.success) {
+        toast.success(`Subscription tier updated to ${plan.toUpperCase()}!`)
+        setChurches((prev) => prev.map((c) => (c.id === churchId ? { ...c, plan } : c)))
+      } else {
+        toast.error(data.error ?? 'Failed to update plan.')
+      }
     } catch (err: any) {
       toast.error(`Failed to update plan: ${err.message}`)
     } finally {
@@ -75,12 +58,18 @@ export default function AdminChurchesPage() {
     const nextStatus = currentStatus === 'suspended' ? 'active' : 'suspended'
     setUpdatingId(churchId)
     try {
-      await updateDoc(doc(db, 'churches', churchId), {
-        status: nextStatus,
-        updatedAt: serverTimestamp(),
+      const res = await fetch('/api/admin/churches', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ churchId, status: nextStatus }),
       })
-      toast.success(`Church status updated to ${nextStatus.toUpperCase()}!`)
-      setChurches((prev) => prev.map((c) => (c.id === churchId ? { ...c, status: nextStatus } : c)))
+      const data = await res.json()
+      if (res.ok && data.success) {
+        toast.success(`Church status updated to ${nextStatus.toUpperCase()}!`)
+        setChurches((prev) => prev.map((c) => (c.id === churchId ? { ...c, status: nextStatus } : c)))
+      } else {
+        toast.error(data.error ?? 'Failed to update status.')
+      }
     } catch (err: any) {
       toast.error(`Failed to update status: ${err.message}`)
     } finally {
@@ -97,13 +86,23 @@ export default function AdminChurchesPage() {
 
   return (
     <div className="space-y-6 text-xs">
-      <div>
-        <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          Church Tenant Management (Part 19)
-        </h1>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Manage onboarded church tenants, subscription tiers (Free Trial, Starter, Growth, Enterprise), and status.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            Church Tenant Management
+          </h1>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Manage onboarded church tenants, subscription tiers (Free Trial, Starter, Growth, Enterprise), and status.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={loadChurches}
+          className="inline-flex items-center gap-1.5 rounded-xl border bg-card px-3 py-1.5 font-semibold text-foreground hover:bg-accent"
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+          Refresh
+        </button>
       </div>
 
       <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-xs">
@@ -124,9 +123,9 @@ export default function AdminChurchesPage() {
       ) : filteredChurches.length === 0 ? (
         <div className="rounded-2xl border bg-card p-12 text-center shadow-xs space-y-3 flex flex-col items-center">
           <Building2 className="h-10 w-10 text-brand-500" />
-          <h3 className="font-display text-base font-bold text-foreground">No Church Tenants Yet</h3>
+          <h3 className="font-display text-base font-bold text-foreground">No Church Tenants Found</h3>
           <p className="text-muted-foreground max-w-sm">
-            When church administrators complete onboarding registration, their tenant profiles will render here.
+            {search ? 'No church matches your search query.' : 'When church administrators complete onboarding registration, their tenant profiles will render here.'}
           </p>
         </div>
       ) : (

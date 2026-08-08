@@ -2,8 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { Cpu, Save, Loader2, RefreshCw, CheckCircle2, ShieldCheck, Zap } from 'lucide-react'
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
-import { db } from '@/lib/firebase/client'
 import { toast } from 'sonner'
 
 interface OpenRouterModel {
@@ -22,12 +20,10 @@ export default function AdminAIProvidersPage() {
   const [config, setConfig] = useState({
     defaultProvider: 'openrouter',
     openrouterKey: '',
-    openrouterDefaultModel: 'anthropic/claude-3.5-sonnet',
-    openrouterFallbackModel: 'openai/gpt-4o-mini',
-    claudeKey: '',
-    openaiKey: '',
-    deepseekKey: '',
-    geminiKey: '',
+    defaultModel: 'anthropic/claude-3.5-sonnet',
+    fallbackModel: 'openai/gpt-4o-mini',
+    aiMode: 'autonomous',
+    enabled: true,
     taskRouting: {
       CONTENT_SUMMARY: 'openai/gpt-4o-mini',
       VISITOR_FOLLOW_UP: 'anthropic/claude-3.5-sonnet',
@@ -46,29 +42,28 @@ export default function AdminAIProvidersPage() {
   ])
 
   useEffect(() => {
-    async function loadAIConfig() {
-      setLoading(true)
-      try {
-        const snap = await getDoc(doc(db, 'system', 'infrastructure')).catch(() => null)
-        if (snap && snap.exists()) {
-          const data = snap.data()
-          setConfig((prev) => ({
-            ...prev,
-            ...data,
-            taskRouting: {
-              ...prev.taskRouting,
-              ...(data?.taskRouting ?? {}),
-            },
-          }))
-        }
-      } catch {
-        toast.error('Could not load AI Provider configuration.')
-      } finally {
-        setLoading(false)
-      }
-    }
     loadAIConfig()
   }, [])
+
+  async function loadAIConfig() {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/admin/ai-providers')
+      const data = await res.json()
+      if (res.ok && data.success && data.config) {
+        setConfig((prev) => ({
+          ...prev,
+          ...data.config,
+        }))
+      } else {
+        toast.error(data.error ?? 'Could not load AI Provider configuration.')
+      }
+    } catch (err: any) {
+      toast.error(`Could not load AI Provider configuration: ${err.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleRefreshModels = async () => {
     setRefreshingModels(true)
@@ -91,10 +86,19 @@ export default function AdminAIProvidersPage() {
     e.preventDefault()
     setSaving(true)
     try {
-      await setDoc(doc(db, 'system', 'infrastructure'), { ...config, updatedAt: serverTimestamp() }, { merge: true })
-      toast.success('🤖 OpenRouter & AI Task Routing saved to Firestore!')
-    } catch {
-      toast.error('Failed to save AI configuration.')
+      const res = await fetch('/api/admin/ai-providers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        toast.success('🤖 OpenRouter & AI Task Routing saved securely to server!')
+      } else {
+        toast.error(data.error ?? 'Failed to save AI configuration.')
+      }
+    } catch (err: any) {
+      toast.error(`Failed to save AI configuration: ${err.message}`)
     } finally {
       setSaving(false)
     }
@@ -110,119 +114,122 @@ export default function AdminAIProvidersPage() {
 
   return (
     <div className="space-y-6 text-xs">
-      <div>
-        <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          AI Foundation Models &amp; OpenRouter Routing
-        </h1>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Manage OpenRouter unified API, model discovery, and cost-conscious task-level model selection for MUJTEKNIFY LIMITED.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            AI Provider &amp; Model Routing Engine
+          </h1>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Configure OpenRouter API, model discovery, and task-level routing for church communications.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleRefreshModels}
+            disabled={refreshingModels}
+            className="inline-flex items-center gap-1.5 rounded-xl border bg-card px-3 py-1.5 font-semibold text-foreground hover:bg-accent disabled:opacity-50"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${refreshingModels ? 'animate-spin' : ''}`} />
+            Refresh Models
+          </button>
+        </div>
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
-        {/* OpenRouter Configuration */}
+        {/* OpenRouter Unified API */}
         <div className="rounded-2xl border bg-card p-6 shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b pb-3">
             <h2 className="font-display text-base font-bold text-foreground flex items-center gap-2">
-              <Cpu className="h-4 w-4 text-purple-500" />
-              OpenRouter Universal AI Gateway (Part 10 &amp; 11)
+              <Cpu className="h-4 w-4 text-brand-500" />
+              OpenRouter Unified API Gateway
             </h2>
-            <button
-              type="button"
-              onClick={handleRefreshModels}
-              disabled={refreshingModels}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-accent transition-colors disabled:opacity-50"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${refreshingModels ? 'animate-spin' : ''}`} />
-              Refresh OpenRouter Models
-            </button>
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold text-emerald-500">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Canonical AI Provider
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-3">
             <div>
-              <label className="font-semibold">Primary AI Provider</label>
-              <select
-                value={config.defaultProvider}
-                onChange={(e) => setConfig({ ...config, defaultProvider: e.target.value })}
-                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3 font-semibold text-purple-500"
-              >
-                <option value="openrouter">OpenRouter Unified API (Recommended)</option>
-                <option value="claude">Direct Anthropic Claude API</option>
-                <option value="openai">Direct OpenAI API</option>
-                <option value="deepseek">Direct DeepSeek V3 API</option>
-                <option value="gemini">Direct Google Gemini API</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="font-semibold">OpenRouter Secret API Key (Server-Side Only)</label>
+              <label className="font-semibold">OpenRouter API Key</label>
               <input
                 type="password"
                 placeholder="sk-or-v1-..."
                 value={config.openrouterKey}
                 onChange={(e) => setConfig({ ...config, openrouterKey: e.target.value })}
-                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3 font-mono"
               />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Unified gateway supporting Claude 3.5 Sonnet, GPT-4o, DeepSeek R1, and Gemini 2.0 Flash with zero vendor lock-in.
+              </p>
             </div>
 
-            <div>
-              <label className="font-semibold">Default Primary Model</label>
-              <select
-                value={config.openrouterDefaultModel}
-                onChange={(e) => setConfig({ ...config, openrouterDefaultModel: e.target.value })}
-                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
-              >
-                {discoveredModels.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name} ({m.id})
-                  </option>
-                ))}
-              </select>
-            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className="font-semibold">Primary Default Model</label>
+                <select
+                  value={config.defaultModel}
+                  onChange={(e) => setConfig({ ...config, defaultModel: e.target.value })}
+                  className="mt-1 flex h-9 w-full rounded-xl border bg-background px-2 font-semibold text-brand-500"
+                >
+                  {discoveredModels.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name} ({m.id})
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            <div>
-              <label className="font-semibold">Fallback Model</label>
-              <select
-                value={config.openrouterFallbackModel}
-                onChange={(e) => setConfig({ ...config, openrouterFallbackModel: e.target.value })}
-                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
-              >
-                {discoveredModels.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name} ({m.id})
-                  </option>
-                ))}
-              </select>
+              <div>
+                <label className="font-semibold">Fallback Model</label>
+                <select
+                  value={config.fallbackModel}
+                  onChange={(e) => setConfig({ ...config, fallbackModel: e.target.value })}
+                  className="mt-1 flex h-9 w-full rounded-xl border bg-background px-2 font-semibold text-muted-foreground"
+                >
+                  {discoveredModels.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name} ({m.id})
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Task-Level Model Routing */}
+        {/* Task-Level Routing Matrix */}
         <div className="rounded-2xl border bg-card p-6 shadow-xs space-y-4">
           <h2 className="font-display text-base font-bold text-foreground flex items-center gap-2">
-            <Zap className="h-4 w-4 text-amber-500" />
-            Task-Level Model Routing (Cost-Conscious Defaults)
+            <Zap className="h-4 w-4 text-purple-500" />
+            Task-Level Routing Matrix
           </h2>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {[
-              { taskKey: 'VISITOR_FOLLOW_UP', label: 'Visitor Follow-up Writing', defaultModel: 'anthropic/claude-3.5-sonnet' },
-              { taskKey: 'CONTENT_SUMMARY', label: 'Social Post & Sermon Summaries', defaultModel: 'openai/gpt-4o-mini' },
-              { taskKey: 'EMAIL_WRITING', label: 'Executive Email Drafting', defaultModel: 'anthropic/claude-3.5-sonnet' },
-              { taskKey: 'WHATSAPP_WRITING', label: 'WhatsApp Broadcast Generator', defaultModel: 'openai/gpt-4o-mini' },
-              { taskKey: 'SERMON_SUMMARY', label: 'Sermon Transcript Breakdown', defaultModel: 'anthropic/claude-3.5-sonnet' },
-            ].map(({ taskKey, label }) => (
-              <div key={taskKey} className="rounded-xl border p-3 bg-muted/10 space-y-1">
-                <p className="font-bold text-foreground">{label}</p>
+              { id: 'VISITOR_FOLLOW_UP', label: 'Visitor Follow-up Writing', desc: 'Warm pastoral welcome messages' },
+              { id: 'SERMON_SUMMARY', label: 'Sermon Transcript Repurposing', desc: 'Extract key points, scriptures, quotes' },
+              { id: 'WHATSAPP_WRITING', label: 'WhatsApp Broadcasts', desc: 'Short, engaging mobile announcements' },
+              { id: 'EMAIL_WRITING', label: 'Email Newsletters & Reports', desc: 'Structured ministry communications' },
+              { id: 'CONTENT_SUMMARY', label: 'General Content Summarization', desc: 'Fast, cost-effective processing' },
+            ].map((t) => (
+              <div key={t.id} className="rounded-xl border bg-muted/20 p-3 space-y-2">
+                <div>
+                  <p className="font-bold text-foreground">{t.label}</p>
+                  <p className="text-[10px] text-muted-foreground">{t.desc}</p>
+                </div>
                 <select
-                  value={(config.taskRouting as any)[taskKey] ?? 'openai/gpt-4o-mini'}
+                  value={(config.taskRouting as any)[t.id] ?? config.defaultModel}
                   onChange={(e) =>
                     setConfig({
                       ...config,
-                      taskRouting: { ...config.taskRouting, [taskKey]: e.target.value },
+                      taskRouting: {
+                        ...config.taskRouting,
+                        [t.id]: e.target.value,
+                      },
                     })
                   }
-                  className="mt-1 flex h-8 w-full rounded-lg border bg-background px-2 text-xs"
+                  className="flex h-8 w-full rounded-lg border bg-background px-2 text-[11px] font-semibold text-brand-500"
                 >
                   {discoveredModels.map((m) => (
                     <option key={m.id} value={m.id}>
@@ -233,44 +240,17 @@ export default function AdminAIProvidersPage() {
               </div>
             ))}
           </div>
-        </div>
 
-        {/* Direct Provider Secrets Fallback */}
-        <div className="rounded-2xl border bg-card p-6 shadow-xs space-y-4">
-          <h2 className="font-display text-base font-bold text-foreground">Direct Provider API Keys (Fallback)</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="font-semibold">Anthropic Claude API Key</label>
-              <input
-                type="password"
-                placeholder="sk-ant-..."
-                value={config.claudeKey}
-                onChange={(e) => setConfig({ ...config, claudeKey: e.target.value })}
-                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
-              />
-            </div>
-            <div>
-              <label className="font-semibold">OpenAI API Key</label>
-              <input
-                type="password"
-                placeholder="sk-proj-..."
-                value={config.openaiKey}
-                onChange={(e) => setConfig({ ...config, openaiKey: e.target.value })}
-                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
-              />
-            </div>
+          <div className="flex justify-end pt-3 border-t">
+            <button
+              type="submit"
+              disabled={saving}
+              className="inline-flex h-9 items-center gap-2 rounded-xl bg-brand-600 px-5 font-semibold text-white hover:bg-brand-500 disabled:opacity-50 shadow-xs"
+            >
+              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+              Save Canonical AI Settings
+            </button>
           </div>
-        </div>
-
-        <div className="flex justify-end">
-          <button
-            type="submit"
-            disabled={saving}
-            className="inline-flex h-9 items-center gap-2 rounded-xl bg-brand-600 px-5 text-xs font-semibold text-white hover:bg-brand-500 disabled:opacity-50"
-          >
-            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-            Save AI Provider Configuration
-          </button>
         </div>
       </form>
     </div>

@@ -1,17 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { HelpCircle, Search, Loader2, CheckCircle2, MessageSquare, ShieldCheck, Send } from 'lucide-react'
-import { collection, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore'
-import { db } from '@/lib/firebase/client'
+import { Search, Loader2, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function AdminSupportDeskPage() {
   const [tickets, setTickets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [replyText, setReplyText] = useState('')
   const [selectedTicket, setSelectedTicket] = useState<any | null>(null)
+  const [replyMessage, setReplyMessage] = useState('')
 
   useEffect(() => {
     loadAllTickets()
@@ -20,42 +18,34 @@ export default function AdminSupportDeskPage() {
   async function loadAllTickets() {
     setLoading(true)
     try {
-      const snap = await getDocs(collection(db, 'platformSupportTickets')).catch(() => null)
-      const list: any[] = []
-      if (snap && !snap.empty) {
-        snap.docs.forEach((d) => list.push({ id: d.id, ...d.data() }))
+      const res = await fetch('/api/admin/support')
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setTickets(data.tickets ?? [])
+      } else {
+        toast.error(data.error ?? 'Failed to load tickets.')
       }
-      setTickets(list)
-    } catch {
-      toast.error('Failed to load tickets.')
+    } catch (err: any) {
+      toast.error(`Failed to load tickets: ${err.message}`)
     } finally {
       setLoading(false)
     }
   }
 
-  const handleUpdateStatus = async (ticketId: string, status: string) => {
+  const handleUpdateStatus = async (ticketId: string, status: string, reply?: string) => {
     try {
-      await updateDoc(doc(db, 'platformSupportTickets', ticketId), {
-        status,
-        updatedAt: serverTimestamp(),
+      const res = await fetch('/api/admin/support', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticketId, status, replyMessage: reply }),
       })
-      const targetTicket = tickets.find((t) => t.id === ticketId)
-      if (targetTicket?.userEmail) {
-        fetch('/api/support/notify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            to: targetTicket.userEmail,
-            subject: `[Ticket Status Updated: ${status.toUpperCase()}] ${targetTicket.subject}`,
-            ticketId,
-            churchName: targetTicket.churchName ?? 'Church',
-            message: `Your support ticket status has been updated to: ${status.toUpperCase()}.\n\nSuper Admin has reviewed your request.`,
-          }),
-        }).catch(() => null)
+      const data = await res.json()
+      if (res.ok && data.success) {
+        toast.success(`Ticket marked as ${status.toUpperCase()}!`)
+        setTickets((prev) => prev.map((t) => (t.id === ticketId ? { ...t, status } : t)))
+      } else {
+        toast.error(data.error ?? 'Failed to update status.')
       }
-
-      toast.success(`Ticket marked as ${status.toUpperCase()}!`)
-      setTickets((prev) => prev.map((t) => (t.id === ticketId ? { ...t, status } : t)))
     } catch {
       toast.error('Failed to update status.')
     }
@@ -68,14 +58,24 @@ export default function AdminSupportDeskPage() {
   )
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          Super Admin Support Desk
-        </h1>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Platform-wide support ticket queue across all onboarded church tenants.
-        </p>
+    <div className="space-y-6 text-xs">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            Super Admin Support Desk
+          </h1>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Platform-wide support ticket queue across all onboarded church tenants.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={loadAllTickets}
+          className="inline-flex items-center gap-1.5 rounded-xl border bg-card px-3 py-1.5 font-semibold text-foreground hover:bg-accent"
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+          Refresh
+        </button>
       </div>
 
       <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-xs">
@@ -143,6 +143,64 @@ export default function AdminSupportDeskPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Ticket Details Modal */}
+      {selectedTicket && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="w-full max-w-lg rounded-2xl border bg-card p-6 shadow-xl space-y-4 text-xs">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div>
+                <h3 className="font-display text-sm font-bold text-foreground">{selectedTicket.subject}</h3>
+                <p className="text-[11px] text-muted-foreground">{selectedTicket.churchName} ({selectedTicket.userEmail})</p>
+              </div>
+              <button type="button" onClick={() => setSelectedTicket(null)} className="text-muted-foreground hover:text-foreground">✕</button>
+            </div>
+
+            <div className="space-y-2">
+              <div className="rounded-xl border bg-muted/20 p-3 space-y-1">
+                <div className="flex justify-between text-[11px]">
+                  <span className="font-semibold text-foreground">Category: {selectedTicket.category}</span>
+                  <span className="font-bold text-amber-500">Priority: {selectedTicket.priority}</span>
+                </div>
+                <p className="text-foreground leading-relaxed pt-1 whitespace-pre-wrap">{selectedTicket.description}</p>
+                {selectedTicket.attachmentUrl && (
+                  <div className="pt-2">
+                    <a href={selectedTicket.attachmentUrl} target="_blank" rel="noopener noreferrer" className="text-brand-500 font-bold hover:underline">
+                      📎 View Uploaded Attachment
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="font-semibold">Super Admin Reply</label>
+                <textarea
+                  rows={3}
+                  value={replyMessage}
+                  onChange={(e) => setReplyMessage(e.target.value)}
+                  placeholder="Type reply to notify church pastor..."
+                  className="mt-1 flex w-full rounded-xl border bg-background px-3 py-2 text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <button type="button" onClick={() => setSelectedTicket(null)} className="h-8 rounded-xl border px-3">Close</button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleUpdateStatus(selectedTicket.id, 'resolved', replyMessage)
+                  setSelectedTicket(null)
+                  setReplyMessage('')
+                }}
+                className="h-8 rounded-xl bg-brand-600 px-4 font-semibold text-white hover:bg-brand-500"
+              >
+                Send Reply &amp; Resolve
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

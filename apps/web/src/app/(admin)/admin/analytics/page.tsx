@@ -1,16 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Activity, TrendingUp, Building2, Users, DollarSign, Loader2, Cpu, CheckCircle2 } from 'lucide-react'
-import { collection, getDocs } from 'firebase/firestore'
-import { db } from '@/lib/firebase/client'
-
-// Pricing (must match admin/pricing-plans config)
-const PLAN_PRICES_NGN: Record<string, number> = {
-  starter: 45000,
-  growth: 120000,
-  enterprise: 350000,
-}
+import { Activity, TrendingUp, Building2, Users, DollarSign, Loader2, Cpu, CheckCircle2, RefreshCw } from 'lucide-react'
+import { toast } from 'sonner'
 
 export default function AdminAnalyticsPage() {
   const [loading, setLoading] = useState(true)
@@ -22,88 +14,54 @@ export default function AdminAnalyticsPage() {
     mrrNgn: 0,
     arrNgn: 0,
     churnRate: 0,
-    totalPeople: 0,
+    totalAiCreditsConsumed: 0,
     canceledChurches: 0,
   })
 
   useEffect(() => {
-    async function loadMetrics() {
-      setLoading(true)
-      try {
-        const [churchSnap, userSnap] = await Promise.all([
-          getDocs(collection(db, 'churches')).catch(() => null),
-          getDocs(collection(db, 'users')).catch(() => null),
-        ])
-
-        const churches = churchSnap?.docs.map((d) => ({ id: d.id, ...d.data() as any })) ?? []
-        const totalUsers = userSnap?.size ?? 0
-
-        let mrrNgn = 0
-        let paidChurches = 0
-        let trialChurches = 0
-        let canceledChurches = 0
-
-        churches.forEach((c: any) => {
-          const status = c.subscription?.status ?? 'trialing'
-          const planId = c.subscription?.planId ?? c.plan ?? 'free_trial'
-
-          if (status === 'trialing' || planId === 'free_trial') {
-            trialChurches++
-          } else if (status === 'canceled') {
-            canceledChurches++
-          } else if (status === 'active') {
-            paidChurches++
-            const planKey = planId.replace('_', '').toLowerCase()
-            mrrNgn += PLAN_PRICES_NGN[planKey] ?? PLAN_PRICES_NGN.starter!
-          }
-        })
-
-        const arrNgn = mrrNgn * 12
-        const totalChurches = churches.length
-        // Churn = canceled / (total - trial) × 100, clamped to 0 if no paid history
-        const base = paidChurches + canceledChurches
-        const churnRate = base > 0 ? Math.round((canceledChurches / base) * 100 * 10) / 10 : 0
-
-        // Count total people across all churches (best-effort)
-        let totalPeople = 0
-        for (const c of churches.slice(0, 10)) {
-          // Limit to 10 churches to avoid too many reads on analytics page
-          const pSnap = await getDocs(collection(db, 'churches', c.id, 'people')).catch(() => null)
-          totalPeople += pSnap?.size ?? 0
-        }
-
-        setMetrics({
-          totalChurches,
-          totalUsers,
-          paidChurches,
-          trialChurches,
-          mrrNgn,
-          arrNgn,
-          churnRate,
-          totalPeople,
-          canceledChurches,
-        })
-      } catch (err) {
-        console.error('Analytics load error:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
     loadMetrics()
   }, [])
+
+  async function loadMetrics() {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/admin/analytics')
+      const data = await res.json()
+      if (res.ok && data.success && data.metrics) {
+        setMetrics(data.metrics)
+      } else {
+        toast.error(data.error ?? 'Failed to compute analytics.')
+      }
+    } catch (err: any) {
+      console.error('Analytics load error:', err)
+      toast.error(`Analytics load error: ${err.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const fmtNgn = (n: number) =>
     new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(n)
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          Platform Growth Analytics
-        </h1>
-        <p className="mt-1 text-xs text-muted-foreground">
-          SaaS subscription growth, MRR, ARR, and active church retention metrics. All data read live from Firestore.
-        </p>
+    <div className="space-y-6 text-xs">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            Platform Growth Analytics
+          </h1>
+          <p className="mt-1 text-xs text-muted-foreground">
+            SaaS subscription growth, MRR, ARR, and active church retention metrics calculated live from real tenant records.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={loadMetrics}
+          className="inline-flex items-center gap-1.5 rounded-xl border bg-card px-3 py-1.5 font-semibold text-foreground hover:bg-accent"
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+          Refresh
+        </button>
       </div>
 
       {loading ? (
@@ -175,15 +133,15 @@ export default function AdminAnalyticsPage() {
             </div>
             <div className="rounded-2xl border bg-card p-5 shadow-xs space-y-2">
               <div className="flex items-center justify-between text-muted-foreground">
-                <span className="font-semibold">People Profiles</span>
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                <span className="font-semibold">AI Tokens Consumed</span>
+                <CheckCircle2 className="h-4 w-4 text-sky-500" />
               </div>
-              <p className="font-display text-2xl font-bold text-foreground">{metrics.totalPeople.toLocaleString()}+</p>
-              <p className="text-[10px] text-muted-foreground">First 10 churches sampled</p>
+              <p className="font-display text-2xl font-bold text-foreground">{metrics.totalAiCreditsConsumed?.toLocaleString()}</p>
+              <p className="text-[10px] text-muted-foreground">Across all tenant churches</p>
             </div>
           </div>
 
-          {/* Tenant Breakdown */}
+          {/* Tenant Lifecycle Breakdown */}
           <div className="rounded-2xl border bg-card p-6 shadow-xs space-y-4 text-xs">
             <h2 className="font-display text-base font-bold text-foreground flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-brand-500" />

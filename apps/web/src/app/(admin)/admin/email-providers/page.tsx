@@ -1,9 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Mail, Save, Loader2, Send, CheckCircle2, ShieldCheck, AlertCircle } from 'lucide-react'
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
-import { db } from '@/lib/firebase/client'
+import { Mail, Save, Loader2, Send, CheckCircle2, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function AdminEmailProvidersPage() {
@@ -22,45 +20,44 @@ export default function AdminEmailProvidersPage() {
   })
 
   useEffect(() => {
-    async function loadEmailConfig() {
-      setLoading(true)
-      try {
-        const snap = await getDoc(doc(db, 'system', 'infrastructure')).catch(() => null)
-        if (snap && snap.exists()) {
-          const data = snap.data()
-          setConfig((prev) => ({
-            ...prev,
-            resendKey: data?.resendKey ?? prev.resendKey,
-            fromEmail: data?.fromEmail ?? 'noreply@mujteknify.com',
-            fromName: data?.fromName ?? 'Church Growth OS',
-            enabled: data?.emailEnabled ?? true,
-          }))
-        }
-      } catch {
-        toast.error('Failed to load email settings.')
-      } finally {
-        setLoading(false)
-      }
-    }
     loadEmailConfig()
   }, [])
+
+  async function loadEmailConfig() {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/admin/email-providers')
+      const data = await res.json()
+      if (res.ok && data.success && data.config) {
+        setConfig((prev) => ({
+          ...prev,
+          ...data.config,
+        }))
+      } else {
+        toast.error(data.error ?? 'Failed to load email settings.')
+      }
+    } catch (err: any) {
+      toast.error(`Failed to load email settings: ${err.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
     try {
-      await setDoc(
-        doc(db, 'system', 'infrastructure'),
-        {
-          resendKey: config.resendKey.trim(),
-          fromEmail: config.fromEmail.trim() || 'noreply@mujteknify.com',
-          fromName: config.fromName.trim() || 'Church Growth OS',
-          emailEnabled: config.enabled,
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      )
-      toast.success('✉️ Resend Email Gateway credentials saved to Firestore!')
+      const res = await fetch('/api/admin/email-providers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        toast.success('✉️ Resend Email Gateway credentials saved to server!')
+      } else {
+        toast.error(data.error ?? 'Failed to save email settings.')
+      }
     } catch (err: any) {
       console.error('Email config save error:', err)
       toast.error(err?.message ?? 'Failed to save email settings.')
@@ -121,13 +118,23 @@ export default function AdminEmailProvidersPage() {
 
   return (
     <div className="space-y-6 text-xs">
-      <div>
-        <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          Resend Email Delivery Gateway (Verified Domain: mujteknify.com)
-        </h1>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Platform-wide email gateway configuration for transactional emails, reports, and onboarding verification.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            Resend Email Delivery Gateway (Verified Domain: mujteknify.com)
+          </h1>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Platform-wide email gateway configuration for transactional emails, reports, and onboarding verification.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={loadEmailConfig}
+          className="inline-flex items-center gap-1.5 rounded-xl border bg-card px-3 py-1.5 font-semibold text-foreground hover:bg-accent"
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+          Refresh
+        </button>
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
@@ -135,7 +142,7 @@ export default function AdminEmailProvidersPage() {
           <div className="flex items-center justify-between border-b pb-3">
             <h2 className="font-display text-base font-bold text-foreground flex items-center gap-2">
               <Mail className="h-4 w-4 text-brand-500" />
-              Resend Provider Configuration (Part 18)
+              Resend Provider Configuration
             </h2>
             <div className="flex items-center gap-2">
               <button

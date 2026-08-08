@@ -35,7 +35,6 @@ import {
   X,
   ChevronRight,
   Loader2,
-  ArrowLeft,
   CheckCircle2,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -86,6 +85,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
 
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<{ churches?: any[]; users?: any[]; tickets?: any[] } | null>(null)
+  const [isSearching, setIsSearching] = useState(false)
+
   // Safety: never spin forever if auth init is slow
   useEffect(() => {
     const timer = setTimeout(() => setTimedOut(true), 2500)
@@ -101,94 +105,82 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [darkMode])
 
-  console.log('[ADMIN_LAYOUT_DEBUG] (apps/web/src/app/(admin)/admin/layout.tsx:105) AdminLayout rendered. Pathname:', pathname)
-  console.log('  isInitialized :', isInitialized)
-  console.log('  timedOut      :', timedOut)
-  console.log('  user          :', user ? { uid: user.uid, email: user.email, emailVerified: user.emailVerified } : null)
-  console.log('  isSuperAdmin  :', isSuperAdmin)
-  console.log('  role          :', role)
+  // Live debounced search effect
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults(null)
+      return
+    }
+    const timer = setTimeout(async () => {
+      setIsSearching(true)
+      try {
+        const res = await fetch(`/api/admin/search?q=${encodeURIComponent(searchQuery.trim())}`)
+        const data = await res.json()
+        if (res.ok && data.success) {
+          setSearchResults(data.results)
+        }
+      } catch (err) {
+        console.error('Search error:', err)
+      } finally {
+        setIsSearching(false)
+      }
+    }, 250)
 
-  // Public admin login page — skip layout guard
-  if (pathname === '/admin/login') {
-    console.log('[ADMIN_LAYOUT_DEBUG] (AdminLayout.tsx:112) Public route /admin/login — skipping layout access guard.')
-    return <>{children}</>
-  }
+    return () => clearTimeout(timer)
+  }, [searchQuery])
 
-  // Show spinner during auth initialization
-  if (!isInitialized && !timedOut) {
-    console.log('[ADMIN_LAYOUT_DEBUG] (AdminLayout.tsx:118) Waiting for auth initialization...')
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background flex-col gap-3">
-        <Loader2 className="h-8 w-8 animate-spin text-brand-600" />
-        <p className="text-xs font-semibold text-muted-foreground">
-          Authenticating Super Admin session...
-        </p>
-      </div>
-    )
-  }
-
+  // Determine if user has admin access
   const hasAdminAccess =
     isSuperAdmin ||
     role === 'super_admin' ||
-    user?.email?.endsWith('@mujteknify.com')
+    (user?.email && user.email.toLowerCase().endsWith('@mujteknify.com'))
 
-  console.log('[ADMIN_LAYOUT_DEBUG] (AdminLayout.tsx:132) Computed hasAdminAccess:', hasAdminAccess)
+  // Handle access control redirect
+  useEffect(() => {
+    if (pathname === '/admin/login') return
+    if (!isInitialized && !timedOut) return
 
-  // Unauthenticated → redirect to admin login
-  if (!user) {
-    console.error('====================================================')
-    console.error('[ADMIN_LAYOUT_REDIRECT] REDIRECTED BY: AdminLayout.tsx line 137')
-    console.error('  Reason: user is null (unauthenticated)')
-    console.error('  Target: /admin/login')
-    console.error('====================================================')
-    if (typeof window !== 'undefined') {
+    if (!user) {
       router.replace('/admin/login')
+      return
     }
+
+    if (!hasAdminAccess) {
+      toast.error('Unauthorized: Super Admin access required.')
+      router.replace('/dashboard')
+    }
+  }, [user, hasAdminAccess, isInitialized, timedOut, pathname, router])
+
+  if (pathname === '/admin/login') {
+    return <div className="min-h-screen bg-background">{children}</div>
+  }
+
+  if (!isInitialized && !timedOut) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <Loader2 className="h-6 w-6 animate-spin text-brand-600" />
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-brand-600" />
+          <p className="text-xs text-muted-foreground font-semibold">Authenticating Super Admin...</p>
+        </div>
       </div>
     )
   }
 
-  // Restricted Access screen for regular users
-  if (!hasAdminAccess) {
-    console.error('====================================================')
-    console.error('[ADMIN_LAYOUT_RESTRICTED] ACCESS DENIED BY: AdminLayout.tsx line 152')
-    console.error('  User         :', user.email, 'UID:', user.uid)
-    console.error('  isSuperAdmin :', isSuperAdmin)
-    console.error('  role         :', role)
-    console.error('====================================================')
+  if (!user || !hasAdminAccess) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-6 text-center space-y-4">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-500 border border-rose-500/20">
-          <ShieldCheck className="h-8 w-8" />
-        </div>
-        <h1 className="font-display text-2xl font-bold text-foreground">Access Restricted</h1>
-        <p className="text-xs text-muted-foreground max-w-sm leading-relaxed">
-          This portal is restricted to MUJTEKNIFY LIMITED platform administrators.
-        </p>
-        <div className="flex flex-col items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              console.log('[ADMIN_LAYOUT_DEBUG] User clicked Return to Church Dashboard → router.replace(\'/dashboard\')')
-              router.replace('/dashboard')
-            }}
-            className="inline-flex h-9 items-center gap-2 rounded-xl bg-brand-600 px-4 text-xs font-semibold text-white hover:bg-brand-500 shadow-xs"
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3 text-center p-6">
+          <ShieldCheck className="h-10 w-10 text-rose-500" />
+          <h2 className="text-base font-bold text-foreground">Access Restricted</h2>
+          <p className="text-xs text-muted-foreground max-w-sm">
+            You must be signed in with Super Admin credentials to access the console.
+          </p>
+          <Link
+            href="/admin/login"
+            className="mt-2 inline-flex h-9 items-center gap-2 rounded-xl bg-brand-600 px-4 text-xs font-semibold text-white hover:bg-brand-500"
           >
-            <ArrowLeft className="h-4 w-4" /> Return to Church Dashboard
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              console.log('[ADMIN_LAYOUT_DEBUG] User clicked Sign in with admin credentials → router.replace(\'/admin/login\')')
-              router.replace('/admin/login')
-            }}
-            className="text-xs text-muted-foreground hover:text-foreground hover:underline pt-2"
-          >
-            Sign in with administrator credentials
-          </button>
+            Sign In as Admin
+          </Link>
         </div>
       </div>
     )
@@ -206,7 +198,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }
 
-  // Generate current breadcrumb title
   const currentPathSegment = pathname.split('/').pop() || 'Dashboard'
   const formattedBreadcrumb = currentPathSegment
     .replace(/-/g, ' ')
@@ -391,14 +382,66 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           {/* Right Action Icons & Profile */}
           <div className="flex items-center gap-3 text-xs">
-            {/* Quick Search */}
+            {/* Quick Live Search */}
             <div className="relative hidden sm:flex items-center">
               <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Search admin console..."
+                placeholder="Search console..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="h-8 w-48 rounded-xl border bg-background pl-8 pr-3 text-xs focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
+              {isSearching && <Loader2 className="absolute right-2.5 h-3 w-3 animate-spin text-muted-foreground" />}
+
+              {/* Search Results Dropdown */}
+              {searchResults && (
+                <div className="absolute top-10 right-0 w-80 rounded-2xl border bg-card p-3 shadow-xl z-50 space-y-3">
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <span className="font-bold text-[11px]">Search Results</span>
+                    <button type="button" onClick={() => setSearchResults(null)} className="text-muted-foreground hover:text-foreground text-[10px]">Close</button>
+                  </div>
+
+                  {searchResults.churches && searchResults.churches.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase">Churches</p>
+                      {searchResults.churches.map((c) => (
+                        <Link
+                          key={c.id}
+                          href="/admin/churches"
+                          onClick={() => setSearchResults(null)}
+                          className="block rounded-lg p-1.5 hover:bg-accent text-[11px]"
+                        >
+                          <p className="font-semibold text-foreground">{c.name}</p>
+                          <p className="text-[10px] text-muted-foreground font-mono">{c.slug || c.id}</p>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+
+                  {searchResults.users && searchResults.users.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase">Users</p>
+                      {searchResults.users.map((u) => (
+                        <Link
+                          key={u.id}
+                          href="/admin/users"
+                          onClick={() => setSearchResults(null)}
+                          className="block rounded-lg p-1.5 hover:bg-accent text-[11px]"
+                        >
+                          <p className="font-semibold text-foreground">{u.fullName || 'User'}</p>
+                          <p className="text-[10px] text-muted-foreground font-mono">{u.email}</p>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+
+                  {(!searchResults.churches || searchResults.churches.length === 0) &&
+                   (!searchResults.users || searchResults.users.length === 0) && (
+                    <p className="text-[11px] text-muted-foreground text-center py-2">No matching records found.</p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Dark Mode Toggle */}
