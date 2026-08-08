@@ -379,12 +379,11 @@ export default function VisitorImportWizard({ churchId, onClose, onImportComplet
 
       await logAuditEvent({
         churchId,
-        actorId: 'admin',
-        actorName: 'Church Administrator',
+        actorUid: 'admin',
+        role: 'admin',
         action: 'MEMBERS_IMPORTED',
-        resourceType: 'visitor',
-        resourceId: 'bulk-import',
-        details: { count: importedCount },
+        target: 'visitors',
+        metadata: { count: importedCount },
       })
 
       const duplicatesCount = parsedVisitors.filter((v) => v.status === 'duplicate').length
