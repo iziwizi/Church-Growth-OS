@@ -205,31 +205,47 @@ export default function CommunicationsPage() {
             <h2 className="font-display text-sm font-bold text-foreground">Delivery Pipeline</h2>
             <div className="space-y-2 text-xs">
               {[
-                { name: 'WhatsApp Meta Cloud', key: 'whatsapp' },
-                { name: 'Resend Email Engine', key: 'email' },
-                { name: 'Termii SMS Gateway', key: 'sms' },
-              ].map((provider) => {
-                const isConfigured = !!church?.settings?.communicationProviders?.[provider.key as 'whatsapp' | 'email' | 'sms']
-                return (
-                  <div
-                    key={provider.key}
-                    className="flex items-center justify-between p-2 rounded-xl bg-muted/20"
-                  >
-                    <span>{provider.name}</span>
-                    <span
-                      className={`font-bold text-[10px] ${
-                        isConfigured ? 'text-emerald-500' : 'text-amber-500'
-                      }`}
-                    >
-                      {isConfigured ? 'Configured' : 'Not Configured'}
-                    </span>
-                  </div>
-                )
-              })}
+                { name: 'WhatsApp Meta Cloud', key: 'whatsapp', icon: '📱' },
+                { name: 'Resend Email Engine', key: 'email', icon: '📧' },
+                { name: 'Termii SMS Gateway', key: 'sms', icon: '💬' },
+              ].map((provider) => (
+                <div
+                  key={provider.key}
+                  className="flex items-center justify-between p-2 rounded-xl bg-muted/20"
+                >
+                  <span>{provider.icon} {provider.name}</span>
+                  <span className="font-bold text-[10px] text-emerald-500">
+                    Platform Active
+                  </span>
+                </div>
+              ))}
             </div>
             <p className="text-[10px] text-muted-foreground">
-              Configure API keys in Settings → Communication Providers.
+              Communication infrastructure is managed by your platform provider. No configuration required.
             </p>
+          </div>
+
+          {/* Quick Stats */}
+          <div className="rounded-2xl border bg-card p-5 shadow-xs space-y-2">
+            <h2 className="font-display text-sm font-bold text-foreground">Broadcast Summary</h2>
+            <div className="space-y-1 text-xs text-muted-foreground">
+              <div className="flex justify-between">
+                <span>Total Broadcasts</span>
+                <span className="font-semibold text-foreground">{history.length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>WhatsApp</span>
+                <span className="font-semibold text-foreground">{history.filter(h => h.channel === 'whatsapp').length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Email</span>
+                <span className="font-semibold text-foreground">{history.filter(h => h.channel === 'email').length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>SMS</span>
+                <span className="font-semibold text-foreground">{history.filter(h => h.channel === 'sms').length}</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>

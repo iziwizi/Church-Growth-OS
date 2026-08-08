@@ -50,6 +50,7 @@ export default function MembersPage() {
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [tag, setTag] = useState('member')
+  const [customRole, setCustomRole] = useState('')
   const [branchId, setBranchId] = useState('main')
   const [notes, setNotes] = useState('')
 
@@ -87,6 +88,7 @@ export default function MembersPage() {
     setEmail('')
     setPhone('')
     setTag('member')
+    setCustomRole('')
     setBranchId('main')
     setNotes('')
     setShowModal(true)
@@ -98,6 +100,7 @@ export default function MembersPage() {
     setEmail(p.email ?? '')
     setPhone(p.phone ?? '')
     setTag(p.tags?.[0] ?? 'member')
+    setCustomRole('')
     setBranchId(p.branchId ?? 'main')
     setNotes(p.notes ?? '')
     setShowModal(true)
@@ -112,7 +115,7 @@ export default function MembersPage() {
         fullName: fullName.trim(),
         email: email.trim(),
         phone: phone.trim(),
-        tags: [tag],
+        tags: [tag === 'custom' && customRole.trim() ? customRole.trim() : tag],
         branchId,
         notes: notes.trim(),
         updatedAt: serverTimestamp(),
@@ -316,14 +319,6 @@ export default function MembersPage() {
               ? 'No member matches your search filters.'
               : 'Add congregation members, workers, and leaders to populate your directory.'}
           </p>
-          <button
-            type="button"
-            onClick={openAddModal}
-            className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-4 text-xs font-semibold text-white hover:bg-brand-500 transition-colors"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Add First Person
-          </button>
         </div>
       )}
 
@@ -384,30 +379,41 @@ export default function MembersPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="font-medium text-foreground">Tag Role</label>
-                  <select
-                    value={tag}
-                    onChange={(e) => setTag(e.target.value)}
-                    className="mt-1 flex h-9 w-full rounded-xl border border-input bg-background px-2 focus:outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    <option value="member">Member</option>
-                    <option value="worker">Worker</option>
-                    <option value="visitor">Visitor</option>
-                    <option value="leader">Leader</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="font-medium text-foreground">Branch ID</label>
+              <div>
+                <label className="font-medium text-foreground">Tag Role</label>
+                <select
+                  value={tag}
+                  onChange={(e) => setTag(e.target.value)}
+                  className="mt-1 flex h-9 w-full rounded-xl border border-input bg-background px-2 focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="member">Member</option>
+                  <option value="worker">Worker</option>
+                  <option value="leader">Leader</option>
+                  <option value="deacon">Deacon / Deaconess</option>
+                  <option value="pastor">Pastor / Minister</option>
+                  <option value="elder">Elder</option>
+                  <option value="custom">Custom Role...</option>
+                </select>
+                {tag === 'custom' && (
                   <input
                     type="text"
-                    value={branchId}
-                    onChange={(e) => setBranchId(e.target.value)}
-                    placeholder="main"
-                    className="mt-1 flex h-9 w-full rounded-xl border border-input bg-background px-3 focus:outline-none focus:ring-2 focus:ring-ring uppercase"
+                    value={customRole}
+                    onChange={(e) => setCustomRole(e.target.value)}
+                    placeholder="Enter custom role name"
+                    className="mt-1.5 flex h-9 w-full rounded-xl border border-input bg-background px-3 focus:outline-none focus:ring-2 focus:ring-ring"
                   />
-                </div>
+                )}
+              </div>
+
+              <div>
+                <label className="font-medium text-foreground">Branch ID</label>
+                <input
+                  type="text"
+                  value={branchId}
+                  onChange={(e) => setBranchId(e.target.value)}
+                  placeholder="main"
+                  className="mt-1 flex h-9 w-full rounded-xl border border-input bg-background px-3 focus:outline-none focus:ring-2 focus:ring-ring uppercase"
+                />
               </div>
 
               <div>

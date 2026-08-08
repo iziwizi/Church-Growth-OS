@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase/client'
@@ -19,6 +20,7 @@ import {
   Save,
   Lock,
   CreditCard,
+  HandHeart,
   Plus,
   Trash2,
   CheckCircle2,
@@ -39,6 +41,7 @@ type SettingsTab =
   | 'notifications'
   | 'branches'
   | 'subscription'
+  | 'giving'
   | 'preferences'
   | 'security'
 
@@ -50,12 +53,22 @@ const SETTINGS_NAV = [
   { id: 'notifications' as SettingsTab, label: 'Notifications', icon: Bell },
   { id: 'branches' as SettingsTab, label: 'Branch Management', icon: Network },
   { id: 'subscription' as SettingsTab, label: 'Subscription & Plan', icon: CreditCard },
+  { id: 'giving' as SettingsTab, label: 'Giving & Payment', icon: HandHeart },
   { id: 'preferences' as SettingsTab, label: 'Preferences', icon: Sliders },
   { id: 'security' as SettingsTab, label: 'Security & Password', icon: Lock },
 ]
 
-export default function SettingsPage() {
+function SettingsPageContent() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile')
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    const tab = searchParams.get('tab') as SettingsTab | null
+    if (tab && ['profile', 'branding', 'users', 'social', 'notifications', 'branches', 'subscription', 'giving', 'preferences', 'security'].includes(tab)) {
+      setActiveTab(tab)
+    }
+  }, [searchParams])
+
   const { church, setChurch } = useChurchStore()
   const { user } = useAuthStore()
 
@@ -118,11 +131,20 @@ export default function SettingsPage() {
           {activeTab === 'notifications' && <NotificationSettingsTab church={church} setChurch={setChurch} />}
           {activeTab === 'branches' && <BranchSettingsTab church={church} setChurch={setChurch} />}
           {activeTab === 'subscription' && <SubscriptionSettingsTab church={church} />}
+          {activeTab === 'giving' && <GivingSettingsTab church={church} setChurch={setChurch} />}
           {activeTab === 'preferences' && <PreferencesTab church={church} setChurch={setChurch} />}
           {activeTab === 'security' && <SecuritySettingsTab user={user} />}
         </div>
       </div>
     </div>
+  )
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={<div className="flex h-64 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-brand-600" /></div>}>
+      <SettingsPageContent />
+    </Suspense>
   )
 }
 
@@ -1025,5 +1047,129 @@ function SecuritySettingsTab({ user }: { user: any }) {
         </button>
       </div>
     </div>
+  )
+}
+
+// ── Giving & Payment Settings Tab ─────────────────────────────────────────
+function GivingSettingsTab({ church, setChurch }: { church: any; setChurch: any }) {
+  const [saving, setSaving] = useState(false)
+  const { register, handleSubmit } = useForm({
+    defaultValues: {
+      bankName: church.giving?.bankName ?? '',
+      accountName: church.giving?.accountName ?? '',
+      accountNumber: church.giving?.accountNumber ?? '',
+      paystackLink: church.giving?.paystackLink ?? '',
+      flutterwaveLink: church.giving?.flutterwaveLink ?? '',
+      paypalUrl: church.giving?.paypalUrl ?? '',
+      stripeLink: church.giving?.stripeLink ?? '',
+      customGivingUrl: church.giving?.customGivingUrl ?? '',
+      givingInstructions: church.giving?.givingInstructions ?? '',
+      preferredMethod: church.giving?.preferredMethod ?? 'bank',
+    },
+  })
+
+  const onSubmit = async (data: any) => {
+    setSaving(true)
+    try {
+      const churchRef = doc(db, 'churches', church.id)
+      await updateDoc(churchRef, {
+        giving: {
+          bankName: data.bankName,
+          accountName: data.accountName,
+          accountNumber: data.accountNumber,
+          paystackLink: data.paystackLink,
+          flutterwaveLink: data.flutterwaveLink,
+          paypalUrl: data.paypalUrl,
+          stripeLink: data.stripeLink,
+          customGivingUrl: data.customGivingUrl,
+          givingInstructions: data.givingInstructions,
+          preferredMethod: data.preferredMethod,
+        },
+        updatedAt: serverTimestamp(),
+      })
+      setChurch({ ...church, giving: data })
+      toast.success('Giving details updated!')
+    } catch {
+      toast.error('Failed to update giving details.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-4 text-xs">
+        <div>
+          <h2 className="font-display text-base font-bold text-foreground">Giving & Payment Destinations</h2>
+          <p className="mt-1 text-muted-foreground">
+            Configure your ministry receiving accounts. The AI will use these details for giving reminders and campaigns.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-1">
+            <label className="font-semibold">Bank Name</label>
+            <input type="text" {...register('bankName')} placeholder="e.g. First Bank of Nigeria" className="flex h-9 w-full rounded-xl border bg-background px-3" />
+          </div>
+          <div className="space-y-1">
+            <label className="font-semibold">Account Name</label>
+            <input type="text" {...register('accountName')} placeholder="Ministry account name" className="flex h-9 w-full rounded-xl border bg-background px-3" />
+          </div>
+          <div className="space-y-1">
+            <label className="font-semibold">Account Number</label>
+            <input type="text" {...register('accountNumber')} placeholder="0123456789" className="flex h-9 w-full rounded-xl border bg-background px-3" />
+          </div>
+          <div className="space-y-1">
+            <label className="font-semibold">Preferred Method</label>
+            <select {...register('preferredMethod')} className="flex h-9 w-full rounded-xl border bg-background px-2">
+              <option value="bank">Bank Transfer</option>
+              <option value="paystack">Paystack</option>
+              <option value="flutterwave">Flutterwave</option>
+              <option value="paypal">PayPal</option>
+              <option value="stripe">Stripe</option>
+              <option value="custom">Custom Link</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="border-t pt-4 space-y-3">
+          <h3 className="font-semibold text-foreground">Online Giving Links (Optional)</h3>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <label className="font-semibold">Paystack Payment Link</label>
+              <input type="url" {...register('paystackLink')} placeholder="https://paystack.com/pay/..." className="flex h-9 w-full rounded-xl border bg-background px-3" />
+            </div>
+            <div className="space-y-1">
+              <label className="font-semibold">Flutterwave Payment Link</label>
+              <input type="url" {...register('flutterwaveLink')} placeholder="https://flutterwave.com/pay/..." className="flex h-9 w-full rounded-xl border bg-background px-3" />
+            </div>
+            <div className="space-y-1">
+              <label className="font-semibold">PayPal Link</label>
+              <input type="url" {...register('paypalUrl')} placeholder="https://paypal.me/..." className="flex h-9 w-full rounded-xl border bg-background px-3" />
+            </div>
+            <div className="space-y-1">
+              <label className="font-semibold">Stripe Payment Link</label>
+              <input type="url" {...register('stripeLink')} placeholder="https://buy.stripe.com/..." className="flex h-9 w-full rounded-xl border bg-background px-3" />
+            </div>
+            <div className="space-y-1 sm:col-span-2">
+              <label className="font-semibold">Custom Giving URL</label>
+              <input type="url" {...register('customGivingUrl')} placeholder="https://yourchurch.org/give" className="flex h-9 w-full rounded-xl border bg-background px-3" />
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t pt-4 space-y-1">
+          <label className="font-semibold">Giving Instructions for Members</label>
+          <textarea rows={3} {...register('givingInstructions')} placeholder="e.g. Please include your name and purpose of giving as the payment description." className="flex w-full rounded-xl border bg-background px-3 py-2 resize-none" />
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <button type="submit" disabled={saving} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-5 text-xs font-semibold text-white hover:bg-brand-500 disabled:opacity-50">
+          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+          Save Giving Details
+        </button>
+      </div>
+    </form>
   )
 }

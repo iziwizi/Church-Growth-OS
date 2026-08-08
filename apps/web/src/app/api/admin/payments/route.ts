@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
     const transactions: any[] = []
 
     if (paymentSnap && !paymentSnap.empty) {
-      paymentSnap.docs.forEach((d) => {
+      paymentSnap.docs.forEach((d: any) => {
         const pData = d.data()
         transactions.push({
           id: d.id,
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
       'stripePublicKey', 'stripeSecret', 'stripeWebhookSecret',
     ]
 
-    fields.forEach((f) => {
+    fields.forEach((f: any) => {
       const val = body[f]
       if (typeof val === 'string') {
         const trimmed = val.trim()

@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     const snap = await adminDb.collection('churches').get()
     const subscriptions: any[] = []
 
-    snap.docs.forEach((d) => {
+    snap.docs.forEach((d: any) => {
       const data = d.data()
       subscriptions.push({
         id: d.id,

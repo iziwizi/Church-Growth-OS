@@ -219,7 +219,7 @@ export default function LiveServicePage() {
                     {church?.socialLinks?.youtube || church?.socialLinks?.facebook || 'Not configured in Settings'}
                   </strong>
                 </span>
-                <a href="/settings" className="font-bold text-brand-500 hover:underline">
+                <a href="/settings?tab=social" className="font-bold text-brand-500 hover:underline">
                   Configure Socials
                 </a>
               </div>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Cpu, Save, Loader2, RefreshCw, CheckCircle2, ShieldCheck, Zap } from 'lucide-react'
+import { Cpu, Save, Loader2, RefreshCw, CheckCircle2, ShieldCheck, Zap, TestTube, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface OpenRouterModel {
@@ -16,6 +16,8 @@ export default function AdminAIProvidersPage() {
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
   const [refreshingModels, setRefreshingModels] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null)
 
   const [config, setConfig] = useState({
     defaultProvider: 'openrouter',
@@ -104,6 +106,28 @@ export default function AdminAIProvidersPage() {
     }
   }
 
+  const handleTestConnection = async () => {
+    setTesting(true)
+    setTestResult(null)
+    try {
+      const res = await fetch('/api/admin/openrouter/test', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setTestResult({ ok: true, message: data.message ?? 'Connection successful!' })
+        toast.success('✅ OpenRouter connection verified!')
+      } else {
+        setTestResult({ ok: false, message: data.error ?? 'Connection failed.' })
+        toast.error(data.error ?? 'OpenRouter test failed.')
+      }
+    } catch (err: any) {
+      const msg = err.message ?? 'Test request failed.'
+      setTestResult({ ok: false, message: msg })
+      toast.error(msg)
+    } finally {
+      setTesting(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center rounded-2xl border bg-card">
@@ -126,6 +150,15 @@ export default function AdminAIProvidersPage() {
         <div className="flex items-center gap-2">
           <button
             type="button"
+            onClick={handleTestConnection}
+            disabled={testing}
+            className="inline-flex items-center gap-1.5 rounded-xl border bg-emerald-500/10 border-emerald-500/30 px-3 py-1.5 font-semibold text-emerald-500 hover:bg-emerald-500/20 disabled:opacity-50"
+          >
+            {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <TestTube className="h-3.5 w-3.5" />}
+            Test Connection
+          </button>
+          <button
+            type="button"
             onClick={handleRefreshModels}
             disabled={refreshingModels}
             className="inline-flex items-center gap-1.5 rounded-xl border bg-card px-3 py-1.5 font-semibold text-foreground hover:bg-accent disabled:opacity-50"
@@ -135,6 +168,20 @@ export default function AdminAIProvidersPage() {
           </button>
         </div>
       </div>
+
+      {/* Test Connection Result */}
+      {testResult && (
+        <div className={`rounded-xl border p-3 flex items-center gap-2 text-xs font-medium ${
+          testResult.ok
+            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600'
+            : 'border-rose-500/30 bg-rose-500/10 text-rose-600'
+        }`}>
+          {testResult.ok
+            ? <CheckCircle2 className="h-4 w-4 shrink-0" />
+            : <AlertTriangle className="h-4 w-4 shrink-0" />}
+          <span>{testResult.message}</span>
+        </div>
+      )}
 
       <form onSubmit={handleSave} className="space-y-6">
         {/* OpenRouter Unified API */}

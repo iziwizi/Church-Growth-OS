@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     const snap = await adminDb.collection('users').get()
     const users: any[] = []
 
-    snap.docs.forEach((d) => {
+    snap.docs.forEach((d: any) => {
       const data = d.data()
       users.push({
         id: d.id,
@@ -62,7 +62,7 @@ export async function PATCH(req: NextRequest) {
       await adminAuth.setCustomUserClaims(userId, {
         role,
         superAdmin: role === 'super_admin',
-      }).catch((claimErr) => console.warn('[API_ADMIN_USERS] Custom claims update warning:', claimErr))
+      }).catch((claimErr: any) => console.warn('[API_ADMIN_USERS] Custom claims update warning:', claimErr))
     }
 
     if (status !== undefined) {

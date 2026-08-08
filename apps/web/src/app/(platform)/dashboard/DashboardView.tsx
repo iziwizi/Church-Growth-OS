@@ -216,24 +216,46 @@ export function DashboardView() {
   const storageUsedMb = church?.subscription?.storageUsedMb ?? 0
   const storageTotalMb = church?.subscription?.storageTotalMb ?? 5000
 
-  // ── Dynamic Church Setup Onboarding Calculation (Phase 4) ────────────────
+  // ── Dynamic Church Setup Onboarding Calculation ────────────────────────────
   const ch = church as any
   const profileDone = !!(ch?.name && ch?.slug)
-  const missionDone = !!(ch?.aiProfile?.mission || ch?.aiProfile?.vision)
-  const goalsDone = !!(ch?.aiProfile?.growthObjectives?.primaryGoal || ch?.aiProfile?.ministryGoals?.length)
+  const missionDone = !!(ch?.missionStatement || ch?.aiProfile?.mission || ch?.aiProfile?.vision)
+  const goalsDone = !!(
+    ch?.aiProfile?.growthObjectives?.primaryGoal ||
+    ch?.aiProfile?.ministryGoals?.length ||
+    ch?.aiProfile?.primaryGoal
+  )
   const logoDone = !!(ch?.branding?.logoUrl)
-  const contactDone = !!(ch?.branding?.country || ch?.branding?.city || ch?.branding?.address)
+  const contactDone = !!(
+    ch?.branding?.country || ch?.branding?.city || ch?.address || ch?.city
+  )
   const membersDone = stats.totalMembers > 0 || stats.visitors > 0
-  const givingDone = !!(ch?.settings?.socialLinks?.website || ch?.branding?.primaryColor)
+  const socialDone = !!(
+    ch?.socialLinks?.youtube ||
+    ch?.socialLinks?.facebook ||
+    ch?.socialLinks?.instagram ||
+    ch?.socialLinks?.tiktok ||
+    ch?.socialLinks?.twitter ||
+    ch?.website
+  )
+  const givingDone = !!(
+    ch?.giving?.accountNumber ||
+    ch?.giving?.paystackLink ||
+    ch?.giving?.flutterwaveLink ||
+    ch?.giving?.paypalUrl ||
+    ch?.giving?.stripeLink ||
+    ch?.giving?.customGivingUrl
+  )
 
   const checklistItems = [
-    { label: 'Church Profile & Slug', done: profileDone, href: '/settings' },
-    { label: 'Mission & Vision', done: missionDone, href: '/settings' },
-    { label: 'Growth Objectives', done: goalsDone, href: '/settings' },
-    { label: 'Logo & Branding', done: logoDone, href: '/settings' },
-    { label: 'Location & Country', done: contactDone, href: '/settings' },
+    { label: 'Church Profile & Slug', done: profileDone, href: '/settings?tab=profile' },
+    { label: 'Mission & Vision', done: missionDone, href: '/settings?tab=profile' },
+    { label: 'Growth Objectives', done: goalsDone, href: '/settings?tab=profile' },
+    { label: 'Logo & Branding', done: logoDone, href: '/settings?tab=branding' },
+    { label: 'Location & Contact', done: contactDone, href: '/settings?tab=profile' },
+    { label: 'Social Media Links', done: socialDone, href: '/settings?tab=social' },
+    { label: 'Giving & Payment Details', done: givingDone, href: '/settings?tab=giving' },
     { label: 'Congregation Data (Members/Visitors)', done: membersDone, href: '/members' },
-    { label: 'Social Media & Giving', done: givingDone, href: '/settings' },
   ]
 
   const completedChecklistCount = checklistItems.filter((i) => i.done).length

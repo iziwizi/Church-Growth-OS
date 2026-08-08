@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
     let canceledChurches = 0
     let totalAiCreditsConsumed = 0
 
-    churchesSnap.docs.forEach((d) => {
+    churchesSnap.docs.forEach((d: any) => {
       const c = d.data()
       const status = c.subscription?.status ?? c.status ?? 'trialing'
       const planId = (c.subscription?.planId ?? c.plan ?? 'free_trial').toLowerCase()

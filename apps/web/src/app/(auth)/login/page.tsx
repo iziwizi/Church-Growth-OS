@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
@@ -9,16 +9,30 @@ import { motion } from 'framer-motion'
 import { Eye, EyeOff, Loader2, LogIn } from 'lucide-react'
 import { toast } from 'sonner'
 import { signInUser, mapAuthError } from '@/lib/firebase/auth'
-import { getUserChurch } from '@/lib/auth/checkChurchSetup'
 import { loginSchema } from '@church-growth-os/shared'
 import type { z } from 'zod'
 
 type LoginFormData = z.infer<typeof loginSchema>
 
+/**
+ * LoginForm — Phase 3 Fix: Login Double-Submission Bug
+ *
+ * Root cause: The old code called `router.replace('/dashboard')` immediately
+ * after signIn, AND the AuthInitializer was also trying to redirect via
+ * onAuthStateChanged. Two concurrent redirects created a race condition where
+ * the form could reappear.
+ *
+ * Fix: After signIn succeeds, show a persistent "Redirecting..." state and
+ * do NOT manually call router.replace(). The AuthInitializer handles all
+ * routing via its centralized Route Guard after onAuthStateChanged fires and
+ * fully hydrates both the user profile AND the church profile. This eliminates
+ * the race between the login page's manual redirect and the auth observer.
+ */
 function LoginForm() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const [showPassword, setShowPassword] = useState(false)
+  const [redirecting, setRedirecting] = useState(false)
+  const submittedRef = useRef(false)
 
   const {
     register,
@@ -29,22 +43,44 @@ function LoginForm() {
   })
 
   const onSubmit = async (data: LoginFormData) => {
-    try {
-      const cred = await signInUser(data.email, data.password)
-      toast.success('Welcome back!')
+    // Prevent double submission
+    if (submittedRef.current) return
+    submittedRef.current = true
 
-      // Check church setup immediately and redirect
-      const church = await getUserChurch(cred.user.uid)
-      if (!church) {
-        toast.info('Please complete your church setup.')
-        router.replace('/setup')
-      } else {
-        const from = searchParams.get('from') ?? '/dashboard'
-        router.replace(from)
-      }
+    try {
+      await signInUser(data.email, data.password)
+      toast.success('Welcome back! Redirecting...')
+
+      // ✅ KEY FIX: Do NOT call router.replace() here.
+      // AuthInitializer will handle the redirect via onAuthStateChanged after
+      // it fully hydrates the user profile and church document. Calling
+      // router.replace() here races with the auth observer and causes the
+      // login form to reappear on the second render cycle.
+      //
+      // Instead, show a persistent "redirecting" state so the user sees
+      // feedback. The AuthInitializer loading screen will take over
+      // as soon as the auth state is confirmed.
+      setRedirecting(true)
+
     } catch (error) {
+      submittedRef.current = false
       toast.error(mapAuthError(error))
     }
+  }
+
+  // While waiting for AuthInitializer to kick in and redirect
+  if (redirecting) {
+    return (
+      <div className="rounded-2xl border bg-card p-8 shadow-sm flex flex-col items-center justify-center gap-4 min-h-[280px]">
+        <Loader2 className="h-8 w-8 animate-spin text-brand-600" />
+        <div className="text-center">
+          <p className="font-semibold text-foreground">Signing you in...</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Loading your church dashboard. Please wait.
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -116,7 +152,7 @@ function LoginForm() {
         {/* Submit */}
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || redirecting}
           className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white ring-offset-background transition-colors hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
         >
           {isSubmitting ? (

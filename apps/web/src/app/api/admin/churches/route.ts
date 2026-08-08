@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
       let members = 0
       let visitors = 0
       if (peopleSnap && !peopleSnap.empty) {
-        peopleSnap.docs.forEach((p) => {
+        peopleSnap.docs.forEach((p: any) => {
           const pData = p.data()
           const tags = Array.isArray(pData.tags) ? pData.tags : [pData.tag || 'member']
           if (tags.includes('visitor')) visitors++

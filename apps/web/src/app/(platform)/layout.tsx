@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { PlatformShell } from '@/components/layout/PlatformShell'
 import { AuthInitializer } from '@/components/auth/AuthInitializer'
+import { MaintenanceGate } from '@/components/MaintenanceGate'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,7 +15,9 @@ export const metadata: Metadata = {
 export default function PlatformLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthInitializer>
-      <PlatformShell>{children}</PlatformShell>
+      <MaintenanceGate>
+        <PlatformShell>{children}</PlatformShell>
+      </MaintenanceGate>
     </AuthInitializer>
   )
 }

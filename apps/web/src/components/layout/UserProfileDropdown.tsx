@@ -78,18 +78,6 @@ export function UserProfileDropdown() {
             </Link>
           </DropdownMenu.Item>
 
-          <DropdownMenu.Item asChild>
-            <Link
-              href="/setup"
-              className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-foreground outline-none transition-colors hover:bg-accent cursor-pointer"
-            >
-              <ChurchIcon className="h-3.5 w-3.5 text-muted-foreground" />
-              Church Setup Wizard
-            </Link>
-          </DropdownMenu.Item>
-
-
-
           <DropdownMenu.Separator className="my-1 h-px bg-border" />
 
           <DropdownMenu.Item

@@ -187,18 +187,11 @@ export default function PartnershipsPage() {
           </div>
           <h3 className="font-display text-base font-bold text-foreground">No Partners Registered</h3>
           <p className="text-xs text-muted-foreground max-w-sm">
-            Register your vision partners, covenant givers, and kingdom builders here.
+            Register your vision partners, covenant givers, and kingdom builders here. Use the &quot;Register Partner&quot; button above to get started.
           </p>
-          <button
-            type="button"
-            onClick={() => setShowModal(true)}
-            className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-amber-600 px-4 text-xs font-semibold text-white hover:bg-amber-500"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Register First Partner
-          </button>
         </div>
       )}
+
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">

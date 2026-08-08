@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     const tickets: any[] = []
 
     if (snap && !snap.empty) {
-      snap.docs.forEach((d) => {
+      snap.docs.forEach((d: any) => {
         const data = d.data()
         tickets.push({
           id: d.id,

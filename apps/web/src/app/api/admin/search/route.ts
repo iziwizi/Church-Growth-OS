@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     ])
 
     const churches = churchesSnap.docs
-      .map((d) => ({ id: d.id, ...d.data() }))
+      .map((d: any) => ({ id: d.id, ...d.data() }))
       .filter((c: any) =>
         c.name?.toLowerCase()?.includes(queryParam) ||
         c.slug?.toLowerCase()?.includes(queryParam) ||
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
       .slice(0, 10)
 
     const users = usersSnap.docs
-      .map((d) => ({ id: d.id, ...d.data() }))
+      .map((d: any) => ({ id: d.id, ...d.data() }))
       .filter((u: any) =>
         u.fullName?.toLowerCase()?.includes(queryParam) ||
         u.email?.toLowerCase()?.includes(queryParam) ||
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
       .slice(0, 10)
 
     const tickets = ticketsSnap.docs
-      .map((d) => ({ id: d.id, ...d.data() }))
+      .map((d: any) => ({ id: d.id, ...d.data() }))
       .filter((t: any) =>
         t.subject?.toLowerCase()?.includes(queryParam) ||
         t.churchName?.toLowerCase()?.includes(queryParam) ||
