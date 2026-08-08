@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, Suspense } from 'react'
+import { useState, useRef, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
@@ -14,25 +14,19 @@ import type { z } from 'zod'
 
 type LoginFormData = z.infer<typeof loginSchema>
 
-/**
- * LoginForm — Phase 3 Fix: Login Double-Submission Bug
- *
- * Root cause: The old code called `router.replace('/dashboard')` immediately
- * after signIn, AND the AuthInitializer was also trying to redirect via
- * onAuthStateChanged. Two concurrent redirects created a race condition where
- * the form could reappear.
- *
- * Fix: After signIn succeeds, show a persistent "Redirecting..." state and
- * do NOT manually call router.replace(). The AuthInitializer handles all
- * routing via its centralized Route Guard after onAuthStateChanged fires and
- * fully hydrates both the user profile AND the church profile. This eliminates
- * the race between the login page's manual redirect and the auth observer.
- */
 function LoginForm() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const [showPassword, setShowPassword] = useState(false)
   const [redirecting, setRedirecting] = useState(false)
   const submittedRef = useRef(false)
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+    }
+  }, [])
 
   const {
     register,
@@ -43,32 +37,31 @@ function LoginForm() {
   })
 
   const onSubmit = async (data: LoginFormData) => {
-    // Prevent double submission
     if (submittedRef.current) return
     submittedRef.current = true
 
     try {
       await signInUser(data.email, data.password)
       toast.success('Welcome back! Redirecting...')
-
-      // ✅ KEY FIX: Do NOT call router.replace() here.
-      // AuthInitializer will handle the redirect via onAuthStateChanged after
-      // it fully hydrates the user profile and church document. Calling
-      // router.replace() here races with the auth observer and causes the
-      // login form to reappear on the second render cycle.
-      //
-      // Instead, show a persistent "redirecting" state so the user sees
-      // feedback. The AuthInitializer loading screen will take over
-      // as soon as the auth state is confirmed.
       setRedirecting(true)
 
+      // Direct navigation trigger + fallback timeout if observer is slow
+      router.replace('/dashboard')
+
+      timeoutRef.current = setTimeout(() => {
+        // Fallback: Force navigation if still on login page after 3.5s
+        if (window.location.pathname === '/login') {
+          console.log('[LOGIN] Fallback timeout triggered. Hard redirecting to /dashboard...')
+          window.location.href = '/dashboard'
+        }
+      }, 3500)
     } catch (error) {
       submittedRef.current = false
+      setRedirecting(false)
       toast.error(mapAuthError(error))
     }
   }
 
-  // While waiting for AuthInitializer to kick in and redirect
   if (redirecting) {
     return (
       <div className="rounded-2xl border bg-card p-8 shadow-sm flex flex-col items-center justify-center gap-4 min-h-[280px]">
@@ -155,12 +148,12 @@ function LoginForm() {
           disabled={isSubmitting || redirecting}
           className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white ring-offset-background transition-colors hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
         >
-          {isSubmitting ? (
+          {isSubmitting || redirecting ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <LogIn className="h-4 w-4" />
           )}
-          {isSubmitting ? 'Signing in...' : 'Sign in'}
+          {isSubmitting || redirecting ? 'Signing in...' : 'Sign in'}
         </button>
       </form>
 

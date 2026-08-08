@@ -230,7 +230,7 @@ export default function AdminDashboardPage() {
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 text-xs">
               {[
                 { label: 'Church Tenants', href: '/admin/churches' },
-                { label: 'Infrastructure', href: '/admin/infrastructure' },
+                { label: 'AI Providers', href: '/admin/ai-providers' },
                 { label: 'Billing & Plans', href: '/admin/billing' },
                 { label: 'Support Tickets', href: '/admin/support' },
                 { label: 'Platform Health', href: '/admin/platform-health' },

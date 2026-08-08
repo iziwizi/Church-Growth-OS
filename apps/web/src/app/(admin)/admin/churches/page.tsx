@@ -130,7 +130,8 @@ export default function AdminChurchesPage() {
         </div>
       ) : (
         <div className="rounded-2xl border bg-card shadow-xs overflow-hidden">
-          <table className="w-full text-left text-xs">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs min-w-[640px]">
             <thead className="border-b bg-muted/30 text-muted-foreground font-semibold">
               <tr>
                 <th className="p-3.5">Church Name</th>
@@ -191,7 +192,8 @@ export default function AdminChurchesPage() {
             </tbody>
           </table>
         </div>
-      )}
+      </div>
+    )}
     </div>
   )
 }

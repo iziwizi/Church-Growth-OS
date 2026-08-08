@@ -97,48 +97,50 @@ export default function AdminUsersPage() {
         </div>
       ) : (
         <div className="rounded-2xl border bg-card shadow-xs overflow-hidden">
-          <table className="w-full text-left text-xs">
-            <thead className="border-b bg-muted/30 text-muted-foreground font-semibold">
-              <tr>
-                <th className="p-3.5">Full Name</th>
-                <th className="p-3.5">Email</th>
-                <th className="p-3.5">Role</th>
-                <th className="p-3.5">Church ID</th>
-                <th className="p-3.5 text-right">Verification</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {filtered.map((u) => (
-                <tr key={u.id} className="hover:bg-muted/20">
-                  <td className="p-3.5 font-bold text-foreground">{u.fullName || 'Church User'}</td>
-                  <td className="p-3.5 text-muted-foreground font-mono text-[11px]">{u.email}</td>
-                  <td className="p-3.5">
-                    <select
-                      value={u.role ?? 'owner'}
-                      onChange={(e) => handleUpdateRole(u.id, e.target.value)}
-                      disabled={updatingId === u.id}
-                      className="rounded-xl border bg-background px-2 py-1 text-xs font-semibold uppercase text-brand-500"
-                    >
-                      <option value="super_admin">Super Admin</option>
-                      <option value="owner">Church Owner</option>
-                      <option value="admin">Administrator</option>
-                      <option value="pastor">Pastor</option>
-                      <option value="staff">Staff / Media</option>
-                    </select>
-                  </td>
-                  <td className="p-3.5 text-muted-foreground font-mono text-[11px]">{u.churchId || 'Unassigned'}</td>
-                  <td className="p-3.5 text-right">
-                    <span className={`inline-flex items-center gap-1 text-[10px] font-bold ${
-                      u.emailVerified ? 'text-emerald-500' : 'text-amber-500'
-                    }`}>
-                      <UserCheck className="h-3 w-3" />
-                      {u.emailVerified ? 'Verified' : 'Pending Verification'}
-                    </span>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs min-w-[600px]">
+              <thead className="border-b bg-muted/30 text-muted-foreground font-semibold">
+                <tr>
+                  <th className="p-3.5">Full Name</th>
+                  <th className="p-3.5">Email</th>
+                  <th className="p-3.5">Role</th>
+                  <th className="p-3.5">Church ID</th>
+                  <th className="p-3.5 text-right">Verification</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filtered.map((u) => (
+                  <tr key={u.id} className="hover:bg-muted/20">
+                    <td className="p-3.5 font-bold text-foreground">{u.fullName || 'Church User'}</td>
+                    <td className="p-3.5 text-muted-foreground font-mono text-[11px]">{u.email}</td>
+                    <td className="p-3.5">
+                      <select
+                        value={u.role ?? 'owner'}
+                        onChange={(e) => handleUpdateRole(u.id, e.target.value)}
+                        disabled={updatingId === u.id}
+                        className="rounded-xl border bg-background px-2 py-1 text-xs font-semibold uppercase text-brand-500"
+                      >
+                        <option value="super_admin">Super Admin</option>
+                        <option value="owner">Church Owner</option>
+                        <option value="admin">Administrator</option>
+                        <option value="pastor">Pastor</option>
+                        <option value="staff">Staff / Media</option>
+                      </select>
+                    </td>
+                    <td className="p-3.5 text-muted-foreground font-mono text-[11px]">{u.churchId || 'Unassigned'}</td>
+                    <td className="p-3.5 text-right">
+                      <span className={`inline-flex items-center gap-1 text-[10px] font-bold ${
+                        u.emailVerified ? 'text-emerald-500' : 'text-amber-500'
+                      }`}>
+                        <UserCheck className="h-3 w-3" />
+                        {u.emailVerified ? 'Verified' : 'Pending Verification'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

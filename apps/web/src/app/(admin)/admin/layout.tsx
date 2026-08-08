@@ -61,7 +61,6 @@ const ADMIN_NAV_ITEMS = [
     { label: 'Email Gateway (Resend)', href: '/admin/email-providers', icon: Mail },
   ]},
   { group: 'Operations & Platform', items: [
-    { label: 'Infrastructure', href: '/admin/infrastructure', icon: Server },
     { label: 'Platform Analytics', href: '/admin/analytics', icon: BarChart3 },
     { label: 'Support Desk', href: '/admin/support', icon: HelpCircle },
     { label: 'Announcements', href: '/admin/announcements', icon: Megaphone },

@@ -18,6 +18,7 @@ export default function AdminAIProvidersPage() {
   const [refreshingModels, setRefreshingModels] = useState(false)
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [hasStoredKey, setHasStoredKey] = useState(false)
 
   const [config, setConfig] = useState({
     defaultProvider: 'openrouter',
@@ -53,6 +54,7 @@ export default function AdminAIProvidersPage() {
       const res = await fetch('/api/admin/ai-providers')
       const data = await res.json()
       if (res.ok && data.success && data.config) {
+        setHasStoredKey(!!data.config.hasKey)
         setConfig((prev) => ({
           ...prev,
           ...data.config,
@@ -95,7 +97,9 @@ export default function AdminAIProvidersPage() {
       })
       const data = await res.json()
       if (res.ok && data.success) {
+        setHasStoredKey(true)
         toast.success('🤖 OpenRouter & AI Task Routing saved securely to server!')
+        await loadAIConfig()
       } else {
         toast.error(data.error ?? 'Failed to save AI configuration.')
       }
@@ -199,7 +203,14 @@ export default function AdminAIProvidersPage() {
 
           <div className="space-y-3">
             <div>
-              <label className="font-semibold">OpenRouter API Key</label>
+              <div className="flex items-center justify-between">
+                <label className="font-semibold">OpenRouter API Key</label>
+                {hasStoredKey && (
+                  <span className="text-[10px] font-semibold text-emerald-600 flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3" /> Key Saved Server-Side
+                  </span>
+                )}
+              </div>
               <input
                 type="password"
                 placeholder="sk-or-v1-..."
@@ -249,34 +260,35 @@ export default function AdminAIProvidersPage() {
         {/* Task-Level Routing Matrix */}
         <div className="rounded-2xl border bg-card p-6 shadow-xs space-y-4">
           <h2 className="font-display text-base font-bold text-foreground flex items-center gap-2">
-            <Zap className="h-4 w-4 text-purple-500" />
-            Task-Level Routing Matrix
+            <Zap className="h-4 w-4 text-amber-500" />
+            Task-Level AI Routing Matrix
           </h2>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <p className="text-xs text-muted-foreground">
+            Assign optimal AI models to specific ministry workloads to balance speed, intelligence, and cost.
+          </p>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {[
-              { id: 'VISITOR_FOLLOW_UP', label: 'Visitor Follow-up Writing', desc: 'Warm pastoral welcome messages' },
-              { id: 'SERMON_SUMMARY', label: 'Sermon Transcript Repurposing', desc: 'Extract key points, scriptures, quotes' },
-              { id: 'WHATSAPP_WRITING', label: 'WhatsApp Broadcasts', desc: 'Short, engaging mobile announcements' },
-              { id: 'EMAIL_WRITING', label: 'Email Newsletters & Reports', desc: 'Structured ministry communications' },
-              { id: 'CONTENT_SUMMARY', label: 'General Content Summarization', desc: 'Fast, cost-effective processing' },
-            ].map((t) => (
-              <div key={t.id} className="rounded-xl border bg-muted/20 p-3 space-y-2">
-                <div>
-                  <p className="font-bold text-foreground">{t.label}</p>
-                  <p className="text-[10px] text-muted-foreground">{t.desc}</p>
-                </div>
+              { label: 'Visitor Follow-up Communications', key: 'VISITOR_FOLLOW_UP' },
+              { label: 'Sermon Summary & Repurposing', key: 'SERMON_SUMMARY' },
+              { label: 'Email Newsletter Drafting', key: 'EMAIL_WRITING' },
+              { label: 'WhatsApp Broadcast Optimization', key: 'WHATSAPP_WRITING' },
+              { label: 'General Content Summarization', key: 'CONTENT_SUMMARY' },
+            ].map((task) => (
+              <div key={task.key} className="space-y-1">
+                <label className="font-semibold text-foreground">{task.label}</label>
                 <select
-                  value={(config.taskRouting as any)[t.id] ?? config.defaultModel}
+                  value={config.taskRouting?.[task.key as keyof typeof config.taskRouting] ?? config.defaultModel}
                   onChange={(e) =>
                     setConfig({
                       ...config,
                       taskRouting: {
                         ...config.taskRouting,
-                        [t.id]: e.target.value,
+                        [task.key]: e.target.value,
                       },
                     })
                   }
-                  className="flex h-8 w-full rounded-lg border bg-background px-2 text-[11px] font-semibold text-brand-500"
+                  className="flex h-9 w-full rounded-xl border bg-background px-2 font-medium"
                 >
                   {discoveredModels.map((m) => (
                     <option key={m.id} value={m.id}>
@@ -287,17 +299,17 @@ export default function AdminAIProvidersPage() {
               </div>
             ))}
           </div>
+        </div>
 
-          <div className="flex justify-end pt-3 border-t">
-            <button
-              type="submit"
-              disabled={saving}
-              className="inline-flex h-9 items-center gap-2 rounded-xl bg-brand-600 px-5 font-semibold text-white hover:bg-brand-500 disabled:opacity-50 shadow-xs"
-            >
-              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-              Save Canonical AI Settings
-            </button>
-          </div>
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            disabled={saving}
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-5 font-semibold text-white hover:bg-brand-500 disabled:opacity-50"
+          >
+            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+            Save AI Provider Configuration
+          </button>
         </div>
       </form>
     </div>
