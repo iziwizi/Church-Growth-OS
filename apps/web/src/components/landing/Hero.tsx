@@ -21,7 +21,10 @@ import {
   Clock,
   Send,
   Zap,
+  Globe,
+  Tv,
 } from 'lucide-react'
+import { RotatingGlobe } from './RotatingGlobe'
 
 export function LandingHero() {
   const [activeTab, setActiveTab] = useState<'overview' | 'automation' | 'growth'>('overview')
@@ -37,11 +40,13 @@ export function LandingHero() {
 
   return (
     <section className="relative pt-32 pb-20 md:pt-44 md:pb-32 overflow-hidden">
-      {/* ── Rich Ambient Background Mesh & Gradient Lighting ───────────── */}
+      {/* ── Continuous Rotating Global Globe in Background ──────────────── */}
+      <RotatingGlobe />
+
+      {/* ── Rich Ambient Background Mesh & Lighting ─────────────────────── */}
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(120,119,198,0.22),rgba(255,255,255,0))] dark:bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(120,119,198,0.3),rgba(0,0,0,0))]" />
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:32px_32px]" />
       <div className="pointer-events-none absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[450px] bg-brand-500/15 blur-[150px] rounded-full -z-10" />
-      <div className="pointer-events-none absolute top-1/3 right-10 w-[400px] h-[400px] bg-purple-600/15 blur-[140px] rounded-full -z-10" />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative">
         {/* Top Category Badge */}
@@ -52,8 +57,8 @@ export function LandingHero() {
             transition={{ duration: 0.5 }}
             className="inline-flex items-center gap-2 rounded-full border border-brand-500/30 bg-card/80 px-4 py-1.5 text-xs font-semibold text-brand-600 dark:text-brand-400 shadow-sm backdrop-blur-md"
           >
-            <Sparkles className="h-3.5 w-3.5 text-brand-500 animate-pulse" />
-            <span>The Intelligent Ministry Operating System</span>
+            <Globe className="h-3.5 w-3.5 text-brand-500 animate-spin-slow" />
+            <span>The Global Ministry Operating System</span>
           </motion.div>
         </div>
 
@@ -138,41 +143,41 @@ export function LandingHero() {
           {/* Ambient Glow behind Card */}
           <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-brand-500/20 via-purple-500/20 to-indigo-500/20 blur-xl opacity-80 pointer-events-none" />
 
-          {/* Floating Live Indicator Badge Left (Desktop) */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.6, duration: 0.6 }}
-            className="hidden lg:flex absolute -left-6 top-16 z-20 items-center gap-2.5 rounded-2xl border border-border/80 bg-card/95 p-3.5 shadow-xl backdrop-blur-xl"
-          >
-            <div className="flex h-3 w-3 items-center justify-center">
-              <span className="absolute inline-flex h-3 w-3 animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-            </div>
-            <div className="text-left">
-              <p className="text-[11px] font-bold text-foreground">Live Service Active</p>
-              <p className="text-[10px] text-muted-foreground">{pulseCount} Online &amp; In-Person</p>
-            </div>
-          </motion.div>
-
-          {/* Floating AI Notification Badge Right (Desktop) */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.7, duration: 0.6 }}
-            className="hidden lg:flex absolute -right-6 bottom-20 z-20 items-center gap-3 rounded-2xl border border-brand-500/40 bg-card/95 p-3.5 shadow-xl backdrop-blur-xl"
-          >
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-500/10 text-brand-500">
-              <Bot className="h-4 w-4" />
-            </div>
-            <div className="text-left">
-              <p className="text-[11px] font-bold text-foreground">AI Discipleship Follow-Up</p>
-              <p className="text-[10px] text-emerald-500 font-semibold">14 First-Time Guests Welcomed</p>
-            </div>
-          </motion.div>
-
           {/* Main Command Center Container */}
-          <div className="relative rounded-3xl border border-border/80 bg-card/90 backdrop-blur-2xl p-4 sm:p-7 shadow-2xl overflow-hidden ring-1 ring-border/50">
+          <div className="relative rounded-3xl border border-border/80 bg-card/90 backdrop-blur-2xl p-4 sm:p-7 shadow-2xl overflow-hidden ring-1 ring-border/50 space-y-5">
+            {/* ── Centered LIVE Streaming Church Broadcast Bar ─────────────── */}
+            <div className="rounded-2xl border border-rose-500/30 bg-gradient-to-r from-rose-500/10 via-card/90 to-brand-500/10 p-3 sm:p-4 shadow-sm flex flex-col md:flex-row items-center justify-between gap-3">
+              <div className="flex items-center gap-3 w-full md:w-auto">
+                <div className="flex items-center gap-1.5 rounded-full bg-rose-500 px-3 py-1 text-[10px] font-black text-white shadow-md uppercase tracking-wider animate-pulse flex-shrink-0">
+                  <span className="h-2 w-2 rounded-full bg-white animate-ping" />
+                  <span>LIVE SERVICE</span>
+                </div>
+                <div className="text-left min-w-0">
+                  <p className="text-xs sm:text-sm font-bold text-foreground truncate">
+                    Grace City Cathedral • 9:00 AM Sunday Celebration Service
+                  </p>
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-2">
+                    <span>📡 Multi-Casting to YouTube Live &amp; Facebook</span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Animated Live Audio Waveform & Global Viewers */}
+              <div className="flex items-center justify-between w-full md:w-auto gap-4 border-t md:border-t-0 border-border/40 pt-2 md:pt-0">
+                <div className="flex items-end gap-1 h-4 text-rose-500">
+                  <span className="w-1 bg-rose-500 rounded-full animate-pulse h-3" />
+                  <span className="w-1 bg-rose-500 rounded-full animate-pulse h-4" />
+                  <span className="w-1 bg-rose-500 rounded-full animate-pulse h-2" />
+                  <span className="w-1 bg-rose-500 rounded-full animate-pulse h-4" />
+                  <span className="w-1 bg-rose-500 rounded-full animate-pulse h-3" />
+                </div>
+                <div className="text-right">
+                  <span className="text-xs font-black text-foreground">{pulseCount} Global Viewers</span>
+                  <p className="text-[10px] text-emerald-500 font-semibold">1080p 60fps HD Stream Active</p>
+                </div>
+              </div>
+            </div>
+
             {/* Command Center Header Bar */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-border/50 pb-4">
               <div className="flex items-center gap-3">
@@ -239,7 +244,7 @@ export function LandingHero() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.3 }}
-                  className="pt-6 space-y-6"
+                  className="space-y-6"
                 >
                   {/* 4 Metric Cards */}
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -383,7 +388,7 @@ export function LandingHero() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.3 }}
-                  className="pt-6 space-y-4"
+                  className="space-y-4"
                 >
                   <div className="rounded-2xl border border-brand-500/40 bg-card p-5 space-y-3">
                     <div className="flex items-center justify-between text-xs">
@@ -424,7 +429,7 @@ export function LandingHero() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.3 }}
-                  className="pt-6 space-y-4"
+                  className="space-y-4"
                 >
                   <div className="rounded-2xl border border-border/60 bg-muted/20 p-5 space-y-3">
                     <div className="flex items-center justify-between text-xs">

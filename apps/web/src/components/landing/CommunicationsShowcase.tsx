@@ -8,120 +8,73 @@ import {
   Smartphone,
   Bell,
   CheckCheck,
-  ShieldCheck,
-  Sparkles,
   Send,
+  Sparkles,
+  ShieldCheck,
+  Users,
+  CheckCircle2,
 } from 'lucide-react'
 
 const CHANNELS = [
   {
     id: 'whatsapp',
-    label: 'WhatsApp Cloud API',
-    icon: Smartphone,
+    name: 'WhatsApp Meta Cloud',
+    icon: MessageSquare,
+    badge: 'High Open Rate',
     color: 'text-emerald-500',
-    badge: 'Verified Meta WABA',
-    header: 'Official Ministry WhatsApp Broadcast',
-    previewContent: (
-      <div className="space-y-3">
-        <div className="rounded-2xl rounded-tl-sm bg-emerald-500/10 border border-emerald-500/20 p-4 text-xs space-y-2 text-foreground">
-          <p className="font-bold text-emerald-600 dark:text-emerald-400">Grace City Church</p>
-          <p className="leading-relaxed">
-            "Hello Sister Sarah! We missed you at prayer fellowship yesterday. We are holding a special online discipleship session this Thursday at 7:00 PM. Here is your private join link:"
-          </p>
-          <div className="p-2 rounded-xl bg-card border border-emerald-500/30 text-[11px] font-mono text-brand-500">
-            https://gracecity.church/join/sarah-482
-          </div>
-          <div className="flex items-center justify-end gap-1 text-[10px] text-muted-foreground pt-1">
-            <span>9:04 AM</span>
-            <CheckCheck className="h-3.5 w-3.5 text-emerald-500" />
-          </div>
-        </div>
-      </div>
-    ),
+    bg: 'bg-emerald-500/10',
+    desc: 'Official WhatsApp Business Cloud API for 1-to-1 welcome chats, service reminders, and prayer circle updates with zero number bans.',
+    sample: 'Dear Sister Sarah, thank you for worshipping at Grace City today! Pastor Emmanuel and the team would love to share this week’s study notes and welcome you to our midweek fellowship.',
+    meta: 'Delivered instantly via Meta Graph API v20.0',
+    stat: '98% Delivery Rate',
   },
   {
     id: 'email',
-    label: 'Resend Verified Email',
+    name: 'Resend Verified Email',
     icon: Mail,
+    badge: 'Deliverability Engine',
     color: 'text-brand-500',
-    badge: 'Custom Domain DKIM',
-    header: 'HTML Ministry Bulletin & Devotional',
-    previewContent: (
-      <div className="space-y-3">
-        <div className="rounded-2xl bg-card border border-border/80 p-4 text-xs space-y-2.5">
-          <div className="flex items-center justify-between border-b border-border/40 pb-2 text-[11px] text-muted-foreground">
-            <span><strong>From:</strong> Pastor Emmanuel &lt;pastor@mujteknify.com&gt;</span>
-            <span><strong>Subject:</strong> Walking in Dominion</span>
-          </div>
-          <p className="text-foreground font-semibold">Weekly Ministry Word &amp; Bulletin</p>
-          <p className="text-muted-foreground leading-relaxed text-[11px]">
-            "Grace and peace beloved family. In this Sunday's teaching, we explore how covenant positioning unlocks supernatural favor in your workplace..."
-          </p>
-          <div className="pt-2 flex justify-between items-center text-[10px] text-emerald-500 font-semibold">
-            <span>Delivered via Resend Dedicated IP</span>
-            <span>Open Rate: 68.4%</span>
-          </div>
-        </div>
-      </div>
-    ),
+    bg: 'bg-brand-500/10',
+    desc: 'Custom-domain DKIM/SPF verified transactional email for weekly pastoral letters, giving receipts, and service bulletins.',
+    sample: 'Grace City Weekly Bulletin: Sunday Message Summary, Midweek Life Groups, and upcoming Youth Camp Registration details.',
+    meta: 'Custom Domain DKIM / SPF Verified (mujteknify.com)',
+    stat: '68% Open Rate',
   },
   {
     id: 'sms',
-    label: 'Direct SMS Gateway',
-    icon: MessageSquare,
+    name: 'Direct SMS Gateway',
+    icon: Smartphone,
+    badge: 'Instant Reach',
     color: 'text-amber-500',
-    badge: 'Termii Sender ID',
-    header: 'Urgent Service & Meeting Alerts',
-    previewContent: (
-      <div className="space-y-3">
-        <div className="rounded-2xl rounded-tl-sm bg-amber-500/10 border border-amber-500/20 p-4 text-xs space-y-2 text-foreground">
-          <div className="flex justify-between text-[10px] font-bold text-amber-600 dark:text-amber-400">
-            <span>SENDER: GRACE-CITY</span>
-            <span>Priority Route</span>
-          </div>
-          <p className="leading-relaxed text-[11px]">
-            "REMINDER: Midweek Miracle Service starts in 45 minutes at Main Sanctuary. Free shuttle buses are now departing from all 5 campus pickup zones."
-          </p>
-          <div className="flex items-center justify-end text-[10px] text-muted-foreground">
-            <span>Delivered to 850 Members</span>
-          </div>
-        </div>
-      </div>
-    ),
+    bg: 'bg-amber-500/10',
+    desc: 'Dedicated SMS sender ID for instant prayer alerts, emergency schedule updates, and urgent ministry notices.',
+    sample: 'GraceCity: Reminder! Special Miracle Service starts today at 6:00 PM. Join us in-person or online at gracecity.church/live',
+    meta: 'High-Priority Delivery via Termii Gateway',
+    stat: 'Instant SMS Receipt',
   },
   {
     id: 'inapp',
-    label: 'In-App Alerts',
+    name: 'In-App & Worker Alerts',
     icon: Bell,
+    badge: 'Internal Synergy',
     color: 'text-purple-500',
-    badge: 'Real-time WebSocket',
-    header: 'Live Staff & Department Notifications',
-    previewContent: (
-      <div className="space-y-3">
-        <div className="rounded-2xl bg-purple-500/10 border border-purple-500/20 p-4 text-xs space-y-2">
-          <div className="flex items-center gap-2 font-bold text-purple-600 dark:text-purple-400">
-            <Bell className="h-4 w-4" />
-            <span>Ushering Department Roster Assigned</span>
-          </div>
-          <p className="text-muted-foreground text-[11px] leading-relaxed">
-            "Brother Michael, you have been rostered as Lead Greeter for the 11:00 AM 2nd Service this Sunday. Please confirm your availability."
-          </p>
-          <div className="flex gap-2 pt-1">
-            <span className="px-3 py-1 bg-purple-600 text-white rounded-lg text-[10px] font-bold">Confirm</span>
-            <span className="px-3 py-1 bg-card border rounded-lg text-[10px] font-semibold text-muted-foreground">Request Swap</span>
-          </div>
-        </div>
-      </div>
-    ),
+    bg: 'bg-purple-500/10',
+    desc: 'Targeted notifications for department leaders, ushering teams, intercessors, and pastoral staff.',
+    sample: 'New Visitor Assigned: Brother John Davis has been routed to the Welcome Department for 24h follow-up.',
+    meta: 'Real-time WebSocket Push Notifications',
+    stat: 'Staff Coordination',
   },
 ]
 
 export function CommunicationsShowcase() {
-  const [activeChannel, setActiveChannel] = useState(CHANNELS[0].id)
+  const [activeChannel, setActiveChannel] = useState('whatsapp')
   const current = CHANNELS.find((c) => c.id === activeChannel) || CHANNELS[0]
 
   return (
-    <section className="py-24 sm:py-32 relative bg-muted/30 border-y border-border/50">
+    <section className="py-24 sm:py-32 bg-muted/30 border-y border-border/50 relative overflow-hidden">
+      {/* Background Ambient Glow */}
+      <div className="pointer-events-none absolute top-1/2 left-1/4 w-[600px] h-[350px] bg-brand-500/10 blur-[150px] rounded-full -z-10" />
+
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto space-y-4">
           <div className="inline-flex items-center gap-2 rounded-full bg-brand-500/10 px-3.5 py-1 text-xs font-semibold text-brand-600 dark:text-brand-400 border border-brand-500/20">
@@ -129,14 +82,16 @@ export function CommunicationsShowcase() {
             <span>Multi-Channel Outreach</span>
           </div>
           <h2 className="font-display text-3xl sm:text-5xl font-extrabold tracking-tight text-foreground text-balance">
-            Reach Every Member on the Channels They Actually Use.
+            Reach Your Congregation Wherever They Are.
           </h2>
           <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-            Stop worrying about WhatsApp spam bans or emails getting lost in junk folders. Church Growth OS provides official verified delivery pipelines.
+            Send targeted broadcasts across WhatsApp, Email, SMS, and in-app notifications. Combine channels or let members receive messages on their preferred platform.
           </p>
+        </div>
 
-          {/* Channel Selector Pills */}
-          <div className="pt-6 flex items-center justify-center gap-2 flex-wrap">
+        <div className="mt-16 max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+          {/* Channel Selector List (Left 5 Cols) */}
+          <div className="lg:col-span-5 space-y-3">
             {CHANNELS.map((ch) => {
               const Icon = ch.icon
               const isSelected = ch.id === activeChannel
@@ -145,43 +100,98 @@ export function CommunicationsShowcase() {
                   key={ch.id}
                   type="button"
                   onClick={() => setActiveChannel(ch.id)}
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold transition-all ${
+                  className={`w-full text-left p-4 rounded-3xl border transition-all duration-300 flex items-start gap-3.5 ${
                     isSelected
-                      ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/25 scale-105'
-                      : 'bg-card border border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted'
+                      ? 'border-brand-500 bg-card shadow-xl shadow-brand-500/10 ring-1 ring-brand-500/30 scale-[1.02]'
+                      : 'border-border/80 bg-card/60 hover:bg-card hover:border-border'
                   }`}
                 >
-                  <Icon className="h-4 w-4" />
-                  <span>{ch.label}</span>
+                  <div
+                    className={`flex h-11 w-11 items-center justify-center rounded-2xl flex-shrink-0 transition-all ${
+                      isSelected
+                        ? 'bg-brand-600 text-white shadow-md'
+                        : `${ch.bg} ${ch.color}`
+                    }`}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-foreground truncate">{ch.name}</h3>
+                      <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-400">
+                        {ch.badge}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                      {ch.desc}
+                    </p>
+                  </div>
                 </button>
               )
             })}
           </div>
-        </div>
 
-        {/* Live Channel Interactive Mockup */}
-        <div className="mt-14 max-w-3xl mx-auto">
-          <motion.div
-            key={current.id}
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35 }}
-            className="rounded-3xl border border-border/80 bg-card p-6 sm:p-8 space-y-5 shadow-xl"
-          >
-            <div className="flex items-center justify-between border-b border-border/50 pb-3">
-              <div className="flex items-center gap-2.5">
-                <current.icon className={`h-5 w-5 ${current.color}`} />
-                <h3 className="font-display text-sm font-bold text-foreground">
-                  {current.header}
-                </h3>
-              </div>
-              <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
-                {current.badge}
-              </span>
-            </div>
+          {/* Live Preview Box (Right 7 Cols) */}
+          <div className="lg:col-span-7">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={current.id}
+                initial={{ opacity: 0, scale: 0.97 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.97 }}
+                transition={{ duration: 0.3 }}
+                className="rounded-3xl border border-border/80 bg-card p-6 sm:p-8 shadow-2xl space-y-6"
+              >
+                <div className="flex items-center justify-between border-b border-border/40 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`h-10 w-10 rounded-2xl ${current.bg} ${current.color} flex items-center justify-center shadow-xs`}>
+                      <current.icon className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-foreground">{current.name}</h4>
+                      <span className="text-[10px] text-emerald-500 font-semibold flex items-center gap-1">
+                        <CheckCheck className="h-3.5 w-3.5" /> {current.stat}
+                      </span>
+                    </div>
+                  </div>
 
-            {current.previewContent}
-          </motion.div>
+                  <span className="text-[11px] px-3 py-1 rounded-xl bg-muted/60 text-muted-foreground font-bold border border-border/40">
+                    Live Broadcast Preview
+                  </span>
+                </div>
+
+                {/* Message Bubble simulation */}
+                <div className="rounded-2xl border border-border/60 bg-muted/20 p-5 space-y-3.5">
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span>To: <strong className="text-foreground">First-Time Visitors (Sunday Service)</strong></span>
+                    <span>10:45 AM</span>
+                  </div>
+
+                  <div className="rounded-2xl bg-background border border-border/60 p-4 text-xs sm:text-sm text-foreground leading-relaxed shadow-xs font-normal">
+                    {current.sample}
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1">
+                    <span className="text-[10px]">Sender: <strong>Grace City Cathedral</strong></span>
+                    <span className="text-[10px] text-emerald-500 font-semibold flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3" /> {current.meta}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 text-center text-xs">
+                  <div className="rounded-2xl border border-border/60 bg-muted/30 p-3.5 space-y-0.5">
+                    <p className="text-[10px] font-medium text-muted-foreground">Audience Segmentation</p>
+                    <p className="font-bold text-foreground">Departments, Visitors, Leaders</p>
+                  </div>
+                  <div className="rounded-2xl border border-border/60 bg-muted/30 p-3.5 space-y-0.5">
+                    <p className="text-[10px] font-medium text-muted-foreground">Compliance &amp; Opt-outs</p>
+                    <p className="font-bold text-foreground">Automated Stop Handling</p>
+                  </div>
+                </div>
+              </motion.div>
+            </AnimatePresence>
+          </div>
         </div>
       </div>
     </section>
