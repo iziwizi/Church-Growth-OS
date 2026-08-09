@@ -2,6 +2,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import {
@@ -775,7 +776,7 @@ export default function SetupWizardPage() {
 
                 <p className="text-[11px] text-muted-foreground">
                   Your account starts on a <span className="font-semibold text-foreground">14-day Free Trial</span> (1 campus). Multi-campus support is available on Growth &amp; Enterprise plans.{' '}
-                  <a href="/pricing" className="text-brand-500 hover:underline font-semibold">View plans →</a>
+                  <Link href="/pricing" className="text-brand-500 hover:underline font-semibold">View plans →</Link>
                 </p>
               </div>
             </div>

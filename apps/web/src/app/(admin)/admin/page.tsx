@@ -70,9 +70,12 @@ export default function AdminDashboardPage() {
           paidChurches,
           totalAiCreditsConsumed,
           providerConfig: {
-            whatsapp: infraData?.metaWhatsappToken ? 'Configured' : 'Not Configured',
-            resend: infraData?.resendKey ? 'Configured' : 'Not Configured',
-            cloudinary: infraData?.cloudinaryApiKey ? 'Configured' : 'Not Configured',
+            agentrouter: (infraData?.agentrouterKey || infraData?.agentRouterKey || infraData?.agentrouterApiKey) ? 'Configured' : 'Not Configured',
+            whatsapp: (infraData?.metaWhatsappToken || infraData?.metaWhatsappPhoneId) ? 'Configured' : 'Not Configured',
+            resend: (infraData?.resendKey || process.env.RESEND_API_KEY) ? 'Configured' : 'Not Configured',
+            cloudinary: (infraData?.cloudinaryApiKey || process.env.CLOUDINARY_API_KEY) ? 'Configured' : 'Not Configured',
+            sms: (infraData?.termiiKey || process.env.TERMII_API_KEY) ? 'Configured' : 'Not Configured',
+            payments: (infraData?.paystackSecret || infraData?.flutterwaveSecret) ? 'Configured' : 'Not Configured',
           },
         })
       } catch (err) {
@@ -183,6 +186,20 @@ export default function AdminDashboardPage() {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 text-xs">
               <div className="rounded-xl border bg-muted/20 p-3 flex items-center justify-between">
                 <div>
+                  <p className="font-bold text-foreground">AgentRouter AI Gateway</p>
+                  <p className="text-[10px] text-muted-foreground">Multi-Model AI Engine</p>
+                </div>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                  stats.providerConfig.agentrouter === 'Configured'
+                    ? 'bg-emerald-500/10 text-emerald-500'
+                    : 'bg-amber-500/10 text-amber-500'
+                }`}>
+                  {stats.providerConfig.agentrouter ?? 'Unknown'}
+                </span>
+              </div>
+
+              <div className="rounded-xl border bg-muted/20 p-3 flex items-center justify-between">
+                <div>
                   <p className="font-bold text-foreground">Firebase Firestore</p>
                   <p className="text-[10px] text-muted-foreground">Google Cloud Multi-Region</p>
                 </div>
@@ -193,8 +210,36 @@ export default function AdminDashboardPage() {
 
               <div className="rounded-xl border bg-muted/20 p-3 flex items-center justify-between">
                 <div>
+                  <p className="font-bold text-foreground">Resend Email Gateway</p>
+                  <p className="text-[10px] text-muted-foreground">Transactional Delivery</p>
+                </div>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                  stats.providerConfig.resend === 'Configured'
+                    ? 'bg-emerald-500/10 text-emerald-500'
+                    : 'bg-amber-500/10 text-amber-500'
+                }`}>
+                  {stats.providerConfig.resend ?? 'Unknown'}
+                </span>
+              </div>
+
+              <div className="rounded-xl border bg-muted/20 p-3 flex items-center justify-between">
+                <div>
+                  <p className="font-bold text-foreground">WhatsApp Meta Cloud</p>
+                  <p className="text-[10px] text-muted-foreground">WABA + Shared Engine</p>
+                </div>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                  stats.providerConfig.whatsapp === 'Configured'
+                    ? 'bg-emerald-500/10 text-emerald-500'
+                    : 'bg-amber-500/10 text-amber-500'
+                }`}>
+                  {stats.providerConfig.whatsapp ?? 'Unknown'}
+                </span>
+              </div>
+
+              <div className="rounded-xl border bg-muted/20 p-3 flex items-center justify-between">
+                <div>
                   <p className="font-bold text-foreground">Cloudinary Storage</p>
-                  <p className="text-[10px] text-muted-foreground">Media bucket</p>
+                  <p className="text-[10px] text-muted-foreground">Media &amp; CDN Storage</p>
                 </div>
                 <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
                   stats.providerConfig.cloudinary === 'Configured'
@@ -207,15 +252,15 @@ export default function AdminDashboardPage() {
 
               <div className="rounded-xl border bg-muted/20 p-3 flex items-center justify-between">
                 <div>
-                  <p className="font-bold text-foreground">WhatsApp Cloud API</p>
-                  <p className="text-[10px] text-muted-foreground">Meta Business Platform</p>
+                  <p className="font-bold text-foreground">Termii SMS Gateway</p>
+                  <p className="text-[10px] text-muted-foreground">SMS Sender ID Delivery</p>
                 </div>
                 <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                  stats.providerConfig.whatsapp === 'Configured'
+                  stats.providerConfig.sms === 'Configured'
                     ? 'bg-emerald-500/10 text-emerald-500'
                     : 'bg-amber-500/10 text-amber-500'
                 }`}>
-                  {stats.providerConfig.whatsapp ?? 'Unknown'}
+                  {stats.providerConfig.sms ?? 'Unknown'}
                 </span>
               </div>
             </div>

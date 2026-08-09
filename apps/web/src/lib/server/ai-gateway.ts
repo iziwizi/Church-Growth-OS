@@ -243,8 +243,6 @@ export async function executeAIGateway(req: AIGatewayRequest): Promise<AIGateway
           headers: {
             Authorization: `Bearer ${agentRouter.apiKey.trim()}`,
             'Content-Type': 'application/json',
-            'HTTP-Referer': 'https://mujteknify.com',
-            'X-Title': 'Church Growth OS AI Gateway',
           },
           body: JSON.stringify({
             model: selectedModel,

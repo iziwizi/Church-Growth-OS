@@ -55,8 +55,6 @@ export async function POST() {
       headers: {
         Authorization: `Bearer ${cleanKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://mujteknify.com',
-        'X-Title': 'Church Growth OS — Admin Connection Test',
       },
       body: JSON.stringify({
         model: primaryModel,

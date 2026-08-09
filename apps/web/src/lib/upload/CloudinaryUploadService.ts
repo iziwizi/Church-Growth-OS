@@ -108,7 +108,7 @@ export class CloudinaryUploadService implements IUploadService {
 
   getChurchFolder(
     churchId: string,
-    category: 'branding' | 'members' | 'sermons' | 'events' | 'documents' | 'support' | 'reports' | 'communications'
+    category: 'branding' | 'members' | 'sermons' | 'events' | 'documents' | 'support' | 'reports' | 'communications' | 'store'
   ): string {
     return `churches/${churchId}/${category}`
   }

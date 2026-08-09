@@ -28,7 +28,10 @@ import {
   Layers,
   ArrowUpDown,
   Tag,
+  ImageIcon,
+  Upload,
 } from 'lucide-react'
+import { uploadService } from '@/lib/upload'
 import {
   collection,
   query,
@@ -119,6 +122,28 @@ export default function ChurchStorePage() {
   const [formFeatured, setFormFeatured] = useState(false)
   const [formSku, setFormSku] = useState('')
   const [formPaymentInstructions, setFormPaymentInstructions] = useState('')
+  const [uploadingCover, setUploadingCover] = useState(false)
+
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !church?.id) return
+
+    setUploadingCover(true)
+    try {
+      const folder = uploadService.getChurchFolder(church.id, 'store')
+      const res = await uploadService.upload(file, {
+        folder,
+        allowedFormats: ['jpg', 'jpeg', 'png', 'webp'],
+        maxBytes: 5 * 1024 * 1024,
+      })
+      setFormImageUrl(res.url)
+      toast.success('Cover image uploaded successfully!')
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to upload cover image.')
+    } finally {
+      setUploadingCover(false)
+    }
+  }
 
   useEffect(() => {
     if (!church?.id) return
@@ -461,6 +486,16 @@ export default function ChurchStorePage() {
                       </span>
                     </div>
 
+                    {product.imageUrl && (
+                      <div className="h-32 w-full overflow-hidden rounded-xl bg-muted/20 border">
+                        <img
+                          src={product.imageUrl}
+                          alt={product.name}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    )}
+
                     <h3 className="font-display text-sm font-bold text-foreground line-clamp-1">
                       {product.name}
                     </h3>
@@ -722,16 +757,49 @@ export default function ChurchStorePage() {
                 </div>
               )}
 
-              {/* Cover Image URL */}
+              {/* Cover Image Media Picker */}
               <div>
-                <label className="font-semibold text-foreground">Cover Image URL (Optional)</label>
-                <input
-                  type="url"
-                  placeholder="https://res.cloudinary.com/..."
-                  value={formImageUrl}
-                  onChange={(e) => setFormImageUrl(e.target.value)}
-                  className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3 font-mono text-[11px]"
-                />
+                <label className="font-semibold text-foreground">Cover Image (Media Picker)</label>
+                {formImageUrl ? (
+                  <div className="mt-1.5 flex items-center gap-3 rounded-xl border bg-muted/20 p-2.5">
+                    <img
+                      src={formImageUrl}
+                      alt="Cover preview"
+                      className="h-14 w-14 rounded-lg object-cover border bg-background"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-foreground truncate text-[11px]">Cover Media Active</p>
+                      <p className="font-mono text-[9px] text-muted-foreground truncate">{formImageUrl}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setFormImageUrl('')}
+                      className="rounded-lg border bg-card p-1.5 text-muted-foreground hover:text-rose-500 transition-colors"
+                      title="Remove image"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <label className="flex h-9 cursor-pointer items-center gap-1.5 rounded-xl border border-dashed border-brand-500/40 bg-brand-500/5 px-3.5 font-semibold text-brand-600 hover:bg-brand-500/10 transition-colors">
+                      {uploadingCover ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Upload className="h-3.5 w-3.5" />
+                      )}
+                      <span>{uploadingCover ? 'Uploading...' : 'Select Media Image'}</span>
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        disabled={uploadingCover}
+                        onChange={handleCoverUpload}
+                        className="hidden"
+                      />
+                    </label>
+                    <span className="text-[10px] text-muted-foreground">PNG, JPG, WebP up to 5MB</span>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3 pt-1">

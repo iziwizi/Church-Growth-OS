@@ -220,20 +220,47 @@ export function Sidebar() {
         </ul>
       </nav>
 
-      {/* AI Mode indicator */}
-      {!sidebarCollapsed && (
-        <div className="border-t p-3">
-          <div className="flex items-center gap-2 rounded-lg bg-brand-50 p-2.5 dark:bg-brand-950/30">
-            <div className="status-dot status-dot-active animate-pulse" />
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-brand-700 dark:text-brand-300">
-                AI Autonomous Mode
-              </p>
-              <p className="text-xs text-muted-foreground">Working in the background</p>
-            </div>
+      {/* AI Mode indicator (Reads canonical church.preferences.growthMode) */}
+      {!sidebarCollapsed && (() => {
+        const isManualMode =
+          church?.preferences?.growthMode === 'manual' ||
+          church?.settings?.aiMode === 'approval'
+
+        return (
+          <div className="border-t p-3">
+            <Link
+              href="/settings?tab=preferences"
+              className={`flex items-center gap-2 rounded-xl p-2.5 transition-colors ${
+                isManualMode
+                  ? 'bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/15'
+                  : 'bg-brand-50 border border-brand-500/10 dark:bg-brand-950/30 hover:bg-brand-100/50'
+              }`}
+            >
+              <div
+                className={`h-2.5 w-2.5 rounded-full shrink-0 ${
+                  isManualMode
+                    ? 'bg-amber-500 ring-2 ring-amber-500/20'
+                    : 'bg-emerald-500 animate-pulse ring-2 ring-emerald-500/20'
+                }`}
+              />
+              <div className="min-w-0 flex-1">
+                <p
+                  className={`text-xs font-bold truncate ${
+                    isManualMode
+                      ? 'text-amber-700 dark:text-amber-400'
+                      : 'text-brand-700 dark:text-brand-300'
+                  }`}
+                >
+                  {isManualMode ? 'AI Manual Approval Mode' : 'AI Autonomous Mode'}
+                </p>
+                <p className="text-[10px] text-muted-foreground truncate">
+                  {isManualMode ? 'Human approval required' : 'Working in the background'}
+                </p>
+              </div>
+            </Link>
           </div>
-        </div>
-      )}
+        )
+      })()}
     </aside>
   )
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore'
@@ -1218,14 +1219,14 @@ function BranchSettingsTab({ church, setChurch }: { church: any; setChurch: any 
               <span className="font-semibold text-brand-500">1 campus</span> only. Upgrade to Growth or Enterprise to add satellite branches.
             </p>
           </div>
-          <a
+          <Link
             href="/pricing"
             className="inline-flex h-9 items-center gap-2 rounded-xl bg-brand-600 px-5 text-xs font-semibold text-white hover:bg-brand-500 shadow-xs"
           >
             <Sparkles className="h-3.5 w-3.5" />
             Upgrade Plan
             <ArrowRight className="h-3.5 w-3.5" />
-          </a>
+          </Link>
         </div>
       )}
     </div>
@@ -1252,13 +1253,13 @@ function SubscriptionSettingsTab({ church }: { church: any }) {
               Status: <span className="text-emerald-500 font-bold capitalize">{church.subscription?.status ?? 'active'}</span>
             </p>
           </div>
-          <a
+          <Link
             href="/pricing"
             className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-4 font-semibold text-white hover:bg-brand-500 shadow-xs"
           >
             <span>Upgrade Plan</span>
             <ArrowRight className="h-3.5 w-3.5" />
-          </a>
+          </Link>
         </div>
       </div>
     </div>

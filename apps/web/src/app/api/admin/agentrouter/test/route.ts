@@ -84,8 +84,6 @@ export async function POST(req: NextRequest) {
         headers: {
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://mujteknify.com',
-          'X-Title': 'Church Growth OS — AgentRouter Connection Test',
         },
         body: JSON.stringify({
           model: testModel,
