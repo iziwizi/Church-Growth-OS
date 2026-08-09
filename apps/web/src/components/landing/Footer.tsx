@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { Church, ShieldCheck } from 'lucide-react'
+import Image from 'next/image'
+import { ArrowUpRight } from 'lucide-react'
 
 export function LandingFooter() {
   return (
@@ -11,12 +12,13 @@ export function LandingFooter() {
           {/* Col 1: Brand info */}
           <div className="col-span-2 space-y-4">
             <Link href="/" className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-white shadow-md shadow-brand-500/20">
-                <Church className="h-5 w-5" />
-              </div>
-              <span className="font-display text-lg font-extrabold tracking-tight text-foreground">
-                Church Growth <span className="text-brand-500">OS</span>
-              </span>
+              <Image
+                src="/logo.png"
+                alt="Church Growth OS"
+                width={180}
+                height={48}
+                className="h-10 w-auto object-contain rounded-lg"
+              />
             </Link>
             <p className="text-xs text-muted-foreground max-w-sm leading-relaxed">
               The intelligent ministry platform engineered to help churches automate workflows, nurture first-time visitors, reconcile giving, and scale kingdom impact.
@@ -38,17 +40,17 @@ export function LandingFooter() {
             </ul>
           </div>
 
-          {/* Col 3: Portal Access */}
+          {/* Col 3: Portal Access (Public customer portals only) */}
           <div className="space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">Access Portals</h4>
             <ul className="space-y-2 text-xs text-muted-foreground">
               <li><Link href="/login" className="hover:text-foreground transition-colors">Church Admin Login</Link></li>
               <li><Link href="/register" className="hover:text-foreground transition-colors">Start Free Trial</Link></li>
-              <li><Link href="/admin/login" className="hover:text-foreground transition-colors">Super Admin Portal</Link></li>
+              <li><Link href="/login" className="hover:text-foreground transition-colors">Member &amp; Worker Sign In</Link></li>
             </ul>
           </div>
 
-          {/* Col 4: Legal & Privacy */}
+          {/* Col 4: Trust & Legal */}
           <div className="space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">Trust &amp; Legal</h4>
             <ul className="space-y-2 text-xs text-muted-foreground">
@@ -62,9 +64,17 @@ export function LandingFooter() {
 
         <div className="mt-12 pt-8 border-t border-border/40 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
           <p>© {new Date().getFullYear()} Church Growth OS. All rights reserved.</p>
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <ShieldCheck className="h-4 w-4 text-emerald-500" />
-            <span>Multi-Tenant Data Isolated Architecture</span>
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <span>A product of</span>
+            <a
+              href="https://mujteknify.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-bold text-foreground hover:text-brand-500 transition-colors inline-flex items-center gap-0.5"
+            >
+              <span>MUJTEKNIFY</span>
+              <ArrowUpRight className="h-3 w-3" />
+            </a>
           </div>
         </div>
       </div>

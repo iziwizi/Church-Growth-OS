@@ -26,7 +26,7 @@ const CORE_MODULES = [
   {
     icon: UserPlus,
     title: 'First-Time Visitors',
-    desc: 'QR-code check-ins, automated 7-day retention tracks, follow-up worker assignment, and conversion tracking.',
+    desc: 'Seamless digital visitor registration, automated 7-day retention tracks, follow-up worker assignment, and conversion tracking.',
   },
   {
     icon: MessageSquare,

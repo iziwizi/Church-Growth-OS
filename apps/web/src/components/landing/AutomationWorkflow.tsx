@@ -1,7 +1,7 @@
 'use client'
 
 import {
-  QrCode,
+  UserPlus,
   Sparkles,
   MessageSquare,
   Users,
@@ -15,9 +15,9 @@ import {
 const WORKFLOW_STEPS = [
   {
     step: '01',
-    title: 'Visitor Arrives & Scans QR',
-    desc: 'Digital visitor form captures name, phone, prayer needs, and invited-by details in 15 seconds.',
-    icon: QrCode,
+    title: 'First-Time Guest Check-In',
+    desc: 'Digital visitor check-in captures name, contact details, prayer needs, and invited-by info smoothly.',
+    icon: UserPlus,
     badge: 'Check-In',
   },
   {

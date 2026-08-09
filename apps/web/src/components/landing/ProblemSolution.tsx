@@ -78,7 +78,7 @@ export function ProblemSolution() {
             <ul className="space-y-3.5 text-xs text-foreground/90 font-medium">
               <li className="flex items-start gap-3">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                <span>Instant automated QR &amp; digital visitor check-ins with personalized multi-day nurture.</span>
+                <span>Instant automated digital visitor check-ins with personalized multi-day nurture.</span>
               </li>
               <li className="flex items-start gap-3">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0 mt-0.5" />

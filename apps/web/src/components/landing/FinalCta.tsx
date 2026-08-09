@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowRight, Church, Sparkles, CheckCircle2 } from 'lucide-react'
+import Image from 'next/image'
+import { ArrowRight, Sparkles, CheckCircle2 } from 'lucide-react'
 
 export function FinalCta() {
   return (
@@ -12,9 +13,13 @@ export function FinalCta() {
       <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
         <div className="rounded-3xl border border-brand-500/40 bg-gradient-to-b from-card via-brand-500/5 to-card p-8 sm:p-16 text-center space-y-6 shadow-2xl shadow-brand-500/10 ring-1 ring-brand-500/20">
           <div className="flex justify-center">
-            <div className="h-12 w-12 rounded-2xl bg-brand-600 text-white flex items-center justify-center shadow-lg shadow-brand-500/30">
-              <Church className="h-6 w-6" />
-            </div>
+            <Image
+              src="/logo.png"
+              alt="Church Growth OS"
+              width={220}
+              height={60}
+              className="h-12 w-auto object-contain rounded-lg"
+            />
           </div>
 
           <h2 className="font-display text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-foreground max-w-3xl mx-auto leading-[1.15] text-balance">

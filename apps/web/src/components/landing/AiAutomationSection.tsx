@@ -126,7 +126,7 @@ export function AiAutomationSection() {
                   Why AI recommends this action:
                 </p>
                 <p className="text-xs text-muted-foreground bg-background/60 p-2.5 rounded-xl border border-border/40">
-                  "Visitor scanned QR code during 9:00 AM service. Immediate welcome increases 2nd-week retention by 3.4x."
+                  "14 first-time guests checked in during 9:00 AM Sunday service. Immediate welcoming communication significantly improves retention."
                 </p>
               </div>
 

@@ -1,76 +1,38 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Check, Sparkles, ArrowRight, ShieldCheck, Zap } from 'lucide-react'
-
-const PLANS = [
-  {
-    id: 'starter',
-    name: 'Starter Plan',
-    badge: 'Growing Churches',
-    priceNgn: 45000,
-    priceUsd: 49,
-    popular: false,
-    description: 'Essential ministry automation and visitor follow-up for single-campus churches.',
-    features: [
-      'Up to 500 Members & Visitors',
-      '5,000 AI Content Credits / Month',
-      '1 Satellite Branch',
-      'Autonomous Follow-up Workflows',
-      'WhatsApp, Email & SMS Broadcasts',
-      'Live Service Control Room & Preflight',
-      'Church Store (Books, Sermons, Tickets)',
-      'Daily 6:00 AM Growth Report',
-      'Standard Support (24h SLA)',
-    ],
-  },
-  {
-    id: 'growth',
-    name: 'Growth Plan',
-    badge: 'Most Popular',
-    priceNgn: 120000,
-    priceUsd: 129,
-    popular: true,
-    description: 'Advanced multi-branch intelligence and autonomous ministry scaling for growing congregations.',
-    features: [
-      'Up to 2,500 Members & Visitors',
-      '25,000 AI Content Credits / Month',
-      'Up to 5 Satellite Branches',
-      'Autonomous Executive Growth Reports',
-      'Priority WhatsApp & Email Delivery Engine',
-      'Full AI Studio & Sermon Repurposing',
-      'Church Store with Digital Downloads',
-      'Multi-User Roles & Permissions Matrix',
-      'Priority Pastoral Support (2h SLA)',
-    ],
-  },
-  {
-    id: 'enterprise',
-    name: 'Enterprise Plan',
-    badge: 'Mega Ministries & Networks',
-    priceNgn: 350000,
-    priceUsd: 399,
-    popular: false,
-    description: 'Bespoke infrastructure, dedicated AI capacity, and unlimited global campus networks.',
-    features: [
-      'Unlimited Members & Visitors',
-      '100,000 AI Content Credits / Month',
-      'Unlimited Satellite Branches & Campuses',
-      'Dedicated Custom AI Fine-Tuning',
-      'Church-Owned WhatsApp Business API (WABA)',
-      'Custom Dedicated SMS Sender ID',
-      'Multi-Campus Financial Consolidation',
-      '24/7 Dedicated Account Manager',
-      '99.9% Uptime SLA & Custom Domain Routing',
-    ],
-  },
-]
+import { DEFAULT_CANONICAL_PLANS, type PlanConfig } from '@/lib/config/pricing-matrix'
 
 export function PricingSection() {
   const [currency, setCurrency] = useState<'NGN' | 'USD'>('NGN')
-  const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'annual'>('monthly')
+  const [plans, setPlans] = useState<Record<string, PlanConfig>>(DEFAULT_CANONICAL_PLANS)
+
+  // Fetch canonical live pricing configuration from Super Admin system
+  useEffect(() => {
+    async function loadCanonicalPricing() {
+      try {
+        const res = await fetch('/api/admin/pricing-plans')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.plans && typeof data.plans === 'object') {
+            setPlans((prev) => ({
+              starter: { ...prev.starter, ...data.plans.starter },
+              growth: { ...prev.growth, ...data.plans.growth },
+              enterprise: { ...prev.enterprise, ...data.plans.enterprise },
+            }))
+          }
+        }
+      } catch {
+        // Safe graceful fallback to default canonical plans
+      }
+    }
+    loadCanonicalPricing()
+  }, [])
+
+  const planList = [plans.starter, plans.growth, plans.enterprise].filter(Boolean)
 
   return (
     <section id="pricing" className="py-20 sm:py-28 relative">
@@ -118,24 +80,30 @@ export function PricingSection() {
 
         {/* 3 Pricing Cards */}
         <div className="mt-16 grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl mx-auto items-stretch">
-          {PLANS.map((plan) => {
+          {planList.map((plan) => {
             const formattedPrice =
               currency === 'NGN'
-                ? `₦${plan.priceNgn.toLocaleString()}`
-                : `$${plan.priceUsd}`
+                ? `₦${(plan.priceNgn || 0).toLocaleString()}`
+                : `$${plan.priceUsd || 0}`
+
+            const isPopular = plan.id === 'growth' || plan.popular
 
             return (
-              <div
+              <motion.div
                 key={plan.id}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-50px' }}
+                transition={{ duration: 0.5 }}
                 className={`relative rounded-3xl p-7 sm:p-9 flex flex-col justify-between transition-all duration-300 ${
-                  plan.popular
+                  isPopular
                     ? 'border-2 border-brand-500 bg-card shadow-2xl shadow-brand-500/10 ring-1 ring-brand-500/30'
                     : 'border border-border/80 bg-card/60 hover:border-border shadow-md'
                 }`}
               >
-                {plan.popular && (
+                {isPopular && (
                   <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-brand-600 to-purple-600 px-4 py-1 text-[11px] font-extrabold text-white shadow-md uppercase tracking-wider">
-                    {plan.badge}
+                    {plan.badge || 'Most Popular'}
                   </div>
                 )}
 
@@ -145,7 +113,7 @@ export function PricingSection() {
                       <h3 className="font-display text-xl font-bold text-foreground">
                         {plan.name}
                       </h3>
-                      {!plan.popular && (
+                      {!isPopular && (
                         <span className="text-[10px] font-semibold text-muted-foreground bg-muted px-2.5 py-0.5 rounded-full">
                           {plan.badge}
                         </span>
@@ -182,7 +150,7 @@ export function PricingSection() {
                   <Link
                     href={`/register?plan=${plan.id}`}
                     className={`w-full inline-flex items-center justify-center gap-2 rounded-2xl py-3.5 text-xs font-bold transition-all ${
-                      plan.popular
+                      isPopular
                         ? 'bg-gradient-to-r from-brand-600 to-brand-700 text-white shadow-lg shadow-brand-500/25 hover:from-brand-500 hover:to-brand-600 hover:scale-[1.02]'
                         : 'border border-border/80 bg-muted/40 text-foreground hover:bg-accent'
                     }`}
@@ -191,7 +159,7 @@ export function PricingSection() {
                     <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                 </div>
-              </div>
+              </motion.div>
             )
           })}
         </div>

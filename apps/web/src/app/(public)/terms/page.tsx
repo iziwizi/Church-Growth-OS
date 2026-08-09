@@ -16,8 +16,8 @@ export default function TermsPage() {
           <Link href="/" className="flex items-center gap-2">
             <Image src="/logo.png" alt="Church Growth OS" width={160} height={40} className="h-8 w-auto object-contain" />
           </Link>
-          <Link href="/login" className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-500 hover:underline">
-            <ArrowLeft className="h-3.5 w-3.5" /> Back to App
+          <Link href="/" className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-500 hover:underline">
+            <ArrowLeft className="h-3.5 w-3.5" /> Back to Home
           </Link>
         </div>
       </header>
