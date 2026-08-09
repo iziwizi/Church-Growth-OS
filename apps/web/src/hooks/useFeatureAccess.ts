@@ -9,18 +9,19 @@ import { PLAN_FEATURE_MATRIX, type MachineFeatureKey } from '@/lib/server/featur
 export function useFeatureAccess() {
   const { church } = useChurchStore()
 
+  const anyChurch = church as any
   const planId: string =
-    church?.subscription?.planId || church?.plan || 'free_trial'
+    anyChurch?.subscription?.planId || anyChurch?.plan || 'free_trial'
 
   const hasFeature = (key: MachineFeatureKey): boolean => {
     // 1. Direct custom feature overrides on church if present
-    if (church?.featureOverrides && typeof church.featureOverrides[key] === 'boolean') {
-      return church.featureOverrides[key]
+    if (anyChurch?.featureOverrides && typeof anyChurch.featureOverrides[key] === 'boolean') {
+      return anyChurch.featureOverrides[key]
     }
 
     // 2. Custom plan features from church subscription
-    if (church?.subscription?.featureMap && typeof church.subscription.featureMap[key] === 'boolean') {
-      return church.subscription.featureMap[key]
+    if (anyChurch?.subscription?.featureMap && typeof anyChurch.subscription.featureMap[key] === 'boolean') {
+      return anyChurch.subscription.featureMap[key]
     }
 
     // 3. Fallback to canonical tier matrix
@@ -31,7 +32,7 @@ export function useFeatureAccess() {
   return {
     planId,
     hasFeature,
-    isTrial: planId === 'free_trial' || church?.subscription?.status === 'trialing',
+    isTrial: planId === 'free_trial' || anyChurch?.subscription?.status === 'trialing',
     planName: planId.replace('_', ' ').toUpperCase(),
   }
 }

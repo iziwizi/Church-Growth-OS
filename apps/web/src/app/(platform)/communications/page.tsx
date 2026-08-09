@@ -521,6 +521,9 @@ export default function CommunicationsPage() {
               </table>
             </div>
           )}
+        </div>
+      )}
+
       {/* Dynamic Upgrade Plan Modal */}
       <UpgradePlanModal
         isOpen={showUpgradeModal}

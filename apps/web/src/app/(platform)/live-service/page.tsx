@@ -26,6 +26,7 @@ import {
   Send,
   Lock,
   Eye,
+  X,
 } from 'lucide-react'
 import {
   collection,
@@ -77,7 +78,8 @@ export default function LiveServicePage() {
   // Load existing stream config from church record
   useEffect(() => {
     if (!church?.id) return
-    const savedConfig = church.liveStreamConfig || {}
+    const anyChurch = church as any
+    const savedConfig = anyChurch.liveStreamConfig || {}
     if (savedConfig.platform) setPlatform(savedConfig.platform)
     if (savedConfig.streamUrl) setStreamUrl(savedConfig.streamUrl)
     if (savedConfig.streamKey) setStreamKey(savedConfig.streamKey)
@@ -167,7 +169,7 @@ export default function LiveServicePage() {
       })
 
       if (setChurch) {
-        setChurch({ ...church, liveStreamConfig: payload })
+        setChurch({ ...(church as any), liveStreamConfig: payload })
       }
 
       toast.success('Stream configuration saved successfully to Firestore!')
@@ -266,8 +268,10 @@ export default function LiveServicePage() {
       return
     }
 
+    const churchName = church?.name || 'Church Service'
+    const ytLink = (church as any)?.socialLinks?.youtube || 'https://youtube.com'
     setPromoMessage(
-      `🔴 Join us LIVE right now for our service: "${church.name}"!\nWatch here: ${cleanUrl || church.socialLinks?.youtube || 'https://youtube.com'}`
+      `🔴 Join us LIVE right now for our service: "${churchName}"!\nWatch here: ${cleanUrl || ytLink}`
     )
     setShowPromoModal(true)
   }
