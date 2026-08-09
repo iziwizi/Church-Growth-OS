@@ -324,6 +324,30 @@ service cloud.firestore {
         allow update: if isChurchMember(churchId);
         allow delete: if isChurchOwner(churchId);
       }
+
+      // ── Church Store Products (/churches/{churchId}/products/{productId}) ──
+      match /products/{productId} {
+        allow read: if isChurchMember(churchId);
+        allow create: if isChurchMemberCreate(churchId);
+        allow update: if isChurchMember(churchId);
+        allow delete: if isChurchOwner(churchId);
+      }
+
+      // ── Church Store Orders (/churches/{churchId}/orders/{orderId}) ────────
+      match /orders/{orderId} {
+        allow read: if isChurchMember(churchId);
+        allow create: if isChurchMemberCreate(churchId);
+        allow update: if isChurchOwner(churchId);
+        allow delete: if isChurchOwner(churchId);
+      }
+
+      // ── Daily Growth Reports (/churches/{churchId}/dailyReports/{reportId}) ─
+      match /dailyReports/{reportId} {
+        allow read: if isChurchMember(churchId);
+        allow create: if isChurchOwnerCreate(churchId);
+        allow update: if isChurchOwner(churchId);
+        allow delete: if isChurchOwner(churchId);
+      }
     }
 
     // ============================================================================

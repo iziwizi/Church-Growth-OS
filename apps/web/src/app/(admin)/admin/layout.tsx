@@ -459,26 +459,60 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 type="button"
                 onClick={() => setNotificationsOpen(!notificationsOpen)}
                 className="relative flex h-8 w-8 items-center justify-center rounded-xl border bg-background text-muted-foreground hover:bg-accent transition-colors"
+                title="Super Admin Notifications"
               >
                 <Bell className="h-4 w-4" />
                 <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-brand-500" />
               </button>
 
               {notificationsOpen && (
-                <div className="absolute right-0 mt-2 w-72 rounded-2xl border bg-card p-4 shadow-lg text-xs space-y-3 z-50">
+                <div className="absolute right-0 mt-2 w-80 rounded-2xl border bg-card p-4 shadow-xl text-xs space-y-3 z-50">
                   <div className="flex items-center justify-between border-b pb-2">
-                    <span className="font-bold text-foreground">Admin Notices</span>
-                    <span className="text-[10px] text-brand-500 font-semibold">2 New</span>
+                    <span className="font-bold text-foreground">Admin System Notices</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        toast.success('All notifications marked as read.')
+                        setNotificationsOpen(false)
+                      }}
+                      className="text-[10px] text-brand-600 font-semibold hover:underline"
+                    >
+                      Mark All Read
+                    </button>
                   </div>
-                  <div className="space-y-2">
-                    <div className="rounded-xl border bg-muted/20 p-2.5">
-                      <p className="font-bold text-foreground text-[11px]">System Status</p>
-                      <p className="text-[10px] text-muted-foreground">All 25 Firestore security rules deployed and active.</p>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    <div className="rounded-xl border bg-muted/20 p-2.5 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <p className="font-bold text-foreground text-[11px]">AI Gateway Active</p>
+                        <span className="text-[9px] text-emerald-600 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded">AgentRouter</span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">Unified AI Gateway routing active across all registered church tenants.</p>
                     </div>
-                    <div className="rounded-xl border bg-muted/20 p-2.5">
-                      <p className="font-bold text-foreground text-[11px]">New Church Tenant</p>
-                      <p className="text-[10px] text-muted-foreground">Tenant registered on 14-day Free Trial.</p>
+
+                    <div className="rounded-xl border bg-muted/20 p-2.5 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <p className="font-bold text-foreground text-[11px]">Security Rules Enforced</p>
+                        <span className="text-[9px] text-muted-foreground font-mono">Live</span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">Tenant data isolation enforced for Church Store, Daily Reports &amp; Messaging.</p>
                     </div>
+
+                    <div className="rounded-xl border bg-muted/20 p-2.5 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <p className="font-bold text-foreground text-[11px]">Multi-Tenant Messaging</p>
+                        <span className="text-[9px] text-brand-600 font-bold">WABA + Resend</span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">Email and WhatsApp delivery engines operating normally.</p>
+                    </div>
+                  </div>
+                  <div className="pt-2 border-t text-center">
+                    <Link
+                      href="/admin/platform-health"
+                      onClick={() => setNotificationsOpen(false)}
+                      className="text-[10px] font-bold text-brand-600 hover:underline inline-flex items-center gap-1"
+                    >
+                      View Platform Health Diagnostics →
+                    </Link>
                   </div>
                 </div>
               )}

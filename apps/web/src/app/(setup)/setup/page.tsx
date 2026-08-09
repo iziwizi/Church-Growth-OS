@@ -75,6 +75,7 @@ export default function SetupWizardPage() {
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
 
   // Step 2: Leadership
+  const [pastorTitle, setPastorTitle] = useState('Senior Pastor')
   const [pastorName, setPastorName] = useState('')
   const [pastorEmail, setPastorEmail] = useState('')
   const [pastorPhone, setPastorPhone] = useState('')
@@ -204,6 +205,7 @@ export default function SetupWizardPage() {
         status: 'active',
         ownerId: user.uid,
         seniorPastor: {
+          title: pastorTitle.trim() || 'Senior Pastor',
           name: pastorName.trim() || user.displayName || 'Senior Pastor',
           email: pastorEmail.trim() || user.email || '',
           phone: pastorPhone.trim() || null,
@@ -603,44 +605,79 @@ export default function SetupWizardPage() {
           {/* STEP 2: Leadership */}
           {currentStep === 2 && (
             <div className="space-y-4 text-xs">
-              <p className="text-muted-foreground">Information about your Senior Pastor &amp; Ministry Head.</p>
-              <div>
-                <label className="font-semibold text-foreground">
-                  Senior Pastor Name <span className="text-rose-500 font-bold text-sm">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={pastorName}
-                  onChange={(e) => setPastorName(e.target.value)}
-                  placeholder="Pastor David Okonkwo"
-                  className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3 focus:outline-none focus:ring-2 focus:ring-ring"
-                />
+              <div className="rounded-xl bg-brand-500/10 p-3.5 border border-brand-500/20 text-brand-700">
+                <p className="font-semibold text-foreground text-xs">Primary Ministry Leader &amp; Report Recipient</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  This leader will receive the automated <strong>6:00 AM Executive Daily Church Growth Report</strong> with attendance, first-time visitor follow-up status, and AI strategic recommendations.
+                </p>
               </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div>
+                  <label className="font-semibold text-foreground">
+                    Ministry Title <span className="text-rose-500 font-bold">*</span>
+                  </label>
+                  <select
+                    value={pastorTitle}
+                    onChange={(e) => setPastorTitle(e.target.value)}
+                    className="mt-1 flex h-9 w-full rounded-xl border bg-background px-2 focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="Senior Pastor">Senior Pastor</option>
+                    <option value="Lead Pastor">Lead Pastor</option>
+                    <option value="Pastor">Pastor</option>
+                    <option value="Prophet / Prophetess">Prophet / Prophetess</option>
+                    <option value="Bishop">Bishop</option>
+                    <option value="Apostle">Apostle</option>
+                    <option value="Reverend">Reverend</option>
+                    <option value="Minister">Minister</option>
+                    <option value="Evangelist">Evangelist</option>
+                    <option value="General Overseer">General Overseer</option>
+                  </select>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="font-semibold text-foreground">
+                    Leader Full Name <span className="text-rose-500 font-bold text-sm">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={pastorName}
+                    onChange={(e) => setPastorName(e.target.value)}
+                    placeholder="David Okonkwo"
+                    className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3 focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className="font-semibold text-foreground">
-                    Pastor Direct Email <span className="text-muted-foreground font-normal text-[10px]">(Optional)</span>
+                    Direct Email <span className="text-rose-500 font-bold text-sm">*</span>
                   </label>
                   <input
                     type="email"
+                    required
                     value={pastorEmail}
                     onChange={(e) => setPastorEmail(e.target.value)}
                     placeholder="pastor.david@graceassembly.org"
                     className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
                   />
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Receives the 6:00 AM Daily Growth briefing</p>
                 </div>
                 <div>
                   <label className="font-semibold text-foreground">
-                    Pastor Direct Phone / WhatsApp <span className="text-muted-foreground font-normal text-[10px]">(Optional)</span>
+                    Direct Phone / WhatsApp <span className="text-rose-500 font-bold text-sm">*</span>
                   </label>
                   <input
                     type="text"
+                    required
                     value={pastorPhone}
                     onChange={(e) => setPastorPhone(e.target.value)}
                     placeholder="+234 803 000 0000"
                     className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
                   />
+                  <p className="text-[10px] text-muted-foreground mt-0.5">For priority notifications &amp; alerts</p>
                 </div>
               </div>
             </div>

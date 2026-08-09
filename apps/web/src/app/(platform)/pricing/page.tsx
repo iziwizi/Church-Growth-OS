@@ -136,9 +136,65 @@ export default function PricingPage() {
   useEffect(() => {
     async function loadDynamicPricing() {
       try {
-        const snap = await getDoc(doc(db, 'system', 'pricing')).catch(() => null)
-        if (snap && snap.exists() && snap.data()?.plans) {
-          setPlans(snap.data().plans)
+        const res = await fetch('/api/admin/pricing-plans')
+        const data = await res.json()
+        if (res.ok && data.success && data.plans) {
+          const canonical = data.plans
+          const updatedPlans = [
+            DEFAULT_PLANS[0], // Free Trial
+            {
+              id: 'starter',
+              name: canonical.starter?.name ?? 'Starter',
+              badge: canonical.starter?.badge ?? 'Growing Churches',
+              price: `₦${Number(canonical.starter?.priceNgn ?? 45000).toLocaleString()}`,
+              usdPrice: `$${Number(canonical.starter?.priceUsd ?? 49).toLocaleString()}`,
+              priceNumNgn: Number(canonical.starter?.priceNgn ?? 45000),
+              priceNumUsd: Number(canonical.starter?.priceUsd ?? 49),
+              period: 'per month',
+              description: canonical.starter?.description ?? 'Essential ministry automation for single-campus churches.',
+              features: canonical.starter?.features ?? DEFAULT_PLANS[1]!.features,
+              storage: '15 GB Storage',
+              branches: canonical.starter?.maxBranches ?? 1,
+              aiCredits: `${Number(canonical.starter?.aiCredits ?? 5000).toLocaleString()} Credits`,
+              buttonText: 'Upgrade to Starter',
+              highlight: false,
+            },
+            {
+              id: 'growth',
+              name: canonical.growth?.name ?? 'Growth',
+              badge: canonical.growth?.badge ?? 'Most Popular',
+              price: `₦${Number(canonical.growth?.priceNgn ?? 120000).toLocaleString()}`,
+              usdPrice: `$${Number(canonical.growth?.priceUsd ?? 129).toLocaleString()}`,
+              priceNumNgn: Number(canonical.growth?.priceNgn ?? 120000),
+              priceNumUsd: Number(canonical.growth?.priceUsd ?? 129),
+              period: 'per month',
+              description: canonical.growth?.description ?? 'Advanced multi-branch intelligence and autonomous ministry scaling.',
+              features: canonical.growth?.features ?? DEFAULT_PLANS[2]!.features,
+              storage: '50 GB Storage',
+              branches: canonical.growth?.maxBranches ?? 5,
+              aiCredits: `${Number(canonical.growth?.aiCredits ?? 25000).toLocaleString()} Credits`,
+              buttonText: 'Upgrade to Growth',
+              highlight: true,
+            },
+            {
+              id: 'enterprise',
+              name: canonical.enterprise?.name ?? 'Enterprise',
+              badge: canonical.enterprise?.badge ?? 'Mega Ministries & Networks',
+              price: `₦${Number(canonical.enterprise?.priceNgn ?? 350000).toLocaleString()}`,
+              usdPrice: `$${Number(canonical.enterprise?.priceUsd ?? 399).toLocaleString()}`,
+              priceNumNgn: Number(canonical.enterprise?.priceNgn ?? 350000),
+              priceNumUsd: Number(canonical.enterprise?.priceUsd ?? 399),
+              period: 'per month',
+              description: canonical.enterprise?.description ?? 'Bespoke infrastructure, dedicated AI capacity, and unlimited global campuses.',
+              features: canonical.enterprise?.features ?? DEFAULT_PLANS[3]!.features,
+              storage: '500 GB Storage',
+              branches: canonical.enterprise?.maxBranches ?? -1,
+              aiCredits: `${Number(canonical.enterprise?.aiCredits ?? 100000).toLocaleString()} Credits`,
+              buttonText: 'Upgrade to Enterprise',
+              highlight: false,
+            },
+          ]
+          setPlans(updatedPlans)
         }
       } catch (err) {
         console.warn('Using default pricing schema:', err)

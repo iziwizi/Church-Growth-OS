@@ -12,6 +12,10 @@ import {
   Share2,
   ExternalLink,
   ShieldCheck,
+  AlertTriangle,
+  StopCircle,
+  Settings,
+  CheckCircle2,
 } from 'lucide-react'
 import {
   collection,
@@ -33,8 +37,9 @@ export default function LiveServicePage() {
   const { church } = useChurchStore()
   const { user } = useAuthStore()
 
-  const [platform, setPlatform] = useState<'youtube' | 'facebook' | 'instagram' | 'custom' | 'auto'>('auto')
+  const [platform, setPlatform] = useState<'youtube' | 'facebook' | 'custom'>('youtube')
   const [streamUrl, setStreamUrl] = useState('')
+  const [streamKey, setStreamKey] = useState('')
   const [broadcasting, setBroadcasting] = useState(false)
   const [isLive, setIsLive] = useState(false)
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
@@ -47,12 +52,6 @@ export default function LiveServicePage() {
     checkActiveBroadcast()
   }, [church?.id])
 
-  // Automatically resolve primary social account URL if 'auto' mode selected
-  const resolvedStreamUrl =
-    platform === 'auto'
-      ? church?.socialLinks?.youtube || church?.socialLinks?.facebook || streamUrl
-      : streamUrl
-
   async function checkActiveBroadcast() {
     if (!church?.id) return
     try {
@@ -63,11 +62,11 @@ export default function LiveServicePage() {
       )
       const snap = await getDocs(q).catch(() => null)
       if (snap && !snap.empty) {
-        const d = snap.docs[0]
+        const d = snap.docs[0]!
         const data = d.data()
         setIsLive(true)
         setCurrentSessionId(d.id)
-        setPlatform(data.platform ?? 'custom')
+        setPlatform(data.platform ?? 'youtube')
         setStreamUrl(data.streamUrl ?? '')
       }
     } catch (err) {
@@ -99,18 +98,26 @@ export default function LiveServicePage() {
 
   const handleStartBroadcast = async () => {
     if (!church?.id) return
+
+    // ── PREFLIGHT VALIDATION: Block fake live stream if URL is missing ──
+    const cleanUrl = streamUrl.trim()
+    if (!cleanUrl) {
+      toast.error('❌ Live Stream Destination URL is required before going live. Please enter your YouTube Live, Facebook Live, or RTMP destination.')
+      return
+    }
+
+    if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://') && !cleanUrl.startsWith('rtmp://')) {
+      toast.error('❌ Invalid URL format. Stream destination must begin with https:// or rtmp://')
+      return
+    }
+
     setBroadcasting(true)
     try {
       const sessionData = {
         status: 'live',
         platform,
-        streamUrl: resolvedStreamUrl.trim() || null,
-        autoDetectSocial: platform === 'auto',
-        apiIntegrationMeta: {
-          youtubeApiStatus: 'ready_for_key',
-          facebookGraphStatus: 'ready_for_key',
-          bufferStatus: 'ready_for_key',
-        },
+        streamUrl: cleanUrl,
+        streamKey: streamKey.trim() ? '••••••••' : null,
         startedAt: serverTimestamp(),
         startedBy: user?.uid ?? null,
         churchId: church.id,
@@ -120,19 +127,19 @@ export default function LiveServicePage() {
         collection(db, 'churches', church.id, 'liveServices'),
         sessionData
       )
-      setCurrentSessionId(ref.id)
       setIsLive(true)
-      toast.success('🔴 Live Service Broadcast Control Room initialized!')
-      loadSessions()
+      setCurrentSessionId(ref.id)
+      setPastSessions((prev) => [{ id: ref.id, ...sessionData, createdAt: new Date() }, ...prev])
+      toast.success('🔴 Live Service Broadcast started! Audience engagement active.')
     } catch {
-      toast.error('Failed to start broadcast.')
+      toast.error('Failed to initiate live service broadcast.')
     } finally {
       setBroadcasting(false)
     }
   }
 
   const handleEndBroadcast = async () => {
-    if (!church?.id || !currentSessionId) return
+    if (!currentSessionId || !church?.id) return
     setBroadcasting(true)
     try {
       await updateDoc(doc(db, 'churches', church.id, 'liveServices', currentSessionId), {
@@ -141,7 +148,7 @@ export default function LiveServicePage() {
       })
       setIsLive(false)
       setCurrentSessionId(null)
-      toast.info('Broadcast session ended. AI attendance summary initiated.')
+      toast.success('Live Service broadcast concluded.')
       loadSessions()
     } catch {
       toast.error('Failed to end broadcast.')
@@ -152,130 +159,154 @@ export default function LiveServicePage() {
 
   return (
     <div className="space-y-6 text-xs">
-      <div>
-        <div className="inline-flex items-center gap-2 rounded-full bg-rose-500/10 px-3 py-1 text-xs font-semibold text-rose-500 mb-2">
-          <Radio className="h-3.5 w-3.5" />
-          <span>Live Service Architecture</span>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl flex items-center gap-2.5">
+            <Radio className={`h-7 w-7 ${isLive ? 'text-rose-500 animate-pulse' : 'text-brand-600'}`} />
+            Live Service Control Room
+          </h1>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Manage live stream preflight, RTMP destinations, and automated guest engagement for {church?.name}.
+          </p>
         </div>
-        <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          Live Service Control Room
-        </h1>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Multi-platform broadcast control and automated member check-in for {church?.name}.
-        </p>
+
+        <div className="flex items-center gap-2">
+          {isLive ? (
+            <button
+              type="button"
+              onClick={handleEndBroadcast}
+              disabled={broadcasting}
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-rose-600 px-4 font-semibold text-white hover:bg-rose-500 shadow-sm"
+            >
+              {broadcasting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <StopCircle className="h-3.5 w-3.5" />}
+              End Broadcast
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleStartBroadcast}
+              disabled={broadcasting}
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-emerald-600 px-4 font-semibold text-white hover:bg-emerald-500 shadow-sm disabled:opacity-50"
+            >
+              {broadcasting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+              Go Live Now
+            </button>
+          )}
+        </div>
       </div>
 
+      {/* Main Grid */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Stream Platform Selector & Controls */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="rounded-2xl border bg-card p-6 shadow-xs space-y-4">
-            <h2 className="font-display text-base font-bold text-foreground flex items-center gap-2">
-              <Video className="h-4 w-4 text-brand-500" />
-              1. Select Streaming Destination
-            </h2>
+        {/* Stream Destination & Preflight */}
+        <div className="lg:col-span-2 rounded-2xl border bg-card p-6 shadow-xs space-y-5">
+          <div className="flex items-center justify-between border-b pb-3">
+            <div className="flex items-center gap-2">
+              <Video className="h-4 w-4 text-brand-600" />
+              <h2 className="font-display text-sm font-bold text-foreground">Streaming Destination (Preflight)</h2>
+            </div>
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                isLive ? 'bg-rose-500/10 text-rose-600' : 'bg-muted text-muted-foreground'
+              }`}
+            >
+              {isLive ? '● BROADCASTING LIVE' : 'STANDBY'}
+            </span>
+          </div>
 
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {[
-                { id: 'auto', label: '⭐ Primary Social', sub: 'Use linked channel' },
-                { id: 'youtube', label: '🔴 YouTube Live', sub: 'RTMP / Embed' },
-                { id: 'facebook', label: '🔵 Facebook Live', sub: 'Graph Stream' },
-                { id: 'instagram', label: '🟣 Instagram Live', sub: 'Mobile RTMP' },
-                { id: 'custom', label: '🌐 Custom URL', sub: 'HLS / Embed Link' },
-              ].map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setPlatform(item.id as any)}
-                  className={`rounded-xl border p-3 text-left transition-all ${
-                    platform === item.id
-                      ? 'border-brand-500 bg-brand-500/10 ring-2 ring-brand-500/30 font-bold'
-                      : 'border-border bg-background hover:bg-accent'
-                  }`}
-                >
-                  <p className="text-foreground">{item.label}</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">{item.sub}</p>
-                </button>
-              ))}
+          <div className="space-y-4">
+            <div>
+              <label className="font-semibold text-foreground">Streaming Platform</label>
+              <div className="grid grid-cols-3 gap-2 mt-1">
+                {[
+                  { id: 'youtube', label: 'YouTube Live' },
+                  { id: 'facebook', label: 'Facebook Live' },
+                  { id: 'custom', label: 'Custom RTMP' },
+                ].map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setPlatform(p.id as any)}
+                    className={`rounded-xl p-2.5 text-xs font-semibold transition-all ${
+                      platform === p.id
+                        ? 'bg-brand-600 text-white shadow-xs'
+                        : 'border bg-background text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {platform !== 'auto' && (
-              <div>
-                <label className="font-semibold">Stream / Video Embed URL</label>
-                <input
-                  type="url"
-                  placeholder="https://youtube.com/live/..."
-                  value={streamUrl}
-                  onChange={(e) => setStreamUrl(e.target.value)}
-                  className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
-                />
-              </div>
-            )}
+            <div>
+              <label className="font-semibold text-foreground">
+                Stream URL / Destination <span className="text-rose-500 font-bold">*</span>
+              </label>
+              <input
+                type="url"
+                required
+                value={streamUrl}
+                onChange={(e) => setStreamUrl(e.target.value)}
+                placeholder={
+                  platform === 'youtube'
+                    ? 'https://youtube.com/live/your-stream-id'
+                    : platform === 'facebook'
+                    ? 'https://facebook.com/yourchurch/live'
+                    : 'rtmp://live.streamingserver.com/app'
+                }
+                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                ⚠️ Must be a valid live stream destination URL. Profile links are configured in Settings &gt; Social Links.
+              </p>
+            </div>
 
-            {platform === 'auto' && (
-              <div className="rounded-xl border bg-muted/20 p-3 text-[11px] text-muted-foreground flex items-center justify-between">
-                <span>
-                  Primary Channel:{' '}
-                  <strong className="text-foreground">
-                    {church?.socialLinks?.youtube || church?.socialLinks?.facebook || 'Not configured in Settings'}
-                  </strong>
-                </span>
-                <a href="/settings?tab=social" className="font-bold text-brand-500 hover:underline">
-                  Configure Socials
-                </a>
-              </div>
-            )}
-
-            <div className="pt-2 flex justify-end">
-              {!isLive ? (
-                <button
-                  type="button"
-                  onClick={handleStartBroadcast}
-                  disabled={broadcasting}
-                  className="inline-flex h-10 items-center gap-2 rounded-xl bg-rose-600 px-6 font-bold text-white hover:bg-rose-500 shadow-xs disabled:opacity-50"
-                >
-                  {broadcasting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-                  Go Live Now
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleEndBroadcast}
-                  disabled={broadcasting}
-                  className="inline-flex h-10 items-center gap-2 rounded-xl bg-gray-800 px-6 font-bold text-white hover:bg-gray-700 shadow-xs disabled:opacity-50"
-                >
-                  {broadcasting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  End Live Session
-                </button>
-              )}
+            <div>
+              <label className="font-semibold text-foreground">Stream Key (Optional / Private)</label>
+              <input
+                type="password"
+                value={streamKey}
+                onChange={(e) => setStreamKey(e.target.value)}
+                placeholder="live_key_..."
+                className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3 font-mono text-xs"
+              />
             </div>
           </div>
         </div>
 
-        {/* Future-proof Architecture Status Card */}
+        {/* Live Status & Social Links Sidebar */}
         <div className="space-y-4">
-          <div className="rounded-2xl border bg-card p-6 shadow-xs space-y-3">
-            <h2 className="font-display text-base font-bold text-foreground flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-emerald-500" />
-              API Gateway Architecture
-            </h2>
-            <p className="text-muted-foreground leading-relaxed">
-              Future-proof data structures configured for YouTube Data API v3, Meta Graph API, and Buffer API endpoints.
+          <div className="rounded-2xl border bg-card p-5 shadow-xs space-y-3">
+            <h2 className="font-display text-sm font-bold text-foreground">Social Promotion Links</h2>
+            <p className="text-[11px] text-muted-foreground">
+              These profile channels will be included in automated broadcast messages.
             </p>
-
-            <div className="space-y-2 border-t pt-3">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">YouTube Live API</span>
-                <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-500">Schema Ready</span>
+            <div className="space-y-2 pt-1 border-t">
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span>YouTube:</span>
+                <span className="font-medium text-foreground truncate max-w-[140px]">
+                  {church?.socialLinks?.youtube || 'Not configured'}
+                </span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Meta Graph API</span>
-                <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-500">Schema Ready</span>
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span>Facebook:</span>
+                <span className="font-medium text-foreground truncate max-w-[140px]">
+                  {church?.socialLinks?.facebook || 'Not configured'}
+                </span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Buffer Social API</span>
-                <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-500">Schema Ready</span>
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span>Instagram:</span>
+                <span className="font-medium text-foreground truncate max-w-[140px]">
+                  {church?.socialLinks?.instagram || 'Not configured'}
+                </span>
               </div>
             </div>
+            <a
+              href="/settings?tab=social"
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-600 hover:underline pt-1"
+            >
+              <Settings className="h-3 w-3" /> Configure Socials
+            </a>
           </div>
         </div>
       </div>

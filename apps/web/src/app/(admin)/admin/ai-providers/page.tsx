@@ -1,51 +1,95 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Cpu, Save, Loader2, RefreshCw, CheckCircle2, ShieldCheck, Zap, TestTube, AlertTriangle } from 'lucide-react'
+import {
+  Cpu,
+  Save,
+  Loader2,
+  RefreshCw,
+  CheckCircle2,
+  ShieldCheck,
+  Zap,
+  TestTube,
+  AlertTriangle,
+  Server,
+  Layers,
+  Globe,
+  Radio,
+  Clock,
+  Sparkles,
+} from 'lucide-react'
 import { toast } from 'sonner'
 
-interface OpenRouterModel {
+interface ModelItem {
   id: string
   name: string
-  contextLength: number
-  promptPricing: string
-  completionPricing: string
+  provider?: string
+  contextLength?: number
+  description?: string
 }
 
 export default function AdminAIProvidersPage() {
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
   const [refreshingModels, setRefreshingModels] = useState(false)
-  const [testing, setTesting] = useState(false)
-  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [testingAgentRouter, setTestingAgentRouter] = useState(false)
+  const [testingDirect, setTestingDirect] = useState<string | null>(null)
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string; latencyMs?: number } | null>(null)
   const [hasStoredKey, setHasStoredKey] = useState(false)
 
   const [config, setConfig] = useState({
-    defaultProvider: 'openrouter',
-    openrouterKey: '',
-    defaultModel: 'anthropic/claude-3.5-sonnet',
-    fallbackModel: 'openai/gpt-4o-mini',
+    agentrouterKey: '',
+    agentrouterBaseUrl: 'https://co.agentrouter.org/v1',
+    agentrouterProtocol: 'openai' as 'openai' | 'anthropic',
+    primaryModel: 'claude-3-5-sonnet-20241022',
+    fallbackModel: 'gpt-4o-mini',
     aiMode: 'autonomous',
     enabled: true,
+    lastTested: null as string | null,
+    latencyMs: null as number | null,
+    status: 'unconfigured',
     taskRouting: {
-      CONTENT_SUMMARY: 'openai/gpt-4o-mini',
-      VISITOR_FOLLOW_UP: 'anthropic/claude-3.5-sonnet',
-      EMAIL_WRITING: 'anthropic/claude-3.5-sonnet',
-      WHATSAPP_WRITING: 'openai/gpt-4o-mini',
-      SERMON_SUMMARY: 'anthropic/claude-3.5-sonnet',
+      VISITOR_FOLLOW_UP: 'claude-3-5-sonnet-20241022',
+      SERMON_SUMMARY: 'claude-3-5-sonnet-20241022',
+      EMAIL_WRITING: 'claude-3-5-sonnet-20241022',
+      WHATSAPP_WRITING: 'gpt-4o-mini',
+      CONTENT_SUMMARY: 'gpt-4o-mini',
+      DAILY_REPORT: 'claude-3-5-sonnet-20241022',
+      STRATEGIC_ANALYSIS: 'claude-3-5-sonnet-20241022',
+      PRAYER_DEVOTIONAL: 'claude-3-5-sonnet-20241022',
+      EVENT_PROMO: 'gpt-4o-mini',
+      STORE_PROMOTION: 'gpt-4o-mini',
+    },
+    directProviders: {
+      openaiKey: '',
+      hasOpenaiKey: false,
+      anthropicKey: '',
+      hasAnthropicKey: false,
+      geminiKey: '',
+      hasGeminiKey: false,
+      deepseekKey: '',
+      hasDeepseekKey: false,
     },
   })
 
-  const [discoveredModels, setDiscoveredModels] = useState<OpenRouterModel[]>([
-    { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet', contextLength: 200000, promptPricing: '0.000003', completionPricing: '0.000015' },
-    { id: 'openai/gpt-4o', name: 'GPT-4o (Omni)', contextLength: 128000, promptPricing: '0.0000025', completionPricing: '0.00001' },
-    { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini (Cost-Effective)', contextLength: 128000, promptPricing: '0.00000015', completionPricing: '0.0000006' },
-    { id: 'deepseek/deepseek-r1', name: 'DeepSeek R1 (Reasoning)', contextLength: 64000, promptPricing: '0.00000055', completionPricing: '0.00000219' },
-    { id: 'google/gemini-2.0-flash-001', name: 'Gemini 2.0 Flash', contextLength: 1000000, promptPricing: '0.0000001', completionPricing: '0.0000004' },
+  const [discoveredModels, setDiscoveredModels] = useState<ModelItem[]>([
+    { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet (Anthropic)', provider: 'Anthropic', contextLength: 200000 },
+    { id: 'claude-3-7-sonnet', name: 'Claude 3.7 Sonnet (Hybrid Reasoning)', provider: 'Anthropic', contextLength: 200000 },
+    { id: 'claude-3-5-haiku', name: 'Claude 3.5 Haiku (Fast)', provider: 'Anthropic', contextLength: 200000 },
+    { id: 'gpt-4o', name: 'GPT-4o (OpenAI Omni)', provider: 'OpenAI', contextLength: 128000 },
+    { id: 'gpt-4o-mini', name: 'GPT-4o Mini (Cost-Effective)', provider: 'OpenAI', contextLength: 128000 },
+    { id: 'o1', name: 'OpenAI o1 (Deep Reasoning)', provider: 'OpenAI', contextLength: 128000 },
+    { id: 'o3-mini', name: 'OpenAI o3-mini (Reasoning)', provider: 'OpenAI', contextLength: 128000 },
+    { id: 'deepseek-r1', name: 'DeepSeek R1 (Open Reasoning)', provider: 'DeepSeek', contextLength: 64000 },
+    { id: 'deepseek-v3', name: 'DeepSeek V3 (High Throughput)', provider: 'DeepSeek', contextLength: 64000 },
+    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash (Google)', provider: 'Google', contextLength: 1000000 },
+    { id: 'gemini-2.0-pro-exp-02-05', name: 'Gemini 2.0 Pro (Google)', provider: 'Google', contextLength: 2000000 },
+    { id: 'llama-3.3-70b-instruct', name: 'Meta Llama 3.3 70B', provider: 'Meta', contextLength: 128000 },
   ])
 
   useEffect(() => {
     loadAIConfig()
+    loadModels()
   }, [])
 
   async function loadAIConfig() {
@@ -54,33 +98,47 @@ export default function AdminAIProvidersPage() {
       const res = await fetch('/api/admin/ai-providers')
       const data = await res.json()
       if (res.ok && data.success && data.config) {
-        setHasStoredKey(!!data.config.hasKey)
+        setHasStoredKey(!!data.config.hasAgentRouterKey)
         setConfig((prev) => ({
           ...prev,
           ...data.config,
         }))
       } else {
-        toast.error(data.error ?? 'Could not load AI Provider configuration.')
+        toast.error(data.error ?? 'Could not load AI configuration.')
       }
     } catch (err: any) {
-      toast.error(`Could not load AI Provider configuration: ${err.message}`)
+      toast.error(`Could not load AI configuration: ${err.message}`)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function loadModels() {
+    try {
+      const res = await fetch('/api/admin/agentrouter/models')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.models && Array.isArray(data.models) && data.models.length > 0) {
+          setDiscoveredModels(data.models)
+        }
+      }
+    } catch {
+      // Keep curated defaults
     }
   }
 
   const handleRefreshModels = async () => {
     setRefreshingModels(true)
     try {
-      const res = await fetch('/api/admin/openrouter/models')
+      const res = await fetch('/api/admin/agentrouter/models')
       if (!res.ok) throw new Error('Failed to fetch models')
       const data = await res.json()
       if (data.models && data.models.length > 0) {
         setDiscoveredModels(data.models)
-        toast.success(`Discovered ${data.models.length} models from OpenRouter API!`)
+        toast.success(`Discovered ${data.models.length} live models from AgentRouter API!`)
       }
     } catch {
-      toast.error('Could not refresh OpenRouter model registry.')
+      toast.error('Could not refresh AgentRouter model registry.')
     } finally {
       setRefreshingModels(false)
     }
@@ -98,7 +156,7 @@ export default function AdminAIProvidersPage() {
       const data = await res.json()
       if (res.ok && data.success) {
         setHasStoredKey(true)
-        toast.success('🤖 OpenRouter & AI Task Routing saved securely to server!')
+        toast.success('🤖 AgentRouter Gateway & AI Task Routing saved securely!')
         await loadAIConfig()
       } else {
         toast.error(data.error ?? 'Failed to save AI configuration.')
@@ -110,25 +168,47 @@ export default function AdminAIProvidersPage() {
     }
   }
 
-  const handleTestConnection = async () => {
-    setTesting(true)
+  const handleTestAgentRouter = async () => {
+    setTestingAgentRouter(true)
     setTestResult(null)
     try {
-      const res = await fetch('/api/admin/openrouter/test', { method: 'POST' })
+      const res = await fetch('/api/admin/agentrouter/test', { method: 'POST' })
       const data = await res.json()
       if (res.ok && data.success) {
-        setTestResult({ ok: true, message: data.message ?? 'Connection successful!' })
-        toast.success('✅ OpenRouter connection verified!')
+        setTestResult({ ok: true, message: data.message ?? 'AgentRouter Connection successful!', latencyMs: data.latencyMs })
+        toast.success(`✅ ${data.message}`)
+        await loadAIConfig()
       } else {
-        setTestResult({ ok: false, message: data.error ?? 'Connection failed.' })
-        toast.error(data.error ?? 'OpenRouter test failed.')
+        setTestResult({ ok: false, message: data.error ?? 'AgentRouter connection failed.' })
+        toast.error(data.error ?? 'AgentRouter test failed.')
       }
     } catch (err: any) {
       const msg = err.message ?? 'Test request failed.'
       setTestResult({ ok: false, message: msg })
       toast.error(msg)
     } finally {
-      setTesting(false)
+      setTestingAgentRouter(false)
+    }
+  }
+
+  const handleTestDirectProvider = async (provider: string) => {
+    setTestingDirect(provider)
+    try {
+      const res = await fetch('/api/admin/providers/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider }),
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        toast.success(`${data.message} (${data.latencyMs}ms)`)
+      } else {
+        toast.error(`${provider.toUpperCase()} test failed: ${data.error}`)
+      }
+    } catch (err: any) {
+      toast.error(`Test failed: ${err.message}`)
+    } finally {
+      setTestingDirect(null)
     }
   }
 
@@ -142,30 +222,31 @@ export default function AdminAIProvidersPage() {
 
   return (
     <div className="space-y-6 text-xs">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            AI Provider &amp; Model Routing Engine
+            AI Gateway &amp; Provider Architecture
           </h1>
           <p className="mt-1 text-xs text-muted-foreground">
-            Configure OpenRouter API, model discovery, and task-level routing for church communications.
+            Centralized AgentRouter.org integration, task-level model routing, and direct provider fallbacks.
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={handleTestConnection}
-            disabled={testing}
-            className="inline-flex items-center gap-1.5 rounded-xl border bg-emerald-500/10 border-emerald-500/30 px-3 py-1.5 font-semibold text-emerald-500 hover:bg-emerald-500/20 disabled:opacity-50"
+            onClick={handleTestAgentRouter}
+            disabled={testingAgentRouter}
+            className="inline-flex items-center gap-1.5 rounded-xl border bg-emerald-500/10 border-emerald-500/30 px-3.5 py-2 font-semibold text-emerald-500 hover:bg-emerald-500/20 disabled:opacity-50"
           >
-            {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <TestTube className="h-3.5 w-3.5" />}
-            Test Connection
+            {testingAgentRouter ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <TestTube className="h-3.5 w-3.5" />}
+            Test AgentRouter Connection
           </button>
           <button
             type="button"
             onClick={handleRefreshModels}
             disabled={refreshingModels}
-            className="inline-flex items-center gap-1.5 rounded-xl border bg-card px-3 py-1.5 font-semibold text-foreground hover:bg-accent disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-xl border bg-card px-3.5 py-2 font-semibold text-foreground hover:bg-accent disabled:opacity-50"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${refreshingModels ? 'animate-spin' : ''}`} />
             Refresh Models
@@ -173,38 +254,59 @@ export default function AdminAIProvidersPage() {
         </div>
       </div>
 
-      {/* Test Connection Result */}
+      {/* Test Connection Banner */}
       {testResult && (
-        <div className={`rounded-xl border p-3 flex items-center gap-2 text-xs font-medium ${
-          testResult.ok
-            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600'
-            : 'border-rose-500/30 bg-rose-500/10 text-rose-600'
-        }`}>
-          {testResult.ok
-            ? <CheckCircle2 className="h-4 w-4 shrink-0" />
-            : <AlertTriangle className="h-4 w-4 shrink-0" />}
-          <span>{testResult.message}</span>
+        <div
+          className={`rounded-2xl border p-4 flex items-center justify-between gap-3 text-xs font-medium ${
+            testResult.ok
+              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700'
+              : 'border-rose-500/30 bg-rose-500/10 text-rose-700'
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            {testResult.ok ? (
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
+            ) : (
+              <AlertTriangle className="h-5 w-5 shrink-0 text-rose-600" />
+            )}
+            <span>{testResult.message}</span>
+          </div>
+          {testResult.latencyMs && (
+            <span className="rounded-lg bg-white/60 px-2 py-1 font-mono text-[11px] font-bold text-foreground">
+              {testResult.latencyMs}ms
+            </span>
+          )}
         </div>
       )}
 
       <form onSubmit={handleSave} className="space-y-6">
-        {/* OpenRouter Unified API */}
+        {/* ── 1. PRIMARY AI GATEWAY: AGENTROUTER ── */}
         <div className="rounded-2xl border bg-card p-6 shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b pb-3">
-            <h2 className="font-display text-base font-bold text-foreground flex items-center gap-2">
-              <Cpu className="h-4 w-4 text-brand-500" />
-              OpenRouter Unified API Gateway
-            </h2>
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold text-emerald-500">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-500/10 text-brand-500">
+                <Cpu className="h-4 w-4" />
+              </div>
+              <div>
+                <h2 className="font-display text-base font-bold text-foreground">
+                  AgentRouter Unified AI Gateway (agentrouter.org)
+                </h2>
+                <p className="text-[11px] text-muted-foreground">
+                  Primary execution engine connecting all church AI workflows to multi-model intelligence.
+                </p>
+              </div>
+            </div>
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-[10px] font-bold text-emerald-600 border border-emerald-500/20">
               <ShieldCheck className="h-3.5 w-3.5" />
-              Canonical AI Provider
+              Canonical AI Gateway
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-4">
+            {/* API Key */}
             <div>
               <div className="flex items-center justify-between">
-                <label className="font-semibold">OpenRouter API Key</label>
+                <label className="font-semibold text-foreground">AgentRouter API Key</label>
                 {hasStoredKey && (
                   <span className="text-[10px] font-semibold text-emerald-600 flex items-center gap-1">
                     <CheckCircle2 className="h-3 w-3" /> Key Saved Server-Side
@@ -213,23 +315,53 @@ export default function AdminAIProvidersPage() {
               </div>
               <input
                 type="password"
-                placeholder="sk-or-v1-..."
-                value={config.openrouterKey}
-                onChange={(e) => setConfig({ ...config, openrouterKey: e.target.value })}
+                placeholder="sk-ar-..."
+                value={config.agentrouterKey}
+                onChange={(e) => setConfig({ ...config, agentrouterKey: e.target.value })}
                 className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3 font-mono"
               />
               <p className="text-[10px] text-muted-foreground mt-1">
-                Unified gateway supporting Claude 3.5 Sonnet, GPT-4o, DeepSeek R1, and Gemini 2.0 Flash with zero vendor lock-in.
+                Your secure AgentRouter key provisioned from agentrouter.org. Stored server-side only.
               </p>
             </div>
 
+            {/* Base URL & Protocol */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label className="font-semibold">Primary Default Model</label>
+                <label className="font-semibold text-foreground">API Base URL</label>
+                <input
+                  type="text"
+                  value={config.agentrouterBaseUrl}
+                  onChange={(e) => setConfig({ ...config, agentrouterBaseUrl: e.target.value })}
+                  placeholder="https://co.agentrouter.org/v1"
+                  className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3 font-mono"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  OpenAI: <code className="font-mono text-[10px]">https://co.agentrouter.org/v1</code> | Anthropic: <code className="font-mono text-[10px]">https://co.agentrouter.org</code>
+                </p>
+              </div>
+
+              <div>
+                <label className="font-semibold text-foreground">Protocol Mode</label>
                 <select
-                  value={config.defaultModel}
-                  onChange={(e) => setConfig({ ...config, defaultModel: e.target.value })}
-                  className="mt-1 flex h-9 w-full rounded-xl border bg-background px-2 font-semibold text-brand-500"
+                  value={config.agentrouterProtocol}
+                  onChange={(e) => setConfig({ ...config, agentrouterProtocol: e.target.value as any })}
+                  className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3 font-medium"
+                >
+                  <option value="openai">OpenAI Compatible (Recommended - /v1/chat/completions)</option>
+                  <option value="anthropic">Anthropic Compatible (/v1/messages)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Default & Fallback Models */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className="font-semibold text-foreground">Primary Default Model</label>
+                <select
+                  value={config.primaryModel}
+                  onChange={(e) => setConfig({ ...config, primaryModel: e.target.value })}
+                  className="mt-1 flex h-9 w-full rounded-xl border bg-background px-2.5 font-semibold text-brand-500"
                 >
                   {discoveredModels.map((m) => (
                     <option key={m.id} value={m.id}>
@@ -240,11 +372,11 @@ export default function AdminAIProvidersPage() {
               </div>
 
               <div>
-                <label className="font-semibold">Fallback Model</label>
+                <label className="font-semibold text-foreground">Fallback Model</label>
                 <select
                   value={config.fallbackModel}
                   onChange={(e) => setConfig({ ...config, fallbackModel: e.target.value })}
-                  className="mt-1 flex h-9 w-full rounded-xl border bg-background px-2 font-semibold text-muted-foreground"
+                  className="mt-1 flex h-9 w-full rounded-xl border bg-background px-2.5 font-semibold text-muted-foreground"
                 >
                   {discoveredModels.map((m) => (
                     <option key={m.id} value={m.id}>
@@ -257,28 +389,47 @@ export default function AdminAIProvidersPage() {
           </div>
         </div>
 
-        {/* Task-Level Routing Matrix */}
+        {/* ── 2. TASK-LEVEL ROUTING MATRIX ── */}
         <div className="rounded-2xl border bg-card p-6 shadow-xs space-y-4">
-          <h2 className="font-display text-base font-bold text-foreground flex items-center gap-2">
-            <Zap className="h-4 w-4 text-amber-500" />
-            Task-Level AI Routing Matrix
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            Assign optimal AI models to specific ministry workloads to balance speed, intelligence, and cost.
-          </p>
+          <div className="flex items-center justify-between border-b pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500">
+                <Zap className="h-4 w-4" />
+              </div>
+              <div>
+                <h2 className="font-display text-base font-bold text-foreground">
+                  Task-Level AI Model Routing Matrix
+                </h2>
+                <p className="text-[11px] text-muted-foreground">
+                  Route specific church workloads to the ideal model for optimal quality, reasoning, and token efficiency.
+                </p>
+              </div>
+            </div>
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+              10 Ministry Workloads
+            </span>
+          </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
             {[
-              { label: 'Visitor Follow-up Communications', key: 'VISITOR_FOLLOW_UP' },
-              { label: 'Sermon Summary & Repurposing', key: 'SERMON_SUMMARY' },
-              { label: 'Email Newsletter Drafting', key: 'EMAIL_WRITING' },
-              { label: 'WhatsApp Broadcast Optimization', key: 'WHATSAPP_WRITING' },
-              { label: 'General Content Summarization', key: 'CONTENT_SUMMARY' },
+              { label: 'First-Time Visitor Follow-up', key: 'VISITOR_FOLLOW_UP', desc: 'Heartfelt, pastoral guest retention' },
+              { label: 'Sermon Summary & Repurposing', key: 'SERMON_SUMMARY', desc: 'Deep synthesis & action points' },
+              { label: 'Email Newsletter Drafting', key: 'EMAIL_WRITING', desc: 'Engaging congregation bulletins' },
+              { label: 'WhatsApp Broadcasts & Reminders', key: 'WHATSAPP_WRITING', desc: 'Concise, emoji-optimized updates' },
+              { label: 'Daily Executive Growth Reports', key: 'DAILY_REPORT', desc: '6:00 AM pastoral metrics analysis' },
+              { label: 'General Ministry Content Summaries', key: 'CONTENT_SUMMARY', desc: 'Social captions and bullet points' },
+              { label: 'Prayer Devotionals & Guides', key: 'PRAYER_DEVOTIONAL', desc: 'Spiritually uplifting scriptural copy' },
+              { label: 'Event Promotional Campaigns', key: 'EVENT_PROMO', desc: 'High-energy attendance copy' },
+              { label: 'Church Store Resource Promotions', key: 'STORE_PROMOTION', desc: 'Ministry book & course promotions' },
+              { label: 'Strategic Growth Bottleneck Analysis', key: 'STRATEGIC_ANALYSIS', desc: 'Deep reasoning for leadership' },
             ].map((task) => (
-              <div key={task.key} className="space-y-1">
-                <label className="font-semibold text-foreground">{task.label}</label>
+              <div key={task.key} className="rounded-xl border bg-muted/10 p-3 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-foreground text-xs">{task.label}</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground">{task.desc}</p>
                 <select
-                  value={config.taskRouting?.[task.key as keyof typeof config.taskRouting] ?? config.defaultModel}
+                  value={config.taskRouting?.[task.key as keyof typeof config.taskRouting] ?? config.primaryModel}
                   onChange={(e) =>
                     setConfig({
                       ...config,
@@ -288,7 +439,7 @@ export default function AdminAIProvidersPage() {
                       },
                     })
                   }
-                  className="flex h-9 w-full rounded-xl border bg-background px-2 font-medium"
+                  className="flex h-8 w-full rounded-lg border bg-background px-2 text-xs font-semibold text-foreground"
                 >
                   {discoveredModels.map((m) => (
                     <option key={m.id} value={m.id}>
@@ -301,14 +452,145 @@ export default function AdminAIProvidersPage() {
           </div>
         </div>
 
+        {/* ── 3. DIRECT PROVIDERS (OPTIONAL SECONDARY / FALLBACK) ── */}
+        <div className="rounded-2xl border bg-card p-6 shadow-xs space-y-4">
+          <div className="flex items-center justify-between border-b pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-500/10 text-purple-500">
+                <Layers className="h-4 w-4" />
+              </div>
+              <div>
+                <h2 className="font-display text-base font-bold text-foreground">
+                  Direct AI Providers (Optional Fallbacks)
+                </h2>
+                <p className="text-[11px] text-muted-foreground">
+                  Direct provider API keys configured as standalone options or secondary fallbacks.
+                </p>
+              </div>
+            </div>
+            <span className="text-[10px] font-bold text-muted-foreground">Optional</span>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {/* OpenAI */}
+            <div className="rounded-xl border bg-muted/10 p-3.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-foreground">OpenAI Direct API</span>
+                <button
+                  type="button"
+                  onClick={() => handleTestDirectProvider('openai')}
+                  disabled={testingDirect === 'openai'}
+                  className="text-[10px] font-semibold text-brand-600 hover:underline disabled:opacity-50"
+                >
+                  {testingDirect === 'openai' ? 'Testing...' : 'Test Connection'}
+                </button>
+              </div>
+              <input
+                type="password"
+                placeholder="sk-proj-..."
+                value={config.directProviders?.openaiKey ?? ''}
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    directProviders: { ...config.directProviders, openaiKey: e.target.value },
+                  })
+                }
+                className="flex h-8 w-full rounded-lg border bg-background px-2.5 font-mono text-xs"
+              />
+            </div>
+
+            {/* Anthropic Claude */}
+            <div className="rounded-xl border bg-muted/10 p-3.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-foreground">Anthropic Claude Direct</span>
+                <button
+                  type="button"
+                  onClick={() => handleTestDirectProvider('anthropic')}
+                  disabled={testingDirect === 'anthropic'}
+                  className="text-[10px] font-semibold text-brand-600 hover:underline disabled:opacity-50"
+                >
+                  {testingDirect === 'anthropic' ? 'Testing...' : 'Test Connection'}
+                </button>
+              </div>
+              <input
+                type="password"
+                placeholder="sk-ant-..."
+                value={config.directProviders?.anthropicKey ?? ''}
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    directProviders: { ...config.directProviders, anthropicKey: e.target.value },
+                  })
+                }
+                className="flex h-8 w-full rounded-lg border bg-background px-2.5 font-mono text-xs"
+              />
+            </div>
+
+            {/* Google Gemini */}
+            <div className="rounded-xl border bg-muted/10 p-3.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-foreground">Google Gemini Direct</span>
+                <button
+                  type="button"
+                  onClick={() => handleTestDirectProvider('gemini')}
+                  disabled={testingDirect === 'gemini'}
+                  className="text-[10px] font-semibold text-brand-600 hover:underline disabled:opacity-50"
+                >
+                  {testingDirect === 'gemini' ? 'Testing...' : 'Test Connection'}
+                </button>
+              </div>
+              <input
+                type="password"
+                placeholder="AIzaSy..."
+                value={config.directProviders?.geminiKey ?? ''}
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    directProviders: { ...config.directProviders, geminiKey: e.target.value },
+                  })
+                }
+                className="flex h-8 w-full rounded-lg border bg-background px-2.5 font-mono text-xs"
+              />
+            </div>
+
+            {/* DeepSeek */}
+            <div className="rounded-xl border bg-muted/10 p-3.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-foreground">DeepSeek Direct API</span>
+                <button
+                  type="button"
+                  onClick={() => handleTestDirectProvider('deepseek')}
+                  disabled={testingDirect === 'deepseek'}
+                  className="text-[10px] font-semibold text-brand-600 hover:underline disabled:opacity-50"
+                >
+                  {testingDirect === 'deepseek' ? 'Testing...' : 'Test Connection'}
+                </button>
+              </div>
+              <input
+                type="password"
+                placeholder="sk-..."
+                value={config.directProviders?.deepseekKey ?? ''}
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    directProviders: { ...config.directProviders, deepseekKey: e.target.value },
+                  })
+                }
+                className="flex h-8 w-full rounded-lg border bg-background px-2.5 font-mono text-xs"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Save Button */}
         <div className="flex justify-end">
           <button
             type="submit"
             disabled={saving}
-            className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-5 font-semibold text-white hover:bg-brand-500 disabled:opacity-50"
+            className="inline-flex h-10 items-center gap-2 rounded-xl bg-brand-600 px-6 font-semibold text-white hover:bg-brand-500 disabled:opacity-50 shadow-sm"
           >
-            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-            Save AI Provider Configuration
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Save AI Gateway &amp; Routing Matrix
           </button>
         </div>
       </form>

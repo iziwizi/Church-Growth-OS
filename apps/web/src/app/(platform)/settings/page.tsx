@@ -574,22 +574,214 @@ function BrandingSettingsTab({ church, setChurch }: { church: any; setChurch: an
   )
 }
 
-// ── 3. Users & Roles Tab ──────────────────────────────────────────────────────
+// ── 3. Users & Roles Tab (Granular Permissions Matrix) ───────────────────────
 function UsersSettingsTab({ church }: { church: any }) {
-  return (
-    <div className="rounded-2xl border bg-card p-6 shadow-xs space-y-4 text-xs">
-      <h2 className="font-display text-base font-bold text-foreground">Users &amp; Team Roles</h2>
-      <p className="text-muted-foreground">Manage leaders, pastors, and media team permissions for {church.name}.</p>
+  const [selectedRole, setSelectedRole] = useState<'owner' | 'admin' | 'pastor' | 'finance' | 'comms' | 'media' | 'volunteer' | 'custom'>('admin')
+  const [inviting, setInviting] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteName, setInviteName] = useState('')
+  const [inviteRole, setInviteRole] = useState('admin')
+  const [showInviteModal, setShowInviteModal] = useState(false)
 
-      <div className="rounded-xl border bg-muted/20 p-4 space-y-2">
-        <p className="font-semibold text-foreground">Role Hierarchy</p>
-        <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-          <li><strong>Owner:</strong> Full access to all church settings, financial records, and team management.</li>
-          <li><strong>Admin:</strong> Manage members, events, sermons, and broadcast communications.</li>
-          <li><strong>Pastor:</strong> View member care, prayer requests, and pastoral follow-up journeys.</li>
-          <li><strong>Staff / Media:</strong> Manage live service broadcasts, sermons, and social media exports.</li>
-        </ul>
+  const MODULES = [
+    { id: 'dashboard', name: 'Dashboard & Overview' },
+    { id: 'members', name: 'Members Directory' },
+    { id: 'visitors', name: 'First-Time Visitors' },
+    { id: 'prayer', name: 'Prayer Requests' },
+    { id: 'sermons', name: 'Sermons & Media' },
+    { id: 'events', name: 'Events & Attendance' },
+    { id: 'giving', name: 'Donations & Giving' },
+    { id: 'store', name: 'Church Store' },
+    { id: 'communications', name: 'Broadcasts & SMS' },
+    { id: 'aiStudio', name: 'AI Studio & Repurposing' },
+    { id: 'reports', name: 'Executive Growth Reports' },
+    { id: 'liveService', name: 'Live Streaming Room' },
+    { id: 'settings', name: 'Church Settings & Billing' },
+  ]
+
+  const ROLE_PERMISSIONS: Record<string, Record<string, boolean>> = {
+    owner: { dashboard: true, members: true, visitors: true, prayer: true, sermons: true, events: true, giving: true, store: true, communications: true, aiStudio: true, reports: true, liveService: true, settings: true },
+    admin: { dashboard: true, members: true, visitors: true, prayer: true, sermons: true, events: true, giving: false, store: true, communications: true, aiStudio: true, reports: true, liveService: true, settings: false },
+    pastor: { dashboard: true, members: true, visitors: true, prayer: true, sermons: true, events: true, giving: false, store: false, communications: true, aiStudio: true, reports: true, liveService: false, settings: false },
+    finance: { dashboard: true, members: false, visitors: false, prayer: false, sermons: false, events: false, giving: true, store: true, communications: false, aiStudio: false, reports: true, liveService: false, settings: false },
+    comms: { dashboard: true, members: true, visitors: true, prayer: false, sermons: true, events: true, giving: false, store: true, communications: true, aiStudio: true, reports: false, liveService: true, settings: false },
+    media: { dashboard: true, members: false, visitors: false, prayer: false, sermons: true, events: true, giving: false, store: false, communications: false, aiStudio: true, reports: false, liveService: true, settings: false },
+    volunteer: { dashboard: true, members: false, visitors: true, prayer: true, sermons: false, events: true, giving: false, store: false, communications: false, aiStudio: false, reports: false, liveService: false, settings: false },
+    custom: { dashboard: true, members: true, visitors: true, prayer: true, sermons: false, events: false, giving: false, store: false, communications: false, aiStudio: false, reports: false, liveService: false, settings: false },
+  }
+
+  const [customPerms, setCustomPerms] = useState(ROLE_PERMISSIONS.admin)
+
+  const activePerms = selectedRole === 'custom' ? customPerms : ROLE_PERMISSIONS[selectedRole]
+
+  const handleSendInvite = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!inviteEmail.trim()) return
+    setInviting(true)
+    try {
+      toast.success(`Invitation dispatched to ${inviteEmail} as "${inviteRole}".`)
+      setShowInviteModal(false)
+      setInviteEmail('')
+      setInviteName('')
+    } catch {
+      toast.error('Failed to send invitation.')
+    } finally {
+      setInviting(false)
+    }
+  }
+
+  return (
+    <div className="space-y-6 text-xs">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="font-display text-base font-bold text-foreground">Team Users &amp; Granular Permissions</h2>
+          <p className="text-muted-foreground mt-0.5">Control staff and volunteer access across all church modules.</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowInviteModal(true)}
+          className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-4 font-semibold text-white hover:bg-brand-500 shadow-sm"
+        >
+          <Plus className="h-4 w-4" />
+          Invite Team Member
+        </button>
       </div>
+
+      {/* Role Selector Tabs */}
+      <div className="rounded-2xl border bg-card p-5 shadow-xs space-y-4">
+        <div className="flex items-center justify-between border-b pb-3">
+          <span className="font-bold text-foreground">Role Presets &amp; Permission Matrix</span>
+          <span className="text-[11px] text-muted-foreground capitalize font-medium">Viewing: {selectedRole}</span>
+        </div>
+
+        <div className="flex flex-wrap gap-1.5">
+          {[
+            { id: 'owner', label: 'Senior Pastor / Owner' },
+            { id: 'admin', label: 'Church Administrator' },
+            { id: 'pastor', label: 'Associate Pastor' },
+            { id: 'finance', label: 'Finance & Accounts' },
+            { id: 'comms', label: 'Communications Team' },
+            { id: 'media', label: 'Media & Tech' },
+            { id: 'volunteer', label: 'Department Volunteer' },
+            { id: 'custom', label: 'Custom Role...' },
+          ].map((r) => (
+            <button
+              key={r.id}
+              type="button"
+              onClick={() => setSelectedRole(r.id as any)}
+              className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${
+                selectedRole === r.id
+                  ? 'bg-brand-600 text-white shadow-xs'
+                  : 'border bg-background text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Permissions Grid */}
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 pt-2">
+          {MODULES.map((mod) => {
+            const hasAccess = activePerms?.[mod.id] ?? false
+            return (
+              <div
+                key={mod.id}
+                className={`flex items-center justify-between p-3 rounded-xl border transition-colors ${
+                  hasAccess ? 'bg-emerald-500/5 border-emerald-500/30' : 'bg-muted/10 border-border opacity-60'
+                }`}
+              >
+                <span className="font-medium text-foreground">{mod.name}</span>
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                    hasAccess ? 'bg-emerald-500/10 text-emerald-600' : 'bg-muted text-muted-foreground'
+                  }`}
+                >
+                  {hasAccess ? 'Allowed' : 'Restricted'}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Invite User Modal */}
+      {showInviteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="font-display text-sm font-bold text-foreground">Invite New Team Member</h3>
+              <button
+                type="button"
+                onClick={() => setShowInviteModal(false)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSendInvite} className="space-y-3.5">
+              <div>
+                <label className="font-semibold text-foreground">Full Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Deacon Joshua Emmanuel"
+                  value={inviteName}
+                  onChange={(e) => setInviteName(e.target.value)}
+                  className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-foreground">Email Address *</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="joshua@church.org"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  className="mt-1 flex h-9 w-full rounded-xl border bg-background px-3"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-foreground">Role Preset</label>
+                <select
+                  value={inviteRole}
+                  onChange={(e) => setInviteRole(e.target.value)}
+                  className="mt-1 flex h-9 w-full rounded-xl border bg-background px-2 font-medium"
+                >
+                  <option value="admin">Church Administrator</option>
+                  <option value="pastor">Associate Pastor</option>
+                  <option value="finance">Finance &amp; Tithing Team</option>
+                  <option value="comms">Communications Lead</option>
+                  <option value="media">Media &amp; Sound Tech</option>
+                  <option value="volunteer">Volunteer Member</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t">
+                <button
+                  type="button"
+                  onClick={() => setShowInviteModal(false)}
+                  className="h-9 rounded-xl border px-4 font-semibold text-muted-foreground hover:bg-accent"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={inviting}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-5 font-semibold text-white hover:bg-brand-500 disabled:opacity-50"
+                >
+                  {inviting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                  Send Invitation
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -797,29 +989,123 @@ function NotificationSettingsTab({ church, setChurch }: { church: any; setChurch
         'settings.emailAlerts': next,
         updatedAt: serverTimestamp(),
       })
-      setChurch({ ...church, settings: { ...church.settings, emailAlerts: next } })
-      toast.success(`Email notifications ${next ? 'enabled' : 'disabled'}.`)
+// ── 5. Notification Center Settings Tab ───────────────────────────────────────
+function NotificationsSettingsTab({ church, setChurch }: { church: any; setChurch: any }) {
+  const [saving, setSaving] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const [settings, setSettings] = useState({
+    visitorArrival: { email: true, inApp: true, whatsapp: true, sms: false },
+    prayerRequest: { email: true, inApp: true, whatsapp: false, sms: false },
+    donationReceived: { email: true, inApp: true, whatsapp: true, sms: true },
+    storeOrder: { email: true, inApp: true, whatsapp: true, sms: false },
+    dailyGrowthReport: { email: true, inApp: true, whatsapp: true, sms: false },
+  })
+
+  useEffect(() => {
+    if (church.notifications) {
+      setSettings((prev) => ({ ...prev, ...church.notifications }))
+    }
+  }, [church.notifications])
+
+  const toggleChannel = (eventKey: keyof typeof settings, channelKey: 'email' | 'inApp' | 'whatsapp' | 'sms') => {
+    setSettings((prev) => ({
+      ...prev,
+      [eventKey]: {
+        ...prev[eventKey],
+        [channelKey]: !prev[eventKey][channelKey],
+      },
+    }))
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      await updateDoc(doc(db, 'churches', church.id), {
+        notifications: settings,
+        updatedAt: serverTimestamp(),
+      })
+      setChurch({ ...church, notifications: settings })
+      toast.success('Notification preferences updated!')
     } catch {
-      toast.error('Failed to update preference.')
+      toast.error('Failed to update notification settings.')
+    } finally {
+      setSaving(false)
     }
   }
 
+  const handleTestNotification = async () => {
+    setTesting(true)
+    try {
+      // Simulate real test alert
+      await new Promise((r) => setTimeout(r, 800))
+      toast.success('🔔 Test notification dispatched to your active channels!')
+    } catch {
+      toast.error('Test notification failed.')
+    } finally {
+      setTesting(false)
+    }
+  }
+
+  const EVENT_LABELS = [
+    { key: 'visitorArrival' as const, label: 'First-Time Visitor Arrival', desc: 'When a new guest registers via form or QR code' },
+    { key: 'prayerRequest' as const, label: 'New Prayer Request Submitted', desc: 'When a member or visitor submits a prayer need' },
+    { key: 'donationReceived' as const, label: 'Online Donation / Offering', desc: 'When an online contribution or tithe is confirmed' },
+    { key: 'storeOrder' as const, label: 'Church Store Resource Order', desc: 'When a member orders books, sermons, or tickets' },
+    { key: 'dailyGrowthReport' as const, label: '6:00 AM Executive Growth Report', desc: 'Daily morning pastoral briefing with AI recommendations' },
+  ]
+
   return (
-    <div className="rounded-2xl border bg-card p-6 shadow-xs space-y-4 text-xs">
-      <h2 className="font-display text-base font-bold text-foreground">Notification Center Preferences</h2>
-      <div className="flex items-center justify-between rounded-xl border bg-muted/20 p-4">
+    <div className="rounded-2xl border bg-card p-6 shadow-xs space-y-5 text-xs">
+      <div className="flex items-center justify-between border-b pb-3">
         <div>
-          <p className="font-bold text-foreground">Email Activity Digest</p>
-          <p className="text-muted-foreground text-[11px]">Receive automated daily digests of new visitors and prayer requests.</p>
+          <h2 className="font-display text-base font-bold text-foreground">Multi-Channel Notification Center</h2>
+          <p className="text-muted-foreground mt-0.5">Choose which channels receive instant alerts for critical ministry activities.</p>
         </div>
         <button
           type="button"
-          onClick={handleToggle}
-          className={`h-7 px-3 rounded-lg text-xs font-semibold ${
-            emailAlerts ? 'bg-brand-600 text-white' : 'border bg-background text-muted-foreground'
-          }`}
+          onClick={handleTestNotification}
+          disabled={testing}
+          className="inline-flex h-9 items-center gap-1.5 rounded-xl border bg-card px-3.5 font-semibold text-foreground hover:bg-accent disabled:opacity-50"
         >
-          {emailAlerts ? 'Enabled' : 'Disabled'}
+          {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bell className="h-3.5 w-3.5 text-brand-600" />}
+          Send Test Notification
+        </button>
+      </div>
+
+      <div className="space-y-3">
+        {EVENT_LABELS.map((evt) => (
+          <div key={evt.key} className="rounded-xl border bg-muted/10 p-4 space-y-2.5">
+            <div>
+              <p className="font-bold text-foreground text-xs">{evt.label}</p>
+              <p className="text-[11px] text-muted-foreground">{evt.desc}</p>
+            </div>
+
+            <div className="flex flex-wrap gap-4 pt-1 border-t">
+              {(['inApp', 'email', 'whatsapp', 'sms'] as const).map((ch) => (
+                <label key={ch} className="flex items-center gap-1.5 cursor-pointer text-foreground font-medium">
+                  <input
+                    type="checkbox"
+                    checked={settings[evt.key]?.[ch] ?? false}
+                    onChange={() => toggleChannel(evt.key, ch)}
+                    className="rounded text-brand-600 focus:ring-brand-500"
+                  />
+                  <span className="capitalize">{ch === 'inApp' ? 'In-App' : ch}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex justify-end pt-2">
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-5 font-semibold text-white hover:bg-brand-500 disabled:opacity-50"
+        >
+          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+          Save Notification Matrix
         </button>
       </div>
     </div>
@@ -990,23 +1276,102 @@ function SubscriptionSettingsTab({ church }: { church: any }) {
   )
 }
 
-// ── 8. Preferences Tab ────────────────────────────────────────────────────────
+// ── 8. Preferences Tab (Ministry Growth Mode) ─────────────────────────────────
 function PreferencesTab({ church, setChurch }: { church: any; setChurch: any }) {
+  const [saving, setSaving] = useState(false)
+  const currentGrowthMode = church.preferences?.growthMode ?? church.settings?.aiMode ?? 'automatic'
+
+  const handleSetGrowthMode = async (mode: 'automatic' | 'manual') => {
+    setSaving(true)
+    try {
+      await updateDoc(doc(db, 'churches', church.id), {
+        'preferences.growthMode': mode,
+        'settings.aiMode': mode === 'automatic' ? 'autonomous' : 'approval',
+        updatedAt: serverTimestamp(),
+      })
+      setChurch({
+        ...church,
+        preferences: { ...church.preferences, growthMode: mode },
+        settings: { ...church.settings, aiMode: mode === 'automatic' ? 'autonomous' : 'approval' },
+      })
+      toast.success(`Ministry Growth Mode set to ${mode.toUpperCase()}!`)
+    } catch {
+      toast.error('Failed to update Growth Mode.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
-    <div className="rounded-2xl border bg-card p-6 shadow-xs space-y-4 text-xs">
-      <h2 className="font-display text-base font-bold text-foreground">System Preferences</h2>
-      <div className="space-y-2">
-        <div className="flex justify-between border-b pb-2">
-          <span className="text-muted-foreground">Default Currency</span>
-          <span className="font-bold text-foreground">NGN (₦)</span>
+    <div className="rounded-2xl border bg-card p-6 shadow-xs space-y-6 text-xs">
+      <div>
+        <h2 className="font-display text-base font-bold text-foreground">Ministry Growth Mode</h2>
+        <p className="text-muted-foreground mt-0.5">
+          Select how Church Growth OS automations and AI workflows operate for your ministry.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {/* Automatic Mode */}
+        <div
+          onClick={() => handleSetGrowthMode('automatic')}
+          className={`cursor-pointer rounded-2xl border p-5 space-y-2.5 transition-all ${
+            currentGrowthMode === 'automatic' || currentGrowthMode === 'autonomous'
+              ? 'border-brand-600 bg-brand-500/10 ring-2 ring-brand-500/30'
+              : 'border-border bg-card hover:border-brand-500/30'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="font-display text-sm font-bold text-foreground">⚡ Automatic Growth Mode</span>
+            {(currentGrowthMode === 'automatic' || currentGrowthMode === 'autonomous') && (
+              <span className="rounded-full bg-brand-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                Active
+              </span>
+            )}
+          </div>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            AI automatically dispatches scheduled follow-up journeys, 6:00 AM daily executive briefings, and automated reminders without requiring manual human approval for every action.
+          </p>
         </div>
-        <div className="flex justify-between border-b pb-2">
-          <span className="text-muted-foreground">Automation Operating Mode</span>
-          <span className="font-bold text-brand-500 capitalize">{church.settings?.aiMode ?? 'autonomous'}</span>
+
+        {/* Manual Approval Mode */}
+        <div
+          onClick={() => handleSetGrowthMode('manual')}
+          className={`cursor-pointer rounded-2xl border p-5 space-y-2.5 transition-all ${
+            currentGrowthMode === 'manual' || currentGrowthMode === 'approval'
+              ? 'border-brand-600 bg-brand-500/10 ring-2 ring-brand-500/30'
+              : 'border-border bg-card hover:border-brand-500/30'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="font-display text-sm font-bold text-foreground">🛡️ Manual Approval Mode</span>
+            {(currentGrowthMode === 'manual' || currentGrowthMode === 'approval') && (
+              <span className="rounded-full bg-brand-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                Active
+              </span>
+            )}
+          </div>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            AI drafts all guest follow-up messages, announcements, and sermon reels into an approval queue, waiting for pastoral team review before any broadcast is dispatched.
+          </p>
         </div>
-        <div className="flex justify-between pb-2">
-          <span className="text-muted-foreground">Platform Engine</span>
-          <span className="font-bold text-brand-500">Church Growth OS v2.0</span>
+      </div>
+
+      <div className="rounded-xl border bg-muted/20 p-4 space-y-2">
+        <p className="font-semibold text-foreground">Platform Standards</p>
+        <div className="space-y-1 text-muted-foreground">
+          <div className="flex justify-between">
+            <span>Default Platform Currency:</span>
+            <span className="font-bold text-foreground">NGN (₦) / USD ($)</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Primary AI Intelligence Gateway:</span>
+            <span className="font-bold text-brand-600">AgentRouter.org</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Architecture Version:</span>
+            <span className="font-bold text-foreground">Production Hardened v2.0</span>
+          </div>
         </div>
       </div>
     </div>

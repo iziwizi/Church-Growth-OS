@@ -4,8 +4,17 @@ import { verifySuperAdmin } from '@/lib/server/admin-guard'
 import { FieldValue } from 'firebase-admin/firestore'
 
 /**
- * GET /api/admin/ai-providers - Returns canonical AI provider settings with masked keys
- * POST /api/admin/ai-providers - Saves canonical AI provider configuration to system/infrastructure
+ * Mask secret string showing first 6 and last 4 characters.
+ */
+function maskSecret(secret?: string): string {
+  if (!secret) return ''
+  if (secret.length <= 8) return '••••••••'
+  return `${secret.substring(0, 6)}••••••••${secret.substring(secret.length - 4)}`
+}
+
+/**
+ * GET /api/admin/ai-providers
+ * Returns canonical AI Gateway (AgentRouter) & Direct Providers configuration.
  */
 export async function GET(req: NextRequest) {
   const authCheck = await verifySuperAdmin(req)
@@ -17,29 +26,53 @@ export async function GET(req: NextRequest) {
     const docSnap = await adminDb.collection('system').doc('infrastructure').get()
     const data = docSnap.exists ? docSnap.data() : {}
 
-    const openrouterKey = data?.openrouterKey || data?.openrouterApiKey || process.env.OPENROUTER_API_KEY || ''
-    const maskedOpenRouter = openrouterKey
-      ? openrouterKey.length > 8
-        ? `${openrouterKey.substring(0, 7)}••••••••${openrouterKey.substring(openrouterKey.length - 4)}`
-        : '••••••••'
-      : ''
+    const agentrouterKey =
+      data?.agentrouterKey ||
+      data?.agentRouterKey ||
+      data?.agentrouterApiKey ||
+      data?.openrouterKey ||
+      data?.openrouterApiKey ||
+      process.env.AGENTROUTER_API_KEY ||
+      ''
 
     const config = {
-      provider: data?.aiProvider || 'openrouter',
-      openrouterKey: maskedOpenRouter,
-      hasKey: !!openrouterKey,
-      defaultModel: data?.aiDefaultModel || data?.primaryModel || 'anthropic/claude-3.5-sonnet',
-      fallbackModel: data?.aiFallbackModel || data?.fallbackModel || 'openai/gpt-4o-mini',
+      // Primary AI Gateway: AgentRouter
+      agentrouterKey: maskSecret(agentrouterKey),
+      hasAgentRouterKey: !!agentrouterKey,
+      agentrouterBaseUrl: data?.agentrouterBaseUrl || 'https://co.agentrouter.org/v1',
+      agentrouterProtocol: data?.agentrouterProtocol || 'openai',
+      primaryModel: data?.aiDefaultModel || data?.primaryModel || 'claude-3-5-sonnet-20241022',
+      fallbackModel: data?.aiFallbackModel || data?.fallbackModel || 'gpt-4o-mini',
       aiMode: data?.aiDefaultMode || 'autonomous',
       enabled: data?.aiEnabled ?? true,
-      maxTokens: data?.aiMaxTokens || 4096,
-      temperature: data?.aiTemperature || 0.7,
+      lastTested: data?.agentrouterLastTested ? data.agentrouterLastTested.toDate?.()?.toISOString() : null,
+      status: data?.agentrouterStatus || (agentrouterKey ? 'configured' : 'unconfigured'),
+      latencyMs: data?.agentrouterLatencyMs || null,
+
+      // Task-level model routing matrix
       taskRouting: data?.taskRouting || {
-        CONTENT_SUMMARY: 'openai/gpt-4o-mini',
-        VISITOR_FOLLOW_UP: 'anthropic/claude-3.5-sonnet',
-        EMAIL_WRITING: 'anthropic/claude-3.5-sonnet',
-        WHATSAPP_WRITING: 'openai/gpt-4o-mini',
-        SERMON_SUMMARY: 'anthropic/claude-3.5-sonnet',
+        VISITOR_FOLLOW_UP: 'claude-3-5-sonnet-20241022',
+        SERMON_SUMMARY: 'claude-3-5-sonnet-20241022',
+        EMAIL_WRITING: 'claude-3-5-sonnet-20241022',
+        WHATSAPP_WRITING: 'gpt-4o-mini',
+        CONTENT_SUMMARY: 'gpt-4o-mini',
+        DAILY_REPORT: 'claude-3-5-sonnet-20241022',
+        STRATEGIC_ANALYSIS: 'claude-3-5-sonnet-20241022',
+        PRAYER_DEVOTIONAL: 'claude-3-5-sonnet-20241022',
+        EVENT_PROMO: 'gpt-4o-mini',
+        STORE_PROMOTION: 'gpt-4o-mini',
+      },
+
+      // Direct Providers (Optional)
+      directProviders: {
+        openaiKey: maskSecret(data?.openaiKey || process.env.OPENAI_API_KEY),
+        hasOpenaiKey: !!(data?.openaiKey || process.env.OPENAI_API_KEY),
+        anthropicKey: maskSecret(data?.claudeKey || data?.anthropicKey || process.env.ANTHROPIC_API_KEY),
+        hasAnthropicKey: !!(data?.claudeKey || data?.anthropicKey || process.env.ANTHROPIC_API_KEY),
+        geminiKey: maskSecret(data?.geminiKey || process.env.GEMINI_API_KEY),
+        hasGeminiKey: !!(data?.geminiKey || process.env.GEMINI_API_KEY),
+        deepseekKey: maskSecret(data?.deepseekKey || process.env.DEEPSEEK_API_KEY),
+        hasDeepseekKey: !!(data?.deepseekKey || process.env.DEEPSEEK_API_KEY),
       },
     }
 
@@ -50,6 +83,10 @@ export async function GET(req: NextRequest) {
   }
 }
 
+/**
+ * POST /api/admin/ai-providers
+ * Saves canonical AgentRouter & Direct Providers settings to system/infrastructure.
+ */
 export async function POST(req: NextRequest) {
   const authCheck = await verifySuperAdmin(req)
   if (!authCheck.authorized) {
@@ -58,20 +95,32 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json()
-    const { openrouterKey, defaultModel, fallbackModel, aiMode, enabled, taskRouting } = body
+    const {
+      agentrouterKey,
+      agentrouterBaseUrl,
+      agentrouterProtocol,
+      primaryModel,
+      fallbackModel,
+      aiMode,
+      enabled,
+      taskRouting,
+      directProviders,
+    } = body
 
     const existingDoc = await adminDb.collection('system').doc('infrastructure').get()
     const existingData = existingDoc.exists ? existingDoc.data() : {}
 
-    const selectedDefaultModel = defaultModel || existingData?.aiDefaultModel || 'anthropic/claude-3.5-sonnet'
-    const selectedFallbackModel = fallbackModel || existingData?.aiFallbackModel || 'openai/gpt-4o-mini'
+    const selectedPrimaryModel = primaryModel || existingData?.aiDefaultModel || 'claude-3-5-sonnet-20241022'
+    const selectedFallbackModel = fallbackModel || existingData?.aiFallbackModel || 'gpt-4o-mini'
 
     const updatePayload: Record<string, any> = {
-      aiProvider: 'openrouter',
-      aiDefaultModel: selectedDefaultModel,
-      primaryModel: selectedDefaultModel, // Alias for backward compatibility
+      aiProvider: 'agentrouter',
+      agentrouterBaseUrl: agentrouterBaseUrl || 'https://co.agentrouter.org/v1',
+      agentrouterProtocol: agentrouterProtocol || 'openai',
+      aiDefaultModel: selectedPrimaryModel,
+      primaryModel: selectedPrimaryModel,
       aiFallbackModel: selectedFallbackModel,
-      fallbackModel: selectedFallbackModel, // Alias for backward compatibility
+      fallbackModel: selectedFallbackModel,
       aiDefaultMode: aiMode || 'autonomous',
       aiEnabled: enabled !== undefined ? enabled : true,
       updatedAt: FieldValue.serverTimestamp(),
@@ -81,17 +130,39 @@ export async function POST(req: NextRequest) {
       updatePayload.taskRouting = taskRouting
     }
 
-    if (openrouterKey && typeof openrouterKey === 'string' && !openrouterKey.includes('••••')) {
-      const cleanKey = openrouterKey.trim()
+    // Save AgentRouter key if updated
+    if (agentrouterKey && typeof agentrouterKey === 'string' && !agentrouterKey.includes('••••')) {
+      const cleanKey = agentrouterKey.trim()
+      updatePayload.agentrouterKey = cleanKey
+      updatePayload.agentRouterKey = cleanKey
+      updatePayload.agentrouterApiKey = cleanKey
+      // Backward compatibility mirror
       updatePayload.openrouterKey = cleanKey
-      updatePayload.openrouterApiKey = cleanKey // Alias for backward compatibility
+      updatePayload.openrouterApiKey = cleanKey
+    }
+
+    // Save Direct Providers if provided
+    if (directProviders) {
+      if (directProviders.openaiKey && !directProviders.openaiKey.includes('••••')) {
+        updatePayload.openaiKey = directProviders.openaiKey.trim()
+      }
+      if (directProviders.anthropicKey && !directProviders.anthropicKey.includes('••••')) {
+        updatePayload.claudeKey = directProviders.anthropicKey.trim()
+        updatePayload.anthropicKey = directProviders.anthropicKey.trim()
+      }
+      if (directProviders.geminiKey && !directProviders.geminiKey.includes('••••')) {
+        updatePayload.geminiKey = directProviders.geminiKey.trim()
+      }
+      if (directProviders.deepseekKey && !directProviders.deepseekKey.includes('••••')) {
+        updatePayload.deepseekKey = directProviders.deepseekKey.trim()
+      }
     }
 
     await adminDb.collection('system').doc('infrastructure').set(updatePayload, { merge: true })
 
-    return NextResponse.json({ success: true, message: 'Canonical OpenRouter AI settings saved successfully' })
+    return NextResponse.json({ success: true, message: 'AgentRouter & AI Gateway configuration saved successfully.' })
   } catch (err: any) {
     console.error('[API_ADMIN_AI_PROVIDERS] POST error:', err)
-    return NextResponse.json({ error: err?.message ?? 'Failed to save AI settings' }, { status: 500 })
+    return NextResponse.json({ error: err?.message ?? 'Failed to save AI configuration' }, { status: 500 })
   }
 }

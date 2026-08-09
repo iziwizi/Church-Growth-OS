@@ -23,6 +23,7 @@ import {
   ChevronRight,
   Bot,
   HelpCircle,
+  ShoppingBag,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useUIStore, useChurchStore } from '@/store'
@@ -72,6 +73,11 @@ const NAV_ITEMS = [
     label: 'Donations',
     href: '/donations',
     icon: DollarSign,
+  },
+  {
+    label: 'Church Store',
+    href: '/store',
+    icon: ShoppingBag,
   },
   {
     label: 'Partnerships',
