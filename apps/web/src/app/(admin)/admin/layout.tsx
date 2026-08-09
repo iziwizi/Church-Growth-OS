@@ -36,6 +36,7 @@ import {
   ChevronRight,
   Loader2,
   CheckCircle2,
+  Activity,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { logOut } from '@/lib/firebase/auth'
@@ -43,10 +44,10 @@ import { logOut } from '@/lib/firebase/auth'
 const ADMIN_NAV_ITEMS = [
   { group: 'Core Management', items: [
     { label: 'Dashboard', href: '/admin', icon: BarChart3 },
-    { label: 'Church Tenants', href: '/admin/churches', icon: Building2 },
-    { label: 'Platform Users', href: '/admin/users', icon: Users },
+    { label: 'Churches / Tenants', href: '/admin/churches', icon: Building2 },
+    { label: 'Users & Staff', href: '/admin/users', icon: Users },
   ]},
-  { group: 'Financial & Billing', items: [
+  { group: 'Revenue & Billing', items: [
     { label: 'Subscriptions', href: '/admin/subscriptions', icon: CreditCard },
     { label: 'Pricing Plans', href: '/admin/pricing-plans', icon: Tag },
     { label: 'Payments', href: '/admin/payments', icon: Receipt },
@@ -62,6 +63,7 @@ const ADMIN_NAV_ITEMS = [
   ]},
   { group: 'Operations & Platform', items: [
     { label: 'Platform Analytics', href: '/admin/analytics', icon: BarChart3 },
+    { label: 'Platform Health', href: '/admin/platform-health', icon: Activity },
     { label: 'Support Desk', href: '/admin/support', icon: HelpCircle },
     { label: 'Announcements', href: '/admin/announcements', icon: Megaphone },
     { label: 'Audit Logs', href: '/admin/audit-logs', icon: FileText },

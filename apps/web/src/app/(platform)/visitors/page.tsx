@@ -15,6 +15,7 @@ import {
   UserCheck,
   X,
   RefreshCw,
+  Download,
 } from 'lucide-react'
 import {
   collection,
@@ -29,7 +30,7 @@ import {
 import { db } from '@/lib/firebase/client'
 import { useChurchStore } from '@/store'
 import { toast } from 'sonner'
-import VisitorImportWizard from './ImportWizard'
+import VisitorImportWizard, { downloadVisitorSampleTemplate } from './ImportWizard'
 
 export default function VisitorsPage() {
   const { church } = useChurchStore()
@@ -140,6 +141,15 @@ export default function VisitorsPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={downloadVisitorSampleTemplate}
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl border bg-card px-3 font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            title="Download CSV sample spreadsheet template"
+          >
+            <Download className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Sample Template</span>
+          </button>
           <button
             type="button"
             onClick={() => setShowImportWizard(true)}

@@ -69,7 +69,11 @@ export default function AdminEmailProvidersPage() {
   const handleTestConnection = async () => {
     setTesting(true)
     try {
-      const res = await fetch('/api/auth/test-email', { method: 'POST' })
+      const res = await fetch('/api/auth/test-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: testEmailAddress.trim() || 'mujteknify@gmail.com' }),
+      })
       const data = await res.json()
       if (res.ok && data.success) {
         toast.success(`✅ Resend API Connection Verified! (Verified domain: mujteknify.com)`)
@@ -93,7 +97,7 @@ export default function AdminEmailProvidersPage() {
       const res = await fetch('/api/auth/test-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipient: testEmailAddress.trim() }),
+        body: JSON.stringify({ to: testEmailAddress.trim() }),
       })
       const data = await res.json()
       if (res.ok && data.success) {

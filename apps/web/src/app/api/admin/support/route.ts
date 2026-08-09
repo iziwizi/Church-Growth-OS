@@ -58,6 +58,13 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'ticketId is required' }, { status: 400 })
     }
 
+    const ticketRef = adminDb.collection('platformSupportTickets').doc(ticketId)
+    const ticketDoc = await ticketRef.get()
+    if (!ticketDoc.exists) {
+      return NextResponse.json({ error: 'Ticket not found' }, { status: 404 })
+    }
+
+    const ticketData = ticketDoc.data()!
     const updatePayload: Record<string, any> = {
       updatedAt: FieldValue.serverTimestamp(),
     }
@@ -72,9 +79,55 @@ export async function PATCH(req: NextRequest) {
         sender: 'Super Admin',
         createdAt: new Date().toISOString(),
       })
+
+      // 1. Notify church tenant in Firestore
+      if (ticketData.churchId) {
+        await adminDb
+          .collection('churches')
+          .doc(ticketData.churchId)
+          .collection('notifications')
+          .add({
+            type: 'SUPPORT_TICKET_REPLY',
+            title: `Support Ticket Update: ${ticketData.subject || 'Inquiry'}`,
+            message: `Super Admin replied: "${replyMessage.slice(0, 120)}..."`,
+            ticketId,
+            read: false,
+            createdAt: FieldValue.serverTimestamp(),
+          })
+          .catch(() => null)
+      }
+
+      // 2. Dispatch email notification via Resend if configured
+      const resendApiKey = process.env.RESEND_API_KEY
+      if (resendApiKey && ticketData.userEmail) {
+        const fromEmail = process.env.RESEND_FROM_EMAIL ?? 'noreply@mujteknify.com'
+        fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${resendApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: `Church Growth OS Support <${fromEmail}>`,
+            to: [ticketData.userEmail],
+            subject: `💬 Update on your support ticket: ${ticketData.subject || 'Support Ticket'}`,
+            html: `
+              <div style="font-family: sans-serif; padding: 24px; background: #0f0f10; color: #f4f4f5; border-radius: 12px;">
+                <h3 style="color: #6366f1;">Support Team Response</h3>
+                <p>Hello ${ticketData.churchName || 'Church Admin'},</p>
+                <p>A support specialist has responded to your ticket <strong>"${ticketData.subject}"</strong>:</p>
+                <blockquote style="border-left: 3px solid #6366f1; margin: 16px 0; padding-left: 12px; color: #e4e4e7;">
+                  ${replyMessage}
+                </blockquote>
+                <p style="font-size: 12px; color: #71717a;">Log in to your Church Growth OS dashboard to view the full thread.</p>
+              </div>
+            `,
+          }),
+        }).catch(() => null)
+      }
     }
 
-    await adminDb.collection('platformSupportTickets').doc(ticketId).update(updatePayload)
+    await ticketRef.update(updatePayload)
 
     return NextResponse.json({ success: true, message: 'Ticket updated successfully' })
   } catch (err: any) {

@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   AlertCircle,
   Tag,
+  Lock,
 } from 'lucide-react'
 import {
   collection,
@@ -32,6 +33,8 @@ import {
 import { db } from '@/lib/firebase/client'
 import { useChurchStore, useAuthStore } from '@/store'
 import { toast } from 'sonner'
+import { useFeatureAccess } from '@/hooks/useFeatureAccess'
+import { UpgradePlanModal } from '@/components/common/UpgradePlanModal'
 
 const TEMPLATE_PRESETS = [
   {
@@ -72,6 +75,24 @@ export default function CommunicationsPage() {
   const [sending, setSending] = useState(false)
   const [history, setHistory] = useState<any[]>([])
   const [loadingHistory, setLoadingHistory] = useState(true)
+
+  const { hasFeature, planName } = useFeatureAccess()
+  const hasSms = hasFeature('sms')
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  const [upgradeFeatureName, setUpgradeFeatureName] = useState('')
+  const [upgradeFeatureDesc, setUpgradeFeatureDesc] = useState('')
+
+  const handleSelectChannel = (chId: 'whatsapp' | 'email' | 'sms') => {
+    if (chId === 'sms' && !hasSms) {
+      setUpgradeFeatureName('Termii SMS Broadcast Gateway')
+      setUpgradeFeatureDesc(
+        'SMS text messaging requires a Starter, Growth, or Enterprise ministry plan with dedicated sender ID routing. Upgrade your plan to send SMS broadcasts.'
+      )
+      setShowUpgradeModal(true)
+      return
+    }
+    setChannel(chId)
+  }
 
   // WhatsApp Mode & SMS Sender ID
   const whatsappMode = church?.settings?.whatsappMode ?? 'shared'
@@ -225,14 +246,14 @@ export default function CommunicationsPage() {
               <h2 className="font-display text-sm font-bold text-foreground">Compose Message</h2>
               <div className="flex gap-1.5">
                 {[
-                  { id: 'whatsapp', label: 'WhatsApp', icon: Smartphone },
-                  { id: 'email', label: 'Email', icon: Mail },
-                  { id: 'sms', label: 'SMS', icon: MessageSquare },
+                  { id: 'whatsapp' as const, label: 'WhatsApp', icon: Smartphone, locked: false },
+                  { id: 'email' as const, label: 'Email', icon: Mail, locked: false },
+                  { id: 'sms' as const, label: 'SMS', icon: MessageSquare, locked: !hasSms },
                 ].map((ch) => (
                   <button
                     key={ch.id}
                     type="button"
-                    onClick={() => setChannel(ch.id as any)}
+                    onClick={() => handleSelectChannel(ch.id)}
                     className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${
                       channel === ch.id
                         ? ch.id === 'whatsapp'
@@ -240,11 +261,14 @@ export default function CommunicationsPage() {
                           : ch.id === 'email'
                           ? 'bg-brand-600 text-white'
                           : 'bg-purple-600 text-white'
+                        : ch.locked
+                        ? 'border bg-muted/20 text-muted-foreground opacity-75 hover:border-brand-500/40'
                         : 'border hover:bg-accent text-muted-foreground'
                     }`}
                   >
                     <ch.icon className="h-3.5 w-3.5" />
-                    {ch.label}
+                    <span>{ch.label}</span>
+                    {ch.locked && <Lock className="h-3 w-3 text-amber-500 ml-0.5" />}
                   </button>
                 ))}
               </div>
@@ -497,8 +521,15 @@ export default function CommunicationsPage() {
               </table>
             </div>
           )}
-        </div>
-      )}
+      {/* Dynamic Upgrade Plan Modal */}
+      <UpgradePlanModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        featureName={upgradeFeatureName}
+        featureDescription={upgradeFeatureDesc}
+        currentPlan={planName}
+        requiredPlan="Starter or Growth Plan"
+      />
     </div>
   )
 }

@@ -16,6 +16,7 @@ import {
   Calendar,
   Phone,
   Mail,
+  Download,
 } from 'lucide-react'
 import {
   collection,
@@ -146,6 +147,22 @@ const VISITOR_FIELDS = [
   { key: 'address', label: 'Home Address / City' },
   { key: 'notes', label: 'Pastoral Notes / Prayer Needs' },
 ]
+
+export const VISITOR_CSV_TEMPLATE = `Full Name,Email,Phone,Gender,Visit Date,Invited By,How Heard,Address,Notes
+Emmanuel Okeke,emmanuel.okeke@example.com,+2348011223344,Male,2026-08-02,Sister Grace,Instagram,Victoria Island Lagos,Interested in joining choir
+Sarah Williams,sarah.w@example.com,+2348022334455,Female,2026-08-02,Brother John,Friend,Lekki Phase 1 Lagos,First time visitor gave life to Christ
+Michael Adebayo,michael.a@example.com,+2348033445566,Male,2026-08-09,Walk-in,Google Search,Ikeja Lagos,Requested pastoral follow-up
+Blessing Nwosu,blessing.n@example.com,+2348044556677,Female,2026-08-09,Evangelism,Flyer,Surulere Lagos,New in town looking for church home`
+
+export function downloadVisitorSampleTemplate() {
+  const blob = new Blob([VISITOR_CSV_TEMPLATE], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'church-growth-visitors-sample-template.csv'
+  a.click()
+  URL.revokeObjectURL(url)
+}
 
 export default function VisitorImportWizard({ churchId, onClose, onImportComplete }: Props) {
   const [step, setStep] = useState<'upload' | 'mapping' | 'preview' | 'importing' | 'summary'>('upload')
@@ -456,6 +473,17 @@ export default function VisitorImportWizard({ churchId, onClose, onImportComplet
                   <p className="font-bold text-foreground text-sm">Choose a CSV or Spreadsheet file</p>
                   <p className="text-muted-foreground text-xs">Supports .csv, .tsv, comma-delimited export</p>
                 </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    downloadVisitorSampleTemplate()
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-xl border bg-card px-3.5 py-1.5 text-xs font-semibold text-foreground hover:bg-accent transition-colors shadow-2xs"
+                >
+                  <Download className="h-3.5 w-3.5 text-purple-600" />
+                  Download Sample Template (.CSV)
+                </button>
                 <input
                   ref={fileInputRef}
                   type="file"

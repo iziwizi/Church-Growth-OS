@@ -34,6 +34,8 @@ import {
   Send,
 } from 'lucide-react'
 import { sendPasswordReset } from '@/lib/firebase/auth'
+import { useFeatureAccess } from '@/hooks/useFeatureAccess'
+import { UpgradePlanModal } from '@/components/common/UpgradePlanModal'
 
 type SettingsTab =
   | 'profile'
@@ -128,7 +130,7 @@ function SettingsPageContent() {
         <div className="lg:col-span-3">
           {activeTab === 'profile' && <ProfileSettingsTab church={church} setChurch={setChurch} />}
           {activeTab === 'branding' && <BrandingSettingsTab church={church} setChurch={setChurch} />}
-          {activeTab === 'users' && <UsersSettingsTab church={church} />}
+          {activeTab === 'users' && <UsersSettingsTab church={church} setChurch={setChurch} />}
           {activeTab === 'social' && <SocialMediaSettingsTab church={church} setChurch={setChurch} />}
           {activeTab === 'notifications' && <NotificationsSettingsTab church={church} setChurch={setChurch} />}
           {activeTab === 'branches' && <BranchSettingsTab church={church} setChurch={setChurch} />}
@@ -577,13 +579,14 @@ function BrandingSettingsTab({ church, setChurch }: { church: any; setChurch: an
 }
 
 // ── 3. Users & Roles Tab (Granular Permissions Matrix) ───────────────────────
-function UsersSettingsTab({ church }: { church: any }) {
+function UsersSettingsTab({ church, setChurch }: { church: any; setChurch?: any }) {
   const [selectedRole, setSelectedRole] = useState<'owner' | 'admin' | 'pastor' | 'finance' | 'comms' | 'media' | 'volunteer' | 'custom'>('admin')
   const [inviting, setInviting] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteName, setInviteName] = useState('')
   const [inviteRole, setInviteRole] = useState('admin')
   const [showInviteModal, setShowInviteModal] = useState(false)
+  const [savingPermissions, setSavingPermissions] = useState(false)
 
   const MODULES = [
     { id: 'dashboard', name: 'Dashboard & Overview' },
@@ -601,7 +604,7 @@ function UsersSettingsTab({ church }: { church: any }) {
     { id: 'settings', name: 'Church Settings & Billing' },
   ]
 
-  const ROLE_PERMISSIONS: Record<string, Record<string, boolean>> = {
+  const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> = {
     owner: { dashboard: true, members: true, visitors: true, prayer: true, sermons: true, events: true, giving: true, store: true, communications: true, aiStudio: true, reports: true, liveService: true, settings: true },
     admin: { dashboard: true, members: true, visitors: true, prayer: true, sermons: true, events: true, giving: false, store: true, communications: true, aiStudio: true, reports: true, liveService: true, settings: false },
     pastor: { dashboard: true, members: true, visitors: true, prayer: true, sermons: true, events: true, giving: false, store: false, communications: true, aiStudio: true, reports: true, liveService: false, settings: false },
@@ -612,15 +615,62 @@ function UsersSettingsTab({ church }: { church: any }) {
     custom: { dashboard: true, members: true, visitors: true, prayer: true, sermons: false, events: false, giving: false, store: false, communications: false, aiStudio: false, reports: false, liveService: false, settings: false },
   }
 
-  const [customPerms, setCustomPerms] = useState(ROLE_PERMISSIONS.admin)
+  const [rolePermissions, setRolePermissions] = useState<Record<string, Record<string, boolean>>>(() => {
+    return church.rolePermissions || DEFAULT_ROLE_PERMISSIONS
+  })
 
-  const activePerms = selectedRole === 'custom' ? customPerms : ROLE_PERMISSIONS[selectedRole]
+  useEffect(() => {
+    if (church.rolePermissions) {
+      setRolePermissions(church.rolePermissions)
+    }
+  }, [church.rolePermissions])
+
+  const toggleModulePermission = (modId: string) => {
+    if (selectedRole === 'owner') {
+      toast.info('Senior Pastor / Owner has unconditional master access.')
+      return
+    }
+
+    setRolePermissions((prev) => {
+      const currentRolePerms = prev[selectedRole] || DEFAULT_ROLE_PERMISSIONS[selectedRole] || {}
+      return {
+        ...prev,
+        [selectedRole]: {
+          ...currentRolePerms,
+          [modId]: !currentRolePerms[modId],
+        },
+      }
+    })
+  }
+
+  const handleSavePermissions = async () => {
+    setSavingPermissions(true)
+    try {
+      await updateDoc(doc(db, 'churches', church.id), {
+        rolePermissions,
+        updatedAt: serverTimestamp(),
+      })
+      if (setChurch) setChurch({ ...church, rolePermissions })
+      toast.success(`Role permissions matrix saved successfully to Firestore!`)
+    } catch {
+      toast.error('Failed to save permissions.')
+    } finally {
+      setSavingPermissions(false)
+    }
+  }
 
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!inviteEmail.trim()) return
+    if (!inviteEmail.trim() || !inviteName.trim() || !church?.id) return
     setInviting(true)
     try {
+      await addDoc(collection(db, 'churches', church.id, 'teamMembers'), {
+        name: inviteName.trim(),
+        email: inviteEmail.trim().toLowerCase(),
+        role: inviteRole,
+        status: 'active',
+        invitedAt: serverTimestamp(),
+      })
       toast.success(`Invitation dispatched to ${inviteEmail} as "${inviteRole}".`)
       setShowInviteModal(false)
       setInviteEmail('')
@@ -632,28 +682,41 @@ function UsersSettingsTab({ church }: { church: any }) {
     }
   }
 
+  const currentRolePerms = rolePermissions[selectedRole] || DEFAULT_ROLE_PERMISSIONS[selectedRole] || {}
+
   return (
     <div className="space-y-6 text-xs">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="font-display text-base font-bold text-foreground">Team Users &amp; Granular Permissions</h2>
-          <p className="text-muted-foreground mt-0.5">Control staff and volunteer access across all church modules.</p>
+          <p className="text-muted-foreground mt-0.5">Control staff and volunteer access across all church modules with instant Firestore persistence.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowInviteModal(true)}
-          className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-4 font-semibold text-white hover:bg-brand-500 shadow-sm"
-        >
-          <Plus className="h-4 w-4" />
-          Invite Team Member
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleSavePermissions}
+            disabled={savingPermissions}
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-4 font-semibold text-white hover:bg-brand-500 disabled:opacity-50 shadow-xs"
+          >
+            {savingPermissions ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+            Save Permissions
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowInviteModal(true)}
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl border bg-card px-4 font-semibold text-foreground hover:bg-accent shadow-xs"
+          >
+            <Plus className="h-4 w-4" />
+            Invite Team Member
+          </button>
+        </div>
       </div>
 
       {/* Role Selector Tabs */}
       <div className="rounded-2xl border bg-card p-5 shadow-xs space-y-4">
         <div className="flex items-center justify-between border-b pb-3">
           <span className="font-bold text-foreground">Role Presets &amp; Permission Matrix</span>
-          <span className="text-[11px] text-muted-foreground capitalize font-medium">Viewing: {selectedRole}</span>
+          <span className="text-[11px] text-muted-foreground capitalize font-medium">Editing: {selectedRole}</span>
         </div>
 
         <div className="flex flex-wrap gap-1.5">
@@ -665,7 +728,7 @@ function UsersSettingsTab({ church }: { church: any }) {
             { id: 'comms', label: 'Communications Team' },
             { id: 'media', label: 'Media & Tech' },
             { id: 'volunteer', label: 'Department Volunteer' },
-            { id: 'custom', label: 'Custom Role...' },
+            { id: 'custom', label: 'Custom Staff Role' },
           ].map((r) => (
             <button
               key={r.id}
@@ -682,24 +745,38 @@ function UsersSettingsTab({ church }: { church: any }) {
           ))}
         </div>
 
-        {/* Permissions Grid */}
+        {/* Permissions Grid with Interactive Click Toggle */}
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 pt-2">
           {MODULES.map((mod) => {
-            const hasAccess = activePerms?.[mod.id] ?? false
+            const hasAccess = currentRolePerms[mod.id] ?? false
+            const isOwner = selectedRole === 'owner'
+
             return (
               <div
                 key={mod.id}
-                className={`flex items-center justify-between p-3 rounded-xl border transition-colors ${
+                onClick={() => !isOwner && toggleModulePermission(mod.id)}
+                className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                  isOwner
+                    ? 'bg-brand-500/5 border-brand-500/20 cursor-not-allowed'
+                    : 'cursor-pointer hover:border-brand-500/50'
+                } ${
                   hasAccess ? 'bg-emerald-500/5 border-emerald-500/30' : 'bg-muted/10 border-border opacity-60'
                 }`}
               >
-                <span className="font-medium text-foreground">{mod.name}</span>
+                <div>
+                  <span className="font-semibold text-foreground">{mod.name}</span>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {isOwner ? 'Master access' : 'Click to toggle access'}
+                  </p>
+                </div>
                 <span
-                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                    hasAccess ? 'bg-emerald-500/10 text-emerald-600' : 'bg-muted text-muted-foreground'
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold transition-all ${
+                    hasAccess
+                      ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                      : 'bg-muted text-muted-foreground border border-border'
                   }`}
                 >
-                  {hasAccess ? 'Allowed' : 'Restricted'}
+                  {hasAccess ? '✓ Allowed' : '✕ Restricted'}
                 </span>
               </div>
             )
@@ -983,6 +1060,18 @@ function SocialMediaSettingsTab({ church, setChurch }: { church: any; setChurch:
 function NotificationsSettingsTab({ church, setChurch }: { church: any; setChurch: any }) {
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
+  const { hasFeature, planName } = useFeatureAccess()
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  const [upgradeFeature, setUpgradeFeature] = useState('')
+  const [upgradeDesc, setUpgradeDesc] = useState('')
+
+  const channelPermissions = {
+    inApp: true,
+    email: hasFeature('email'),
+    whatsapp: hasFeature('whatsapp'),
+    sms: hasFeature('sms'),
+  }
+
   const [settings, setSettings] = useState({
     visitorArrival: { email: true, inApp: true, whatsapp: true, sms: false },
     prayerRequest: { email: true, inApp: true, whatsapp: false, sms: false },
@@ -998,6 +1087,20 @@ function NotificationsSettingsTab({ church, setChurch }: { church: any; setChurc
   }, [church.notifications])
 
   const toggleChannel = (eventKey: keyof typeof settings, channelKey: 'email' | 'inApp' | 'whatsapp' | 'sms') => {
+    if (!channelPermissions[channelKey]) {
+      const channelNames: Record<string, string> = {
+        email: 'Email Delivery Engine',
+        whatsapp: 'WhatsApp Meta Gateway',
+        sms: 'Termii SMS Gateway',
+      }
+      setUpgradeFeature(channelNames[channelKey] || channelKey)
+      setUpgradeDesc(
+        `Your current plan (${planName}) does not include ${channelNames[channelKey] || channelKey}. Upgrade your subscription to activate this notification channel.`
+      )
+      setShowUpgradeModal(true)
+      return
+    }
+
     setSettings((prev) => ({
       ...prev,
       [eventKey]: {
@@ -1010,11 +1113,20 @@ function NotificationsSettingsTab({ church, setChurch }: { church: any; setChurc
   const handleSave = async () => {
     setSaving(true)
     try {
+      // Sanitize payload: never persist unsupported channels as true
+      const sanitizedSettings = { ...settings }
+      Object.keys(sanitizedSettings).forEach((evt) => {
+        const k = evt as keyof typeof settings
+        if (!channelPermissions.email) sanitizedSettings[k].email = false
+        if (!channelPermissions.whatsapp) sanitizedSettings[k].whatsapp = false
+        if (!channelPermissions.sms) sanitizedSettings[k].sms = false
+      })
+
       await updateDoc(doc(db, 'churches', church.id), {
-        notifications: settings,
+        notifications: sanitizedSettings,
         updatedAt: serverTimestamp(),
       })
-      setChurch({ ...church, notifications: settings })
+      setChurch({ ...church, notifications: sanitizedSettings })
       toast.success('Notification preferences updated!')
     } catch {
       toast.error('Failed to update notification settings.')
@@ -1026,7 +1138,6 @@ function NotificationsSettingsTab({ church, setChurch }: { church: any; setChurc
   const handleTestNotification = async () => {
     setTesting(true)
     try {
-      // Simulate real test alert
       await new Promise((r) => setTimeout(r, 800))
       toast.success('🔔 Test notification dispatched to your active channels!')
     } catch {
@@ -1071,17 +1182,37 @@ function NotificationsSettingsTab({ church, setChurch }: { church: any; setChurc
             </div>
 
             <div className="flex flex-wrap gap-4 pt-1 border-t">
-              {(['inApp', 'email', 'whatsapp', 'sms'] as const).map((ch) => (
-                <label key={ch} className="flex items-center gap-1.5 cursor-pointer text-foreground font-medium">
-                  <input
-                    type="checkbox"
-                    checked={settings[evt.key]?.[ch] ?? false}
-                    onChange={() => toggleChannel(evt.key, ch)}
-                    className="rounded text-brand-600 focus:ring-brand-500"
-                  />
-                  <span className="capitalize">{ch === 'inApp' ? 'In-App' : ch}</span>
-                </label>
-              ))}
+              {(['inApp', 'email', 'whatsapp', 'sms'] as const).map((ch) => {
+                const isPermitted = channelPermissions[ch]
+                const isChecked = isPermitted && (settings[evt.key]?.[ch] ?? false)
+
+                return (
+                  <label
+                    key={ch}
+                    onClick={(e) => {
+                      if (!isPermitted) {
+                        e.preventDefault()
+                        toggleChannel(evt.key, ch)
+                      }
+                    }}
+                    className={`flex items-center gap-1.5 font-medium transition-all ${
+                      isPermitted
+                        ? 'cursor-pointer text-foreground'
+                        : 'cursor-pointer text-muted-foreground opacity-60'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      disabled={!isPermitted}
+                      checked={isChecked}
+                      onChange={() => toggleChannel(evt.key, ch)}
+                      className="rounded text-brand-600 focus:ring-brand-500 disabled:opacity-40"
+                    />
+                    <span className="capitalize">{ch === 'inApp' ? 'In-App' : ch}</span>
+                    {!isPermitted && <Lock className="h-3 w-3 text-amber-500 ml-0.5" />}
+                  </label>
+                )
+              })}
             </div>
           </div>
         ))}
@@ -1098,6 +1229,16 @@ function NotificationsSettingsTab({ church, setChurch }: { church: any; setChurc
           Save Notification Matrix
         </button>
       </div>
+
+      {/* Upgrade Plan Modal */}
+      <UpgradePlanModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        featureName={upgradeFeature}
+        featureDescription={upgradeDesc}
+        currentPlan={planName}
+        requiredPlan="Starter or Growth Plan"
+      />
     </div>
   )
 }
