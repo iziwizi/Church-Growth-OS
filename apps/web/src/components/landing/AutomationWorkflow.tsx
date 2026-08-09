@@ -69,7 +69,7 @@ export function AutomationWorkflow() {
         </div>
 
         {/* 5-Step Timeline Grid with Visual Connection */}
-        <div className="mt-16 grid grid-cols-1 md:grid-cols-5 gap-6 relative">
+        <div className="mt-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5 sm:gap-6 relative">
           {WORKFLOW_STEPS.map((item, i) => {
             const Icon = item.icon
             return (

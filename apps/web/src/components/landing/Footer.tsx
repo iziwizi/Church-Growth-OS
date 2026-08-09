@@ -8,9 +8,9 @@ export function LandingFooter() {
   return (
     <footer className="border-t border-border/60 bg-card py-14 sm:py-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-8">
           {/* Col 1: Brand info */}
-          <div className="col-span-2 space-y-4">
+          <div className="col-span-1 sm:col-span-2 space-y-4">
             <Link href="/" className="flex items-center gap-2.5">
               <Image
                 src="/logo.png"

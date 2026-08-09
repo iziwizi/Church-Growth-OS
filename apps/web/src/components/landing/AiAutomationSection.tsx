@@ -131,23 +131,23 @@ export function AiAutomationSection() {
                     </p>
                   </div>
 
-                  <div className="pt-2 flex items-center justify-between text-xs">
+                  <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
                     <span className="text-[11px] text-zinc-400">Target: <strong className="text-white">14 Visitors</strong></span>
                     {selectedMode === 'manual' ? (
-                      <div className="flex gap-2">
+                      <div className="flex items-center gap-2 w-full sm:w-auto">
                         {isApproved ? (
                           <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-md animate-bounce">
                             <CheckCircle2 className="h-3.5 w-3.5" /> Dispatched!
                           </span>
                         ) : (
                           <>
-                            <span className="px-3 py-1.5 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-300 text-[11px] font-semibold hover:bg-zinc-700 cursor-pointer">
+                            <span className="flex-1 sm:flex-none text-center px-3 py-1.5 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-300 text-[11px] font-semibold hover:bg-zinc-700 cursor-pointer">
                               Edit Note
                             </span>
                             <button
                               type="button"
                               onClick={handleApprove}
-                              className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-xl bg-brand-600 text-white text-[11px] font-bold shadow-md hover:bg-brand-500 transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1 px-3.5 py-1.5 rounded-xl bg-brand-600 text-white text-[11px] font-bold shadow-md hover:bg-brand-500 transition-all hover:scale-105 active:scale-95 cursor-pointer"
                             >
                               <Send className="h-3 w-3" />
                               Approve &amp; Send
