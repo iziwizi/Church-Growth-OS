@@ -37,6 +37,9 @@ export interface ChurchSettings {
     email?: CommunicationProviderConfig
     sms?: CommunicationProviderConfig
   }
+  whatsappMode?: 'shared' | 'waba'
+  smsSenderId?: string
+  emailAlerts?: boolean
   aiProvider?: AIProviderType
   aiMode: AIMode
   featureFlags: Record<string, boolean>
@@ -118,6 +121,7 @@ export interface ChurchMetrics {
 }
 
 export interface SeniorPastorInfo {
+  title?: string
   name: string
   email?: string
   phone?: string
@@ -151,6 +155,9 @@ export interface Church {
   branches?: ChurchBranch[]
   ministryGoals?: string[]
   socialLinks?: SocialLinks
+  giving?: Record<string, any>
+  preferences?: Record<string, any>
+  notifications?: Record<string, any>
   createdAt: Timestamp
   updatedAt: Timestamp
 }

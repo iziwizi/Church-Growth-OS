@@ -30,6 +30,7 @@ import {
   Upload,
   X,
   ImageIcon,
+  Send,
 } from 'lucide-react'
 import { sendPasswordReset } from '@/lib/firebase/auth'
 
