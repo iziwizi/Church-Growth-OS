@@ -1,7 +1,7 @@
 'use client'
 
 import { useChurchStore } from '@/store'
-import { PLAN_FEATURE_MATRIX, type MachineFeatureKey } from '@/lib/server/feature-access'
+import { PLAN_FEATURE_MATRIX, type MachineFeatureKey } from '@/lib/config/pricing-matrix'
 
 /**
  * Client-side hook for checking dynamic feature access based on church subscription plan.
