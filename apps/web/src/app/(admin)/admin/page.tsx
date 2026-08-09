@@ -38,37 +38,21 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     async function loadStats() {
       try {
-        // 1. Church tenants
-        const cSnap = await getDocs(collection(db, 'churches')).catch(() => null)
-        const churches = cSnap?.docs.map((d) => ({ id: d.id, ...d.data() as any })) ?? []
+        // Fetch server-aggregated metrics via Admin SDK
+        const res = await fetch('/api/admin/analytics')
+        const data = await res.json()
+        const metrics = data.metrics || {}
 
-        const trialChurches = churches.filter(
-          (c: any) => c.subscription?.status === 'trialing' || c.subscription?.planId === 'free_trial'
-        ).length
-        const paidChurches = churches.filter(
-          (c: any) => c.subscription?.status === 'active' && c.subscription?.planId !== 'free_trial'
-        ).length
-
-        // AI tokens consumed across all churches
-        const totalAiCreditsConsumed = churches.reduce((sum: number, c: any) => {
-          const total = c.subscription?.aiCreditsTotal ?? 0
-          const remaining = c.subscription?.aiCreditsRemaining ?? total
-          return sum + Math.max(0, total - remaining)
-        }, 0)
-
-        // 2. Users count
-        const uSnap = await getDocs(collection(db, 'users')).catch(() => null)
-
-        // 3. Infrastructure config (provider status)
+        // Infrastructure config (provider status)
         const infraSnap = await getDoc(doc(db, 'system', 'infrastructure')).catch(() => null)
         const infraData = infraSnap?.exists() ? infraSnap.data() : {}
 
         setStats({
-          churchesCount: churches.length,
-          usersCount: uSnap?.size ?? 0,
-          trialChurches,
-          paidChurches,
-          totalAiCreditsConsumed,
+          churchesCount: metrics.totalChurches ?? 0,
+          usersCount: metrics.totalUsers ?? 0,
+          trialChurches: metrics.trialChurches ?? 0,
+          paidChurches: metrics.paidChurches ?? 0,
+          totalAiCreditsConsumed: metrics.totalAiCreditsConsumed ?? 0,
           providerConfig: {
             agentrouter: (infraData?.agentrouterKey || infraData?.agentRouterKey || infraData?.agentrouterApiKey) ? 'Configured' : 'Not Configured',
             whatsapp: (infraData?.metaWhatsappToken || infraData?.metaWhatsappPhoneId) ? 'Configured' : 'Not Configured',

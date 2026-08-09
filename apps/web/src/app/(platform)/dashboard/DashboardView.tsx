@@ -198,20 +198,29 @@ export function DashboardView() {
 
   // Dynamic Trial Countdown Calculation
   const calculateDaysRemaining = (): number => {
-    if (!church?.subscription?.trialEnd) return 14
-    const end = new Date(church.subscription.trialEnd as string | number).getTime()
+    let endMs = 0
+    if (church?.subscription?.trialEnd) {
+      endMs = new Date(church.subscription.trialEnd as string | number).getTime()
+    } else if (church?.createdAt) {
+      const createdMs = typeof church.createdAt === 'object' && 'seconds' in (church.createdAt as any)
+        ? (church.createdAt as any).seconds * 1000
+        : new Date(church.createdAt as any).getTime()
+      endMs = createdMs + 14 * 24 * 60 * 60 * 1000
+    } else {
+      return 14
+    }
     const now = Date.now()
-    const diffDays = Math.ceil((end - now) / (1000 * 60 * 60 * 24))
-    return Math.max(0, diffDays)
+    const diffDays = Math.ceil((endMs - now) / (1000 * 60 * 60 * 24))
+    return Math.max(0, Math.min(14, diffDays))
   }
 
   const daysRemaining = calculateDaysRemaining()
   const isTrial = church?.subscription?.planId === 'free_trial' || church?.subscription?.status === 'trialing'
   const planName = isTrial ? '14-Day Free Trial' : (church?.subscription?.planId?.toUpperCase() ?? 'FREE TRIAL')
 
-  const aiCreditsRemaining = church?.subscription?.aiCreditsRemaining ?? 2500
-  const aiCreditsTotal = church?.subscription?.aiCreditsTotal ?? 2500
-  const aiPct = Math.round((aiCreditsRemaining / aiCreditsTotal) * 100)
+  const aiCreditsRemaining = Math.max(0, church?.subscription?.aiCreditsRemaining ?? 2500)
+  const aiCreditsTotal = Math.max(1, church?.subscription?.aiCreditsTotal ?? 2500)
+  const aiPct = Math.min(100, Math.max(0, Math.round((aiCreditsRemaining / aiCreditsTotal) * 100)))
 
   const storageUsedMb = church?.subscription?.storageUsedMb ?? 0
   const storageTotalMb = church?.subscription?.storageTotalMb ?? 5000

@@ -483,29 +483,41 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     </button>
                   </div>
                   <div className="space-y-2 max-h-64 overflow-y-auto">
-                    <div className="rounded-xl border bg-muted/20 p-2.5 space-y-1">
+                    <Link
+                      href="/admin/ai-providers"
+                      onClick={() => setNotificationsOpen(false)}
+                      className="block rounded-xl border border-amber-500/30 bg-amber-500/5 p-2.5 space-y-1 hover:border-amber-500/60 transition-colors"
+                    >
                       <div className="flex items-center justify-between">
-                        <p className="font-bold text-foreground text-[11px]">AI Gateway Active</p>
-                        <span className="text-[9px] text-emerald-600 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded">AgentRouter</span>
+                        <p className="font-bold text-foreground text-[11px]">AI Gateway Status Check</p>
+                        <span className="text-[9px] text-amber-600 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">Action Required</span>
                       </div>
-                      <p className="text-[10px] text-muted-foreground">Unified AI Gateway routing active across all registered church tenants.</p>
-                    </div>
+                      <p className="text-[10px] text-muted-foreground">Verify AgentRouter API credentials &amp; test live endpoint connectivity.</p>
+                    </Link>
 
-                    <div className="rounded-xl border bg-muted/20 p-2.5 space-y-1">
+                    <Link
+                      href="/admin/platform-health"
+                      onClick={() => setNotificationsOpen(false)}
+                      className="block rounded-xl border bg-muted/20 p-2.5 space-y-1 hover:bg-accent transition-colors"
+                    >
                       <div className="flex items-center justify-between">
-                        <p className="font-bold text-foreground text-[11px]">Security Rules Enforced</p>
-                        <span className="text-[9px] text-muted-foreground font-mono">Live</span>
+                        <p className="font-bold text-foreground text-[11px]">Tenant Security Rules</p>
+                        <span className="text-[9px] text-emerald-600 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded">Enforced</span>
                       </div>
-                      <p className="text-[10px] text-muted-foreground">Tenant data isolation enforced for Church Store, Daily Reports &amp; Messaging.</p>
-                    </div>
+                      <p className="text-[10px] text-muted-foreground">Multi-tenant data isolation enforced across Firestore collections.</p>
+                    </Link>
 
-                    <div className="rounded-xl border bg-muted/20 p-2.5 space-y-1">
+                    <Link
+                      href="/admin/email-providers"
+                      onClick={() => setNotificationsOpen(false)}
+                      className="block rounded-xl border bg-muted/20 p-2.5 space-y-1 hover:bg-accent transition-colors"
+                    >
                       <div className="flex items-center justify-between">
-                        <p className="font-bold text-foreground text-[11px]">Multi-Tenant Messaging</p>
-                        <span className="text-[9px] text-brand-600 font-bold">WABA + Resend</span>
+                        <p className="font-bold text-foreground text-[11px]">Email Gateway (Resend)</p>
+                        <span className="text-[9px] text-brand-600 font-bold bg-brand-500/10 px-1.5 py-0.5 rounded">Configured</span>
                       </div>
-                      <p className="text-[10px] text-muted-foreground">Email and WhatsApp delivery engines operating normally.</p>
-                    </div>
+                      <p className="text-[10px] text-muted-foreground">Verified sender domain: mujteknify.com</p>
+                    </Link>
                   </div>
                   <div className="pt-2 border-t text-center">
                     <Link
