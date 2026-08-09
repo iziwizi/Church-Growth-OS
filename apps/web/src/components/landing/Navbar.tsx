@@ -42,9 +42,9 @@ export function LandingNavbar() {
             <Image
               src="/logo.png"
               alt="Church Growth OS"
-              width={180}
-              height={48}
-              className="h-10 sm:h-11 w-auto object-contain rounded-lg group-hover:opacity-90 transition-opacity"
+              width={260}
+              height={70}
+              className="h-12 sm:h-14 w-auto object-contain rounded-lg group-hover:opacity-90 transition-opacity"
               priority
             />
           </Link>

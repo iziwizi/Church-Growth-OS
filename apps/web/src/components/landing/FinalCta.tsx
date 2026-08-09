@@ -2,23 +2,30 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
+import { motion } from 'framer-motion'
 import { ArrowRight, Sparkles, CheckCircle2 } from 'lucide-react'
 
 export function FinalCta() {
   return (
-    <section className="py-20 sm:py-32 relative overflow-hidden">
-      {/* Glow Effects */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-brand-500/15 blur-[140px] rounded-full pointer-events-none -z-10" />
+    <section className="py-24 sm:py-36 relative overflow-hidden">
+      {/* Dynamic Glow Effects */}
+      <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[450px] bg-brand-500/20 blur-[150px] rounded-full -z-10" />
 
       <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-        <div className="rounded-3xl border border-brand-500/40 bg-gradient-to-b from-card via-brand-500/5 to-card p-8 sm:p-16 text-center space-y-6 shadow-2xl shadow-brand-500/10 ring-1 ring-brand-500/20">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="rounded-3xl border border-brand-500/40 bg-gradient-to-b from-card via-brand-500/5 to-card p-8 sm:p-16 text-center space-y-7 shadow-2xl shadow-brand-500/15 ring-1 ring-brand-500/30"
+        >
           <div className="flex justify-center">
             <Image
               src="/logo.png"
               alt="Church Growth OS"
-              width={220}
-              height={60}
-              className="h-12 w-auto object-contain rounded-lg"
+              width={280}
+              height={75}
+              className="h-14 sm:h-16 w-auto object-contain rounded-lg shadow-sm"
             />
           </div>
 
@@ -27,41 +34,43 @@ export function FinalCta() {
           </h2>
 
           <p className="text-sm sm:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-            Bring your people, operations, communication, and growth strategy into one intelligent ministry platform.
+            Bring your people, operations, communication, discipleship, and growth strategy into one intelligent ministry platform.
           </p>
 
-          <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3.5">
+          <div className="pt-3 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               href="/register"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-brand-600 to-brand-700 px-8 py-4 text-sm font-bold text-white shadow-xl shadow-brand-500/25 hover:from-brand-500 hover:to-brand-600 hover:scale-[1.02] transition-all"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-brand-600 via-brand-700 to-indigo-700 px-9 py-4 text-sm font-bold text-white shadow-xl shadow-brand-500/30 hover:from-brand-500 hover:to-indigo-600 hover:scale-[1.02] active:scale-[0.98] transition-all"
             >
-              <span>Start Your Free Trial</span>
+              <span>Start 14-Day Free Trial</span>
               <ArrowRight className="h-4 w-4" />
             </Link>
 
             <Link
               href="/login"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl border border-border/80 bg-card/60 backdrop-blur-md px-7 py-4 text-sm font-semibold text-foreground hover:bg-accent transition-colors"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl border border-border/80 bg-card/80 backdrop-blur-md px-7 py-4 text-sm font-semibold text-foreground hover:bg-accent transition-all shadow-xs"
             >
-              <span>Sign In to Existing Account</span>
+              <span>Sign In to Existing Church</span>
             </Link>
           </div>
 
-          <div className="pt-2 flex items-center justify-center gap-6 text-xs text-muted-foreground font-medium flex-wrap">
-            <span className="flex items-center gap-1.5">
+          <div className="pt-2 flex items-center justify-center gap-5 text-xs text-muted-foreground flex-wrap">
+            <span className="flex items-center gap-1.5 font-medium">
               <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-              14 Days Free
+              14-Day Full Feature Free Trial
             </span>
-            <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+            <span className="text-border">•</span>
+            <span className="flex items-center gap-1.5 font-medium">
+              <CheckCircle2 className="h-4 w-4 text-brand-500" />
+              No Credit Card Required
+            </span>
+            <span className="text-border">•</span>
+            <span className="flex items-center gap-1.5 font-medium">
+              <CheckCircle2 className="h-4 w-4 text-purple-500" />
               Instant Setup
             </span>
-            <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-              Cancel Anytime
-            </span>
           </div>
-        </div>
+        </motion.div>
       </div>
     </section>
   )

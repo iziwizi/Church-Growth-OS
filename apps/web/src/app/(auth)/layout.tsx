@@ -42,14 +42,16 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
         {/* Brand Header */}
         <div className="flex items-center gap-3">
-          <Image
-            src="/logo.png"
-            alt="Church Growth OS"
-            width={220}
-            height={60}
-            className="h-14 w-auto object-contain rounded-lg"
-            priority
-          />
+          <Link href="/" className="hover:opacity-90 transition-opacity">
+            <Image
+              src="/logo.png"
+              alt="Church Growth OS"
+              width={240}
+              height={64}
+              className="h-14 w-auto object-contain rounded-lg"
+              priority
+            />
+          </Link>
         </div>
 
         {/* Hero Content */}
@@ -104,14 +106,16 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <div className="flex lg:col-span-6 flex-col items-center justify-center p-6 sm:p-12 relative">
         {/* Mobile Header Logo — larger, perfectly centered, one logo only */}
         <div className="lg:hidden mb-8 flex flex-col items-center">
-          <Image
-            src="/logo.png"
-            alt="Church Growth OS"
-            width={220}
-            height={60}
-            className="h-16 w-auto object-contain rounded-lg"
-            priority
-          />
+          <Link href="/" className="hover:opacity-90 transition-opacity">
+            <Image
+              src="/logo.png"
+              alt="Church Growth OS"
+              width={240}
+              height={64}
+              className="h-16 w-auto object-contain rounded-lg"
+              priority
+            />
+          </Link>
         </div>
 
         <div className="w-full max-w-md">{children}</div>

@@ -1,5 +1,6 @@
 'use client'
 
+import { motion } from 'framer-motion'
 import {
   ShieldCheck,
   Lock,
@@ -13,12 +14,12 @@ const SECURITY_POINTS = [
   {
     icon: Lock,
     title: 'Isolated Multi-Tenant Architecture',
-    desc: 'Every church tenant has strictly isolated data records in Firebase Firestore. Member records and giving details are never cross-accessible.',
+    desc: 'Every church tenant has strictly isolated data records in Google Cloud Firestore. Member records and giving details are never cross-accessible.',
   },
   {
     icon: UserCheck,
     title: '13-Module Role Permission Matrix',
-    desc: 'Customize granular View/Create/Edit/Delete permissions for Pastors, Finance Officers, Media Teams, and Volunteers.',
+    desc: 'Customize granular View/Create/Edit/Delete permissions for Pastors, Finance Officers, Media Teams, and Department Volunteers.',
   },
   {
     icon: ShieldCheck,
@@ -34,7 +35,7 @@ const SECURITY_POINTS = [
 
 export function SecurityControlSection() {
   return (
-    <section className="py-20 sm:py-28 bg-muted/10 border-y border-border/50 relative">
+    <section className="py-24 sm:py-32 bg-muted/30 border-y border-border/50 relative">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto space-y-4">
           <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3.5 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
@@ -50,14 +51,19 @@ export function SecurityControlSection() {
         </div>
 
         <div className="mt-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
-          {SECURITY_POINTS.map((item) => {
+          {SECURITY_POINTS.map((item, i) => {
             const Icon = item.icon
             return (
-              <div
+              <motion.div
                 key={item.title}
-                className="rounded-3xl border border-border/70 bg-card p-6 space-y-3 shadow-xs hover:border-emerald-500/40 transition-colors"
+                initial={{ opacity: 0, y: 15 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: i * 0.1 }}
+                whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                className="rounded-3xl border border-border/80 bg-card p-6 space-y-3 shadow-xs hover:border-emerald-500/50 hover:shadow-lg transition-all"
               >
-                <div className="h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                <div className="h-11 w-11 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-2xs">
                   <Icon className="h-5 w-5" />
                 </div>
                 <h3 className="font-display text-sm font-bold text-foreground">
@@ -66,7 +72,7 @@ export function SecurityControlSection() {
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   {item.desc}
                 </p>
-              </div>
+              </motion.div>
             )
           })}
         </div>

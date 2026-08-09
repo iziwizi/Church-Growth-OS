@@ -1,5 +1,6 @@
 'use client'
 
+import { motion } from 'framer-motion'
 import {
   Crown,
   HeartHandshake,
@@ -36,9 +37,12 @@ const PASTORAL_BENEFITS = [
 
 export function PastorsSection() {
   return (
-    <section className="py-20 sm:py-28 relative">
+    <section className="py-24 sm:py-32 relative">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="rounded-3xl border border-brand-500/30 bg-gradient-to-br from-card via-brand-500/5 to-card p-8 sm:p-14 shadow-xl">
+        <div className="rounded-3xl border border-brand-500/30 bg-gradient-to-br from-card via-brand-500/5 to-card p-8 sm:p-14 shadow-xl relative overflow-hidden">
+          {/* Ambient Glow */}
+          <div className="pointer-events-none absolute -top-24 -right-24 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl" />
+
           <div className="max-w-3xl space-y-4">
             <div className="inline-flex items-center gap-2 rounded-full bg-brand-500/10 px-3.5 py-1 text-xs font-semibold text-brand-600 dark:text-brand-400 border border-brand-500/20">
               <Crown className="h-3.5 w-3.5" />
@@ -53,14 +57,19 @@ export function PastorsSection() {
           </div>
 
           <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {PASTORAL_BENEFITS.map((item) => {
+            {PASTORAL_BENEFITS.map((item, i) => {
               const Icon = item.icon
               return (
-                <div
+                <motion.div
                   key={item.title}
-                  className="rounded-2xl border border-border/70 bg-card/80 backdrop-blur-md p-6 space-y-3 shadow-xs hover:border-brand-500/40 transition-colors"
+                  initial={{ opacity: 0, y: 15 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.4, delay: i * 0.1 }}
+                  whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                  className="rounded-2xl border border-border/80 bg-card/80 backdrop-blur-md p-6 space-y-3 shadow-xs hover:border-brand-500/50 hover:shadow-md transition-all"
                 >
-                  <div className="h-10 w-10 rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400 flex items-center justify-center">
+                  <div className="h-11 w-11 rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400 flex items-center justify-center shadow-2xs">
                     <Icon className="h-5 w-5" />
                   </div>
                   <h3 className="font-display text-base font-bold text-foreground">
@@ -69,7 +78,7 @@ export function PastorsSection() {
                   <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
                     {item.desc}
                   </p>
-                </div>
+                </motion.div>
               )
             })}
           </div>

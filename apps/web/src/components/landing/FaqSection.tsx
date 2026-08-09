@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, HelpCircle } from 'lucide-react'
 
 const FAQS = [
@@ -46,8 +47,8 @@ export function FaqSection() {
   const [openIdx, setOpenIdx] = useState<number | null>(0)
 
   return (
-    <section id="faq" className="py-20 sm:py-28 bg-muted/20 border-y border-border/50 relative">
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+    <section id="faq" className="py-24 sm:py-32 bg-muted/30 border-y border-border/50 relative">
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto space-y-4">
           <div className="inline-flex items-center gap-2 rounded-full bg-brand-500/10 px-3.5 py-1 text-xs font-semibold text-brand-600 dark:text-brand-400 border border-brand-500/20">
             <HelpCircle className="h-3.5 w-3.5" />
@@ -61,13 +62,17 @@ export function FaqSection() {
           </p>
         </div>
 
-        <div className="mt-14 space-y-3">
+        <div className="mt-14 space-y-3.5">
           {FAQS.map((faq, idx) => {
             const isOpen = openIdx === idx
             return (
-              <div
+              <motion.div
                 key={faq.q}
-                className="rounded-2xl border border-border/70 bg-card overflow-hidden transition-all"
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.3, delay: idx * 0.04 }}
+                className="rounded-3xl border border-border/80 bg-card shadow-xs overflow-hidden transition-all"
               >
                 <button
                   type="button"
@@ -76,18 +81,27 @@ export function FaqSection() {
                 >
                   <span>{faq.q}</span>
                   <ChevronDown
-                    className={`h-4 w-4 text-muted-foreground flex-shrink-0 transition-transform duration-200 ${
+                    className={`h-4 w-4 text-muted-foreground flex-shrink-0 transition-transform duration-300 ${
                       isOpen ? 'rotate-180 text-brand-600' : ''
                     }`}
                   />
                 </button>
 
-                {isOpen && (
-                  <div className="px-5 pb-5 sm:px-6 sm:pb-6 text-xs sm:text-sm text-muted-foreground leading-relaxed border-t border-border/30 pt-3">
-                    {faq.a}
-                  </div>
-                )}
-              </div>
+                <AnimatePresence>
+                  {isOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.25 }}
+                    >
+                      <div className="px-5 pb-5 sm:px-6 sm:pb-6 text-xs sm:text-sm text-muted-foreground leading-relaxed border-t border-border/30 pt-3">
+                        {faq.a}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
             )
           })}
         </div>

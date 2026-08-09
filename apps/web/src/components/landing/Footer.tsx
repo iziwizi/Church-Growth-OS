@@ -15,9 +15,9 @@ export function LandingFooter() {
               <Image
                 src="/logo.png"
                 alt="Church Growth OS"
-                width={180}
-                height={48}
-                className="h-10 w-auto object-contain rounded-lg"
+                width={260}
+                height={70}
+                className="h-12 sm:h-14 w-auto object-contain rounded-lg"
               />
             </Link>
             <p className="text-xs text-muted-foreground max-w-sm leading-relaxed">
