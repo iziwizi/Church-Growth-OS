@@ -66,7 +66,8 @@ export const DEFAULT_CANONICAL_PLANS = {
   },
 }
 
-export { PLAN_FEATURE_MATRIX, type MachineFeatureKey } from '@/lib/config/pricing-matrix'
+import { PLAN_FEATURE_MATRIX, type MachineFeatureKey } from '@/lib/config/pricing-matrix'
+export { PLAN_FEATURE_MATRIX, type MachineFeatureKey }
 
 /**
  * Retrieves the canonical feature matrix for a specific church based on its subscription plan.
