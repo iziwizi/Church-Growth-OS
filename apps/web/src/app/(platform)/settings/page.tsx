@@ -128,7 +128,7 @@ function SettingsPageContent() {
           {activeTab === 'branding' && <BrandingSettingsTab church={church} setChurch={setChurch} />}
           {activeTab === 'users' && <UsersSettingsTab church={church} />}
           {activeTab === 'social' && <SocialMediaSettingsTab church={church} setChurch={setChurch} />}
-          {activeTab === 'notifications' && <NotificationSettingsTab church={church} setChurch={setChurch} />}
+          {activeTab === 'notifications' && <NotificationsSettingsTab church={church} setChurch={setChurch} />}
           {activeTab === 'branches' && <BranchSettingsTab church={church} setChurch={setChurch} />}
           {activeTab === 'subscription' && <SubscriptionSettingsTab church={church} />}
           {activeTab === 'giving' && <GivingSettingsTab church={church} setChurch={setChurch} />}
@@ -977,18 +977,6 @@ function SocialMediaSettingsTab({ church, setChurch }: { church: any; setChurch:
   )
 }
 
-// ── 5. Notifications Tab ──────────────────────────────────────────────────────
-function NotificationSettingsTab({ church, setChurch }: { church: any; setChurch: any }) {
-  const [emailAlerts, setEmailAlerts] = useState(church.settings?.emailAlerts ?? true)
-
-  const handleToggle = async () => {
-    const next = !emailAlerts
-    setEmailAlerts(next)
-    try {
-      await updateDoc(doc(db, 'churches', church.id), {
-        'settings.emailAlerts': next,
-        updatedAt: serverTimestamp(),
-      })
 // ── 5. Notification Center Settings Tab ───────────────────────────────────────
 function NotificationsSettingsTab({ church, setChurch }: { church: any; setChurch: any }) {
   const [saving, setSaving] = useState(false)
