@@ -5,11 +5,11 @@ import { XCircle, CheckCircle2, AlertTriangle, Sparkles, Layers } from 'lucide-r
 
 export function ProblemSolution() {
   return (
-    <section id="how-it-works" className="py-24 sm:py-32 relative bg-muted/30 border-b border-border/50">
+    <section id="how-it-works" className="py-20 sm:py-32 relative bg-muted/30 border-b border-border/50 overflow-hidden w-full max-w-full">
       {/* Subtle Ambient Glow */}
       <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-brand-500/10 blur-[140px] rounded-full -z-10" />
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 w-full">
         <div className="text-center max-w-3xl mx-auto space-y-4">
           <div className="inline-flex items-center gap-2 rounded-full bg-rose-500/10 px-3.5 py-1 text-xs font-semibold text-rose-600 dark:text-rose-400 border border-rose-500/20">
             <AlertTriangle className="h-3.5 w-3.5" />

@@ -47,8 +47,8 @@ export function FaqSection() {
   const [openIdx, setOpenIdx] = useState<number | null>(0)
 
   return (
-    <section id="faq" className="py-24 sm:py-32 bg-muted/30 border-y border-border/50 relative">
-      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+    <section id="faq" className="py-20 sm:py-32 bg-muted/30 border-y border-border/50 relative overflow-hidden w-full max-w-full">
+      <div className="mx-auto max-w-4xl px-3 sm:px-6 lg:px-8 w-full">
         <div className="text-center max-w-3xl mx-auto space-y-4">
           <div className="inline-flex items-center gap-2 rounded-full bg-brand-500/10 px-3.5 py-1 text-xs font-semibold text-brand-600 dark:text-brand-400 border border-brand-500/20">
             <HelpCircle className="h-3.5 w-3.5" />

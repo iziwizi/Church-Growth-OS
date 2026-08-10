@@ -37,22 +37,22 @@ export function LandingHero() {
   }, [])
 
   return (
-    <section className="relative pt-28 pb-16 sm:pt-36 sm:pb-24 md:pt-44 md:pb-32 overflow-hidden">
+    <section className="relative isolate pt-24 pb-16 sm:pt-32 sm:pb-24 md:pt-40 md:pb-32 overflow-hidden w-full max-w-full">
       {/* ── High-Visibility Continuous Rotating Global Globe in Background ─ */}
       <RotatingGlobe />
 
       {/* ── Ambient Background Glow & Grids ─────────────────────────────── */}
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(120,119,198,0.25),rgba(255,255,255,0))] dark:bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(120,119,198,0.35),rgba(0,0,0,0))]" />
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(120,119,198,0.22),rgba(255,255,255,0))] dark:bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(120,119,198,0.32),rgba(0,0,0,0))]" />
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:32px_32px]" />
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative">
+      <div className="relative z-10 mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 w-full">
         {/* Hero Headline & Value Pitch */}
-        <div className="text-center max-w-4xl mx-auto space-y-5">
+        <div className="text-center max-w-4xl mx-auto space-y-4 sm:space-y-6">
           <motion.h1
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="font-display text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-foreground leading-[1.15] sm:leading-[1.1]"
+            className="font-display text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-foreground leading-[1.15] sm:leading-[1.1] px-1"
           >
             Run Your Church.{' '}
             <span className="bg-gradient-to-r from-brand-600 via-purple-600 to-indigo-500 bg-clip-text text-transparent">
@@ -65,7 +65,7 @@ export function LandingHero() {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.15 }}
-            className="text-sm sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto font-normal leading-relaxed text-balance px-2 sm:px-0"
+            className="text-sm sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto font-normal leading-relaxed text-balance px-2"
           >
             Church Growth OS brings your people, communications, giving, events, sermons, discipleship follow-up, and automation into one intelligent platform built for modern churches.
           </motion.p>
@@ -75,7 +75,7 @@ export function LandingHero() {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.25 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-3.5 pt-2 px-4 sm:px-0"
+            className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2 px-2 sm:px-0"
           >
             <Link
               href="/register"
@@ -122,53 +122,53 @@ export function LandingHero() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.3 }}
-          className="mt-12 sm:mt-18 relative mx-auto max-w-6xl"
+          className="mt-10 sm:mt-16 relative mx-auto max-w-6xl w-full"
         >
           {/* Ambient Glow behind Card */}
           <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-brand-500/20 via-purple-500/20 to-indigo-500/20 blur-xl opacity-80 pointer-events-none" />
 
           {/* Main Command Center Container */}
-          <div className="relative rounded-3xl border border-border/80 bg-card/90 backdrop-blur-2xl p-4 sm:p-7 shadow-2xl overflow-hidden ring-1 ring-border/50 space-y-5">
+          <div className="relative rounded-2xl sm:rounded-3xl border border-border/80 bg-card/90 backdrop-blur-2xl p-3.5 sm:p-7 shadow-2xl overflow-hidden ring-1 ring-border/50 space-y-4 sm:space-y-5 w-full">
             {/* ── Centered LIVE Streaming Church Broadcast Bar ─────────────── */}
-            <div className="rounded-2xl border border-rose-500/30 bg-gradient-to-r from-rose-500/10 via-card/95 to-brand-500/10 p-3 sm:p-4 shadow-sm flex flex-col md:flex-row items-center justify-between gap-3">
-              <div className="flex items-center gap-3 w-full md:w-auto">
-                <div className="flex items-center gap-1.5 rounded-full bg-rose-500 px-3 py-1 text-[10px] font-black text-white shadow-md uppercase tracking-wider animate-pulse flex-shrink-0">
-                  <span className="h-2 w-2 rounded-full bg-white animate-ping" />
+            <div className="rounded-xl sm:rounded-2xl border border-rose-500/30 bg-gradient-to-r from-rose-500/10 via-card/95 to-brand-500/10 p-3 sm:p-4 shadow-sm flex flex-col md:flex-row items-center justify-between gap-3 w-full">
+              <div className="flex items-center gap-2.5 sm:gap-3 w-full md:w-auto">
+                <div className="flex items-center gap-1.5 rounded-full bg-rose-500 px-2.5 sm:px-3 py-1 text-[9px] sm:text-[10px] font-black text-white shadow-md uppercase tracking-wider animate-pulse flex-shrink-0">
+                  <span className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-white animate-ping" />
                   <span>LIVE SERVICE</span>
                 </div>
                 <div className="text-left min-w-0 flex-1">
                   <p className="text-xs sm:text-sm font-bold text-foreground truncate">
                     Grace City Cathedral • 9:00 AM Sunday Service
                   </p>
-                  <p className="text-[10px] text-muted-foreground flex items-center gap-2 truncate">
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-1.5 truncate">
                     <span>📡 Multi-Casting to YouTube Live &amp; Facebook</span>
                   </p>
                 </div>
               </div>
 
               {/* Animated Live Audio Waveform & Global Viewers */}
-              <div className="flex items-center justify-between w-full md:w-auto gap-4 border-t md:border-t-0 border-border/40 pt-2 md:pt-0">
-                <div className="flex items-end gap-1 h-4 text-rose-500">
-                  <span className="w-1 bg-rose-500 rounded-full animate-pulse h-3" />
-                  <span className="w-1 bg-rose-500 rounded-full animate-pulse h-4" />
+              <div className="flex items-center justify-between w-full md:w-auto gap-3 sm:gap-4 border-t md:border-t-0 border-border/40 pt-2 md:pt-0">
+                <div className="flex items-end gap-1 h-3.5 sm:h-4 text-rose-500">
+                  <span className="w-1 bg-rose-500 rounded-full animate-pulse h-2.5 sm:h-3" />
+                  <span className="w-1 bg-rose-500 rounded-full animate-pulse h-3.5 sm:h-4" />
                   <span className="w-1 bg-rose-500 rounded-full animate-pulse h-2" />
-                  <span className="w-1 bg-rose-500 rounded-full animate-pulse h-4" />
-                  <span className="w-1 bg-rose-500 rounded-full animate-pulse h-3" />
+                  <span className="w-1 bg-rose-500 rounded-full animate-pulse h-3.5 sm:h-4" />
+                  <span className="w-1 bg-rose-500 rounded-full animate-pulse h-2.5 sm:h-3" />
                 </div>
                 <div className="text-right">
                   <span className="text-xs font-black text-foreground">{pulseCount} Global Viewers</span>
-                  <p className="text-[10px] text-emerald-500 font-semibold">1080p 60fps HD Active</p>
+                  <p className="text-[10px] text-emerald-500 font-semibold">1080p 60fps HD Stream Active</p>
                 </div>
               </div>
             </div>
 
             {/* Command Center Header Bar */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-border/50 pb-4">
-              <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-border/50 pb-3 sm:pb-4 w-full">
+              <div className="flex items-center gap-2.5 sm:gap-3">
                 <div className="flex gap-1.5">
-                  <div className="h-3 w-3 rounded-full bg-rose-500/80" />
-                  <div className="h-3 w-3 rounded-full bg-amber-500/80" />
-                  <div className="h-3 w-3 rounded-full bg-emerald-500/80" />
+                  <div className="h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full bg-rose-500/80" />
+                  <div className="h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full bg-amber-500/80" />
+                  <div className="h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full bg-emerald-500/80" />
                 </div>
                 <div className="h-4 w-px bg-border" />
                 <div className="flex items-center gap-2">
@@ -181,12 +181,12 @@ export function LandingHero() {
                 </div>
               </div>
 
-              {/* Interactive Tabs (Scrollable on small mobile) */}
+              {/* Interactive Tabs (Scrollable on mobile) */}
               <div className="w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border/40 text-xs font-semibold">
                 <button
                   type="button"
                   onClick={() => setActiveTab('overview')}
-                  className={`px-3 py-1.5 rounded-lg transition-all whitespace-nowrap text-[11px] sm:text-xs ${
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap text-[11px] sm:text-xs ${
                     activeTab === 'overview'
                       ? 'bg-background text-foreground shadow-xs'
                       : 'text-muted-foreground hover:text-foreground'
@@ -197,7 +197,7 @@ export function LandingHero() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('automation')}
-                  className={`px-3 py-1.5 rounded-lg transition-all whitespace-nowrap text-[11px] sm:text-xs ${
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap text-[11px] sm:text-xs ${
                     activeTab === 'automation'
                       ? 'bg-background text-foreground shadow-xs'
                       : 'text-muted-foreground hover:text-foreground'
@@ -208,7 +208,7 @@ export function LandingHero() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('growth')}
-                  className={`px-3 py-1.5 rounded-lg transition-all whitespace-nowrap text-[11px] sm:text-xs ${
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap text-[11px] sm:text-xs ${
                     activeTab === 'growth'
                       ? 'bg-background text-foreground shadow-xs'
                       : 'text-muted-foreground hover:text-foreground'
@@ -228,70 +228,70 @@ export function LandingHero() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.3 }}
-                  className="space-y-6"
+                  className="space-y-4 sm:space-y-6 w-full"
                 >
                   {/* 4 Metric Cards */}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                    <div className="rounded-2xl border border-border/60 bg-muted/20 p-3.5 sm:p-4 space-y-1.5 sm:space-y-2">
-                      <div className="flex items-center justify-between text-[11px] sm:text-xs text-muted-foreground">
-                        <span>Total Members</span>
-                        <Users className="h-4 w-4 text-brand-500" />
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 w-full">
+                    <div className="rounded-xl sm:rounded-2xl border border-border/60 bg-muted/20 p-3 sm:p-4 space-y-1 sm:space-y-2">
+                      <div className="flex items-center justify-between text-[10px] sm:text-xs text-muted-foreground">
+                        <span className="truncate">Total Members</span>
+                        <Users className="h-3.5 sm:h-4 w-3.5 sm:w-4 text-brand-500 flex-shrink-0" />
                       </div>
-                      <div className="text-lg sm:text-2xl font-extrabold text-foreground">
+                      <div className="text-base sm:text-2xl font-extrabold text-foreground">
                         {pulseCount.toLocaleString()}
                       </div>
-                      <div className="text-[10px] text-emerald-500 font-semibold flex items-center gap-1">
-                        <TrendingUp className="h-3 w-3" /> +12% this month
+                      <div className="text-[9px] sm:text-[10px] text-emerald-500 font-semibold flex items-center gap-1 truncate">
+                        <TrendingUp className="h-3 w-3 flex-shrink-0" /> +12% MTD
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-border/60 bg-muted/20 p-3.5 sm:p-4 space-y-1.5 sm:space-y-2">
-                      <div className="flex items-center justify-between text-[11px] sm:text-xs text-muted-foreground">
-                        <span>New Visitors (MTD)</span>
-                        <UserPlus className="h-4 w-4 text-purple-500" />
+                    <div className="rounded-xl sm:rounded-2xl border border-border/60 bg-muted/20 p-3 sm:p-4 space-y-1 sm:space-y-2">
+                      <div className="flex items-center justify-between text-[10px] sm:text-xs text-muted-foreground">
+                        <span className="truncate">New Visitors</span>
+                        <UserPlus className="h-3.5 sm:h-4 w-3.5 sm:w-4 text-purple-500 flex-shrink-0" />
                       </div>
-                      <div className="text-lg sm:text-2xl font-extrabold text-foreground">
+                      <div className="text-base sm:text-2xl font-extrabold text-foreground">
                         68
                       </div>
-                      <div className="text-[10px] text-emerald-500 font-semibold flex items-center gap-1">
-                        <TrendingUp className="h-3 w-3" /> 84% 2nd-wk retention
+                      <div className="text-[9px] sm:text-[10px] text-emerald-500 font-semibold flex items-center gap-1 truncate">
+                        <TrendingUp className="h-3 w-3 flex-shrink-0" /> 84% Retention
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-border/60 bg-muted/20 p-3.5 sm:p-4 space-y-1.5 sm:space-y-2">
-                      <div className="flex items-center justify-between text-[11px] sm:text-xs text-muted-foreground">
-                        <span>Giving Reconciled</span>
-                        <DollarSign className="h-4 w-4 text-emerald-500" />
+                    <div className="rounded-xl sm:rounded-2xl border border-border/60 bg-muted/20 p-3 sm:p-4 space-y-1 sm:space-y-2">
+                      <div className="flex items-center justify-between text-[10px] sm:text-xs text-muted-foreground">
+                        <span className="truncate">Giving</span>
+                        <DollarSign className="h-3.5 sm:h-4 w-3.5 sm:w-4 text-emerald-500 flex-shrink-0" />
                       </div>
-                      <div className="text-lg sm:text-2xl font-extrabold text-foreground">
+                      <div className="text-base sm:text-2xl font-extrabold text-foreground">
                         ₦4.28M
                       </div>
-                      <div className="text-[10px] text-muted-foreground font-medium truncate">
-                        Paystack &amp; Bank
+                      <div className="text-[9px] sm:text-[10px] text-muted-foreground font-medium truncate">
+                        Reconciled
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-border/60 bg-muted/20 p-3.5 sm:p-4 space-y-1.5 sm:space-y-2">
-                      <div className="flex items-center justify-between text-[11px] sm:text-xs text-muted-foreground">
-                        <span>Automations Active</span>
-                        <Bot className="h-4 w-4 text-amber-500" />
+                    <div className="rounded-xl sm:rounded-2xl border border-border/60 bg-muted/20 p-3 sm:p-4 space-y-1 sm:space-y-2">
+                      <div className="flex items-center justify-between text-[10px] sm:text-xs text-muted-foreground">
+                        <span className="truncate">Workflows</span>
+                        <Bot className="h-3.5 sm:h-4 w-3.5 sm:w-4 text-amber-500 flex-shrink-0" />
                       </div>
-                      <div className="text-lg sm:text-2xl font-extrabold text-foreground">
-                        9 Workflows
+                      <div className="text-base sm:text-2xl font-extrabold text-foreground">
+                        9 Active
                       </div>
-                      <div className="text-[10px] text-emerald-500 font-semibold flex items-center gap-1">
-                        <Activity className="h-3 w-3" /> 100% Delivery SLA
+                      <div className="text-[9px] sm:text-[10px] text-emerald-500 font-semibold flex items-center gap-1 truncate">
+                        <Activity className="h-3 w-3 flex-shrink-0" /> 100% SLA
                       </div>
                     </div>
                   </div>
 
                   {/* Operational Feed Split */}
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 w-full">
                     {/* Discipleship Track */}
-                    <div className="lg:col-span-7 rounded-2xl border border-border/60 bg-muted/10 p-4 space-y-3">
+                    <div className="lg:col-span-7 rounded-xl sm:rounded-2xl border border-border/60 bg-muted/10 p-3.5 sm:p-4 space-y-3 w-full">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-foreground flex items-center gap-2">
-                          <Activity className="h-3.5 w-3.5 text-brand-500" />
+                          <Activity className="h-3.5 w-3.5 text-brand-500 flex-shrink-0" />
                           Live Visitor Retention Velocity
                         </span>
                         <span className="text-[10px] text-muted-foreground">Past 30 Days</span>
@@ -299,8 +299,8 @@ export function LandingHero() {
                       <div className="space-y-2.5">
                         <div className="space-y-1">
                           <div className="flex justify-between text-[11px]">
-                            <span className="text-muted-foreground">Step 1: Check-in &amp; Day 1 Welcome</span>
-                            <span className="font-bold text-foreground">100% (68/68)</span>
+                            <span className="text-muted-foreground truncate">Step 1: Check-in &amp; Day 1 Welcome</span>
+                            <span className="font-bold text-foreground flex-shrink-0">100% (68/68)</span>
                           </div>
                           <div className="h-2 rounded-full bg-muted overflow-hidden">
                             <div className="h-full bg-brand-500 rounded-full w-full" />
@@ -308,8 +308,8 @@ export function LandingHero() {
                         </div>
                         <div className="space-y-1">
                           <div className="flex justify-between text-[11px]">
-                            <span className="text-muted-foreground">Step 2: Midweek Pastoral Contact</span>
-                            <span className="font-bold text-foreground">92% (62/68)</span>
+                            <span className="text-muted-foreground truncate">Step 2: Midweek Pastoral Contact</span>
+                            <span className="font-bold text-foreground flex-shrink-0">92% (62/68)</span>
                           </div>
                           <div className="h-2 rounded-full bg-muted overflow-hidden">
                             <div className="h-full bg-purple-500 rounded-full w-[92%]" />
@@ -317,8 +317,8 @@ export function LandingHero() {
                         </div>
                         <div className="space-y-1">
                           <div className="flex justify-between text-[11px]">
-                            <span className="text-muted-foreground">Step 3: Foundation Class Enrollment</span>
-                            <span className="font-bold text-foreground">78% (53/68)</span>
+                            <span className="text-muted-foreground truncate">Step 3: Foundation Class</span>
+                            <span className="font-bold text-foreground flex-shrink-0">78% (53/68)</span>
                           </div>
                           <div className="h-2 rounded-full bg-muted overflow-hidden">
                             <div className="h-full bg-emerald-500 rounded-full w-[78%]" />
@@ -328,33 +328,33 @@ export function LandingHero() {
                     </div>
 
                     {/* Broadcast Channels Live */}
-                    <div className="lg:col-span-5 rounded-2xl border border-border/60 bg-muted/10 p-4 space-y-3">
+                    <div className="lg:col-span-5 rounded-xl sm:rounded-2xl border border-border/60 bg-muted/10 p-3.5 sm:p-4 space-y-3 w-full">
                       <span className="text-xs font-bold text-foreground flex items-center gap-2">
-                        <Radio className="h-3.5 w-3.5 text-emerald-500" />
+                        <Radio className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
                         Active Channels Status
                       </span>
                       <div className="space-y-2 text-xs">
                         <div className="flex items-center justify-between p-2 rounded-xl bg-card border border-border/40">
-                          <span className="flex items-center gap-2 font-medium text-foreground">
-                            <span>📱</span> WhatsApp Cloud API
+                          <span className="flex items-center gap-2 font-medium text-foreground truncate">
+                            <span>📱</span> WhatsApp Cloud
                           </span>
-                          <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                          <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full flex-shrink-0">
                             Verified
                           </span>
                         </div>
                         <div className="flex items-center justify-between p-2 rounded-xl bg-card border border-border/40">
-                          <span className="flex items-center gap-2 font-medium text-foreground">
-                            <span>📧</span> Resend Email Gateway
+                          <span className="flex items-center gap-2 font-medium text-foreground truncate">
+                            <span>📧</span> Resend Email
                           </span>
-                          <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                          <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full flex-shrink-0">
                             DKIM Active
                           </span>
                         </div>
                         <div className="flex items-center justify-between p-2 rounded-xl bg-card border border-border/40">
-                          <span className="flex items-center gap-2 font-medium text-foreground">
-                            <span>💬</span> Termii SMS Sender
+                          <span className="flex items-center gap-2 font-medium text-foreground truncate">
+                            <span>💬</span> Termii SMS
                           </span>
-                          <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                          <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full flex-shrink-0">
                             Route 1
                           </span>
                         </div>
@@ -372,9 +372,9 @@ export function LandingHero() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.3 }}
-                  className="space-y-4"
+                  className="space-y-4 w-full"
                 >
-                  <div className="rounded-2xl border border-brand-500/40 bg-card p-4 sm:p-5 space-y-3">
+                  <div className="rounded-xl sm:rounded-2xl border border-brand-500/40 bg-card p-3.5 sm:p-5 space-y-3 w-full">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
                       <span className="font-bold text-foreground flex items-center gap-2">
                         <Sparkles className="h-4 w-4 text-brand-500 flex-shrink-0" />
@@ -382,7 +382,7 @@ export function LandingHero() {
                       </span>
                       <span className="text-[10px] font-mono text-muted-foreground">Trigger: 1st Guest Check-in</span>
                     </div>
-                    <div className="bg-muted/30 p-3.5 rounded-xl border border-border/50 text-xs space-y-1.5">
+                    <div className="bg-muted/30 p-3 sm:p-3.5 rounded-xl border border-border/50 text-xs space-y-1.5">
                       <p className="font-semibold text-foreground">
                         Generated WhatsApp Welcome Note:
                       </p>
@@ -413,9 +413,9 @@ export function LandingHero() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.3 }}
-                  className="space-y-4"
+                  className="space-y-4 w-full"
                 >
-                  <div className="rounded-2xl border border-border/60 bg-muted/20 p-4 sm:p-5 space-y-3">
+                  <div className="rounded-xl sm:rounded-2xl border border-border/60 bg-muted/20 p-3.5 sm:p-5 space-y-3 w-full">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
                       <span className="font-bold text-foreground flex items-center gap-2">
                         <Clock className="h-4 w-4 text-purple-500 flex-shrink-0" />
@@ -425,7 +425,7 @@ export function LandingHero() {
                         Generated Automatically
                       </span>
                     </div>
-                    <div className="bg-card p-4 rounded-xl border border-border/40 text-xs space-y-2 text-muted-foreground">
+                    <div className="bg-card p-3.5 sm:p-4 rounded-xl border border-border/40 text-xs space-y-2 text-muted-foreground">
                       <p className="text-foreground font-semibold">
                         Pastor Emmanuel, here is your 24-hour ministry snapshot:
                       </p>

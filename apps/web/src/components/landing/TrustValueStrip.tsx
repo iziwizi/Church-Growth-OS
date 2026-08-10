@@ -25,8 +25,8 @@ const VALUE_PILLARS = [
 
 export function TrustValueStrip() {
   return (
-    <section className="py-14 border-y border-border/60 bg-gradient-to-b from-card/50 via-muted/30 to-card/50 relative overflow-hidden">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <section className="py-12 sm:py-16 border-y border-border/50 bg-muted/30 relative overflow-hidden w-full max-w-full">
+      <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 w-full">
         <div className="text-center mb-8 space-y-1">
           <p className="text-xs font-bold tracking-widest uppercase text-brand-600 dark:text-brand-400">
             One Platform. Every Ministry Workflow.

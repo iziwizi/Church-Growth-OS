@@ -71,11 +71,11 @@ export function CommunicationsShowcase() {
   const current = CHANNELS.find((c) => c.id === activeChannel) || CHANNELS[0]
 
   return (
-    <section className="py-24 sm:py-32 bg-muted/30 border-y border-border/50 relative overflow-hidden">
+    <section className="py-20 sm:py-32 bg-muted/30 border-y border-border/50 relative overflow-hidden w-full max-w-full">
       {/* Background Ambient Glow */}
       <div className="pointer-events-none absolute top-1/2 left-1/4 w-[600px] h-[350px] bg-brand-500/10 blur-[150px] rounded-full -z-10" />
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 w-full">
         <div className="text-center max-w-3xl mx-auto space-y-4">
           <div className="inline-flex items-center gap-2 rounded-full bg-brand-500/10 px-3.5 py-1 text-xs font-semibold text-brand-600 dark:text-brand-400 border border-brand-500/20">
             <MessageSquare className="h-3.5 w-3.5" />

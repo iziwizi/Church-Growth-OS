@@ -7,17 +7,17 @@ import { ArrowRight, Sparkles, CheckCircle2 } from 'lucide-react'
 
 export function FinalCta() {
   return (
-    <section className="py-24 sm:py-36 relative overflow-hidden">
+    <section className="py-20 sm:py-36 relative overflow-hidden w-full max-w-full">
       {/* Dynamic Glow Effects */}
       <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[450px] bg-brand-500/20 blur-[150px] rounded-full -z-10" />
 
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-5xl px-3 sm:px-6 lg:px-8 w-full">
         <motion.div
           initial={{ opacity: 0, scale: 0.96 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="rounded-3xl border border-brand-500/40 bg-gradient-to-b from-card via-brand-500/5 to-card p-8 sm:p-16 text-center space-y-7 shadow-2xl shadow-brand-500/15 ring-1 ring-brand-500/30"
+          className="rounded-2xl sm:rounded-3xl border border-brand-500/40 bg-gradient-to-b from-card via-brand-500/5 to-card p-5 sm:p-16 text-center space-y-6 sm:space-y-7 shadow-2xl shadow-brand-500/15 ring-1 ring-brand-500/30 w-full"
         >
           <div className="flex justify-center">
             <Image
@@ -25,7 +25,7 @@ export function FinalCta() {
               alt="Church Growth OS"
               width={280}
               height={75}
-              className="h-14 sm:h-16 w-auto object-contain rounded-lg shadow-sm"
+              className="h-10 sm:h-16 w-auto max-w-[200px] sm:max-w-[280px] object-contain rounded-lg shadow-sm"
             />
           </div>
 

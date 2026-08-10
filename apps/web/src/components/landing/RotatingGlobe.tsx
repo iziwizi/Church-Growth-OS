@@ -4,40 +4,40 @@ import { motion } from 'framer-motion'
 
 export function RotatingGlobe() {
   return (
-    <div className="pointer-events-none absolute top-6 sm:top-12 left-1/2 -translate-x-1/2 w-[340px] sm:w-[650px] md:w-[850px] lg:w-[1000px] h-[340px] sm:h-[650px] md:h-[850px] lg:h-[1000px] -z-10 flex items-center justify-center overflow-visible">
-      {/* ── Central Nebula Glow ─────────────────────────────────────────── */}
-      <div className="absolute w-[280px] sm:w-[500px] lg:w-[650px] h-[280px] sm:h-[500px] lg:h-[650px] rounded-full bg-gradient-to-tr from-brand-600/30 via-purple-600/25 to-indigo-500/30 blur-[90px] sm:blur-[130px]" />
+    <div className="pointer-events-none absolute top-4 sm:top-8 md:top-12 left-1/2 -translate-x-1/2 w-[320px] sm:w-[560px] md:w-[750px] lg:w-[920px] h-[320px] sm:h-[560px] md:h-[750px] lg:h-[920px] z-0 flex items-center justify-center">
+      {/* ── Ambient Radiant Nebula Core ─────────────────────────────────── */}
+      <div className="absolute w-[240px] sm:w-[420px] md:w-[560px] h-[240px] sm:h-[420px] md:h-[560px] rounded-full bg-gradient-to-tr from-brand-600/35 via-purple-600/30 to-indigo-500/35 blur-[70px] sm:blur-[110px]" />
 
-      {/* ── SVG Wireframe Globe with Glowing Rings ──────────────────────── */}
+      {/* ── SVG Wireframe Planetary Globe ───────────────────────────────── */}
       <svg
-        className="w-full h-full max-w-[900px] max-h-[900px] opacity-85 dark:opacity-75"
+        className="w-full h-full max-w-[850px] max-h-[850px] opacity-95 dark:opacity-90"
         viewBox="0 0 800 800"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
       >
         <defs>
-          {/* Radial Core Gradient */}
+          {/* Radial Sphere Fill */}
           <radialGradient id="globeCoreGlow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#818cf8" stopOpacity="0.18" />
-            <stop offset="60%" stopColor="#6366f1" stopOpacity="0.08" />
-            <stop offset="100%" stopColor="#4f46e5" stopOpacity="0" />
+            <stop offset="0%" stopColor="#818cf8" stopOpacity="0.25" />
+            <stop offset="60%" stopColor="#6366f1" stopOpacity="0.12" />
+            <stop offset="100%" stopColor="#4f46e5" stopOpacity="0.02" />
           </radialGradient>
 
           {/* Stroke Glow Gradients */}
-          <linearGradient id="ringGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#818cf8" stopOpacity="0.7" />
-            <stop offset="50%" stopColor="#c084fc" stopOpacity="0.4" />
-            <stop offset="100%" stopColor="#6366f1" stopOpacity="0.7" />
+          <linearGradient id="ringGradPrimary" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#818cf8" stopOpacity="0.9" />
+            <stop offset="50%" stopColor="#c084fc" stopOpacity="0.6" />
+            <stop offset="100%" stopColor="#6366f1" stopOpacity="0.9" />
           </linearGradient>
 
-          <linearGradient id="ringGrad2" x1="100%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#a855f7" stopOpacity="0.8" />
-            <stop offset="50%" stopColor="#6366f1" stopOpacity="0.3" />
-            <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.8" />
+          <linearGradient id="ringGradSecondary" x1="100%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#a855f7" stopOpacity="0.9" />
+            <stop offset="50%" stopColor="#6366f1" stopOpacity="0.5" />
+            <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.9" />
           </linearGradient>
 
-          <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="6" result="blur" />
+          <filter id="neonFilter" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="5" result="blur" />
             <feMerge>
               <feMergeNode in="blur" />
               <feMergeNode in="SourceGraphic" />
@@ -51,105 +51,104 @@ export function RotatingGlobe() {
           cx="400"
           cy="400"
           r="280"
-          stroke="url(#ringGrad1)"
-          strokeWidth="1.5"
-          filter="url(#neonGlow)"
+          stroke="url(#ringGradPrimary)"
+          strokeWidth="2"
+          filter="url(#neonFilter)"
         />
 
-        {/* ── Rotating Meridian Group ────────────────────────────────────── */}
-        <g className="origin-[400px_400px] animate-[spin_60s_linear_infinite]">
+        {/* ── Rotating Forward Meridians Group ────────────────────────────── */}
+        <motion.g
+          animate={{ rotate: 360 }}
+          transition={{ repeat: Infinity, duration: 55, ease: 'linear' }}
+          style={{ transformOrigin: '400px 400px' }}
+        >
           {/* Latitude Concentric Rings */}
-          <ellipse cx="400" cy="400" rx="280" ry="240" stroke="url(#ringGrad1)" strokeWidth="1.2" strokeDasharray="6 4" opacity="0.6" />
-          <ellipse cx="400" cy="400" rx="280" ry="170" stroke="url(#ringGrad1)" strokeWidth="1.2" opacity="0.7" />
-          <ellipse cx="400" cy="400" rx="280" ry="90" stroke="url(#ringGrad2)" strokeWidth="1.5" opacity="0.8" />
-          <line x1="120" y1="400" x2="680" y2="400" stroke="url(#ringGrad1)" strokeWidth="1.8" opacity="0.85" />
+          <ellipse cx="400" cy="400" rx="280" ry="235" stroke="url(#ringGradPrimary)" strokeWidth="1.5" strokeDasharray="8 6" opacity="0.75" />
+          <ellipse cx="400" cy="400" rx="280" ry="165" stroke="url(#ringGradPrimary)" strokeWidth="1.5" opacity="0.8" />
+          <ellipse cx="400" cy="400" rx="280" ry="85" stroke="url(#ringGradSecondary)" strokeWidth="1.8" opacity="0.85" />
+          <line x1="120" y1="400" x2="680" y2="400" stroke="url(#ringGradPrimary)" strokeWidth="2" opacity="0.9" />
 
           {/* Longitude Ellipses */}
-          <ellipse cx="400" cy="400" rx="240" ry="280" stroke="url(#ringGrad2)" strokeWidth="1.2" strokeDasharray="6 4" opacity="0.6" />
-          <ellipse cx="400" cy="400" rx="170" ry="280" stroke="url(#ringGrad2)" strokeWidth="1.2" opacity="0.7" />
-          <ellipse cx="400" cy="400" rx="90" ry="280" stroke="url(#ringGrad1)" strokeWidth="1.5" opacity="0.8" />
-          <line x1="400" y1="120" x2="400" y2="680" stroke="url(#ringGrad2)" strokeWidth="1.8" opacity="0.85" />
+          <ellipse cx="400" cy="400" rx="235" ry="280" stroke="url(#ringGradSecondary)" strokeWidth="1.5" strokeDasharray="8 6" opacity="0.75" />
+          <ellipse cx="400" cy="400" rx="165" ry="280" stroke="url(#ringGradSecondary)" strokeWidth="1.5" opacity="0.8" />
+          <ellipse cx="400" cy="400" rx="85" ry="280" stroke="url(#ringGradPrimary)" strokeWidth="1.8" opacity="0.85" />
+          <line x1="400" y1="120" x2="400" y2="680" stroke="url(#ringGradSecondary)" strokeWidth="2" opacity="0.9" />
 
-          {/* Diagonal Tilted Meridian */}
+          {/* Diagonal Tilted Orbital Ring */}
           <ellipse
             cx="400"
             cy="400"
             rx="280"
             ry="110"
-            transform="rotate(25 400 400)"
-            stroke="#a855f7"
-            strokeWidth="1.2"
-            strokeDasharray="4 4"
-            opacity="0.65"
-          />
-          <ellipse
-            cx="400"
-            cy="400"
-            rx="280"
-            ry="110"
-            transform="rotate(-25 400 400)"
-            stroke="#6366f1"
-            strokeWidth="1.2"
-            strokeDasharray="4 4"
-            opacity="0.65"
+            transform="rotate(28 400 400)"
+            stroke="#c084fc"
+            strokeWidth="1.5"
+            strokeDasharray="6 4"
+            opacity="0.8"
           />
 
-          {/* Global Ministry Hub Nodes (Illuminated Pulsing Beacons) */}
-          {/* Lagos */}
-          <circle cx="410" cy="430" r="5" fill="#6366f1" filter="url(#neonGlow)" />
-          <circle cx="410" cy="430" r="10" stroke="#818cf8" strokeWidth="1" opacity="0.8" />
+          {/* Global Ministry Hub Nodes (Pulsing Illuminated Beacons) */}
+          {/* Lagos Hub */}
+          <circle cx="410" cy="430" r="6" fill="#6366f1" filter="url(#neonFilter)" />
+          <circle cx="410" cy="430" r="14" stroke="#818cf8" strokeWidth="1.5" opacity="0.9" />
 
-          {/* London */}
-          <circle cx="395" cy="270" r="4.5" fill="#a855f7" filter="url(#neonGlow)" />
-          <circle cx="395" cy="270" r="9" stroke="#c084fc" strokeWidth="1" opacity="0.8" />
+          {/* London Hub */}
+          <circle cx="395" cy="265" r="5" fill="#a855f7" filter="url(#neonFilter)" />
+          <circle cx="395" cy="265" r="12" stroke="#c084fc" strokeWidth="1.5" opacity="0.9" />
 
-          {/* Atlanta / Americas */}
-          <circle cx="250" cy="310" r="5" fill="#38bdf8" filter="url(#neonGlow)" />
-          <circle cx="250" cy="310" r="10" stroke="#7dd3fc" strokeWidth="1" opacity="0.8" />
+          {/* Atlanta / North America Hub */}
+          <circle cx="245" cy="310" r="6" fill="#38bdf8" filter="url(#neonFilter)" />
+          <circle cx="245" cy="310" r="14" stroke="#7dd3fc" strokeWidth="1.5" opacity="0.9" />
 
-          {/* Nairobi */}
-          <circle cx="470" cy="460" r="4.5" fill="#34d399" filter="url(#neonGlow)" />
-          <circle cx="470" cy="460" r="9" stroke="#6ee7b7" strokeWidth="1" opacity="0.8" />
+          {/* Nairobi / East Africa Hub */}
+          <circle cx="475" cy="460" r="5" fill="#34d399" filter="url(#neonFilter)" />
+          <circle cx="475" cy="460" r="12" stroke="#6ee7b7" strokeWidth="1.5" opacity="0.9" />
 
-          {/* Singapore / Asia */}
-          <circle cx="560" cy="440" r="4.5" fill="#fbbf24" filter="url(#neonGlow)" />
-          <circle cx="560" cy="440" r="9" stroke="#fde68a" strokeWidth="1" opacity="0.8" />
+          {/* Singapore / Asia Hub */}
+          <circle cx="565" cy="435" r="5" fill="#fbbf24" filter="url(#neonFilter)" />
+          <circle cx="565" cy="435" r="12" stroke="#fde68a" strokeWidth="1.5" opacity="0.9" />
 
-          {/* Sydney / Oceania */}
-          <circle cx="610" cy="550" r="4" fill="#818cf8" filter="url(#neonGlow)" />
-          <circle cx="610" cy="550" r="8" stroke="#a5b4fc" strokeWidth="1" opacity="0.8" />
-        </g>
+          {/* Sydney / Oceania Hub */}
+          <circle cx="615" cy="550" r="5" fill="#818cf8" filter="url(#neonFilter)" />
+          <circle cx="615" cy="550" r="12" stroke="#a5b4fc" strokeWidth="1.5" opacity="0.9" />
+        </motion.g>
 
-        {/* ── Outer Reverse Orbital Rings ────────────────────────────────── */}
-        <g className="origin-[400px_400px] animate-[spin_40s_linear_infinite_reverse]">
+        {/* ── Outer Reverse Orbital Rings with Satellite Markers ──────────── */}
+        <motion.g
+          animate={{ rotate: -360 }}
+          transition={{ repeat: Infinity, duration: 40, ease: 'linear' }}
+          style={{ transformOrigin: '400px 400px' }}
+        >
           <circle
             cx="400"
             cy="400"
-            r="320"
-            stroke="url(#ringGrad1)"
+            r="325"
+            stroke="url(#ringGradPrimary)"
+            strokeWidth="1.5"
+            strokeDasharray="20 14"
+            opacity="0.65"
+          />
+          <circle cx="400" cy="75" r="5" fill="#c084fc" filter="url(#neonFilter)" />
+          <circle cx="400" cy="725" r="4.5" fill="#38bdf8" filter="url(#neonFilter)" />
+        </motion.g>
+
+        <motion.g
+          animate={{ rotate: 360 }}
+          transition={{ repeat: Infinity, duration: 80, ease: 'linear' }}
+          style={{ transformOrigin: '400px 400px' }}
+        >
+          <circle
+            cx="400"
+            cy="400"
+            r="365"
+            stroke="url(#ringGradSecondary)"
             strokeWidth="1.2"
-            strokeDasharray="16 12"
+            strokeDasharray="10 18"
             opacity="0.5"
           />
-          {/* Orbiting Satellite Node 1 */}
-          <circle cx="400" cy="80" r="4" fill="#c084fc" filter="url(#neonGlow)" />
-          <circle cx="400" cy="720" r="3.5" fill="#38bdf8" filter="url(#neonGlow)" />
-        </g>
-
-        <g className="origin-[400px_400px] animate-[spin_85s_linear_infinite]">
-          <circle
-            cx="400"
-            cy="400"
-            r="360"
-            stroke="url(#ringGrad2)"
-            strokeWidth="1"
-            strokeDasharray="8 16"
-            opacity="0.35"
-          />
-          {/* Orbiting Satellite Node 2 */}
-          <circle cx="40" cy="400" r="3.5" fill="#818cf8" filter="url(#neonGlow)" />
-          <circle cx="760" cy="400" r="4" fill="#34d399" filter="url(#neonGlow)" />
-        </g>
+          <circle cx="35" cy="400" r="4.5" fill="#818cf8" filter="url(#neonFilter)" />
+          <circle cx="765" cy="400" r="5" fill="#34d399" filter="url(#neonFilter)" />
+        </motion.g>
       </svg>
     </div>
   )

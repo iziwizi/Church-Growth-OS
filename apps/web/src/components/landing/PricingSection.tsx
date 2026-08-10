@@ -35,8 +35,8 @@ export function PricingSection() {
   const planList = [plans.starter, plans.growth, plans.enterprise].filter(Boolean)
 
   return (
-    <section id="pricing" className="py-20 sm:py-28 relative">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <section id="pricing" className="py-20 sm:py-28 relative overflow-hidden w-full max-w-full">
+      <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 w-full">
         <div className="text-center max-w-3xl mx-auto space-y-4">
           <div className="inline-flex items-center gap-2 rounded-full bg-brand-500/10 px-3.5 py-1 text-xs font-semibold text-brand-600 dark:text-brand-400 border border-brand-500/20">
             <Sparkles className="h-3.5 w-3.5" />

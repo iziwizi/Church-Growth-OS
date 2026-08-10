@@ -35,8 +35,8 @@ const SECURITY_POINTS = [
 
 export function SecurityControlSection() {
   return (
-    <section className="py-24 sm:py-32 bg-muted/30 border-y border-border/50 relative">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <section className="py-20 sm:py-32 bg-muted/30 border-y border-border/50 relative overflow-hidden w-full max-w-full">
+      <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 w-full">
         <div className="text-center max-w-3xl mx-auto space-y-4">
           <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3.5 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
             <ShieldCheck className="h-3.5 w-3.5" />

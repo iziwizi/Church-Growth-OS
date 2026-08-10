@@ -26,10 +26,10 @@ export function AiAutomationSection() {
   }
 
   return (
-    <section id="automation" className="py-24 sm:py-32 relative">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <section id="automation" className="py-20 sm:py-32 relative overflow-hidden w-full max-w-full">
+      <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 w-full">
         {/* Rich Dark Hero Box */}
-        <div className="relative rounded-3xl bg-gradient-to-br from-zinc-950 via-slate-900 to-indigo-950 text-white p-8 sm:p-14 border border-brand-500/30 shadow-2xl overflow-hidden">
+        <div className="relative rounded-2xl sm:rounded-3xl bg-gradient-to-br from-zinc-950 via-slate-900 to-indigo-950 text-white p-4 sm:p-8 md:p-14 border border-brand-500/30 shadow-2xl overflow-hidden w-full">
           {/* Ambient Lighting Orbs */}
           <div className="pointer-events-none absolute top-0 right-0 w-[500px] h-[500px] bg-brand-500/15 blur-[140px] rounded-full" />
           <div className="pointer-events-none absolute bottom-0 left-0 w-[400px] h-[400px] bg-purple-500/10 blur-[130px] rounded-full" />

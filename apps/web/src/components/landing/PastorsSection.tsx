@@ -37,9 +37,9 @@ const PASTORAL_BENEFITS = [
 
 export function PastorsSection() {
   return (
-    <section className="py-24 sm:py-32 relative">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="rounded-3xl border border-brand-500/30 bg-gradient-to-br from-card via-brand-500/5 to-card p-8 sm:p-14 shadow-xl relative overflow-hidden">
+    <section className="py-20 sm:py-32 relative overflow-hidden w-full max-w-full">
+      <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 w-full">
+        <div className="rounded-2xl sm:rounded-3xl border border-brand-500/30 bg-gradient-to-br from-card via-brand-500/5 to-card p-4 sm:p-8 md:p-14 shadow-xl relative overflow-hidden w-full">
           {/* Ambient Glow */}
           <div className="pointer-events-none absolute -top-24 -right-24 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl" />
 
