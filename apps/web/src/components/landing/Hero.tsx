@@ -409,7 +409,7 @@ export function LandingHero() {
                         Generated WhatsApp Welcome Note:
                       </p>
                       <p className="text-zinc-300 text-[11px] leading-relaxed">
-                        "Good day David! Pastor Emmanuel and the entire family at Grace City Church were honored to host you this Sunday! We would love to know how we can pray for you this week..."
+                        &ldquo;Good day David! Pastor Emmanuel and the entire family at Grace City Church were honored to host you this Sunday! We would love to know how we can pray for you this week...&rdquo;
                       </p>
                     </div>
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1 text-xs">

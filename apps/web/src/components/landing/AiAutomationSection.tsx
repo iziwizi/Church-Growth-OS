@@ -211,7 +211,7 @@ export function AiAutomationSection() {
                   ) : (
                     <div className="space-y-1.5 text-xs">
                       <p className="text-[11px] text-zinc-300 bg-zinc-900/90 p-3.5 rounded-xl border border-zinc-800/80 leading-relaxed">
-                        "{messageText}"
+                        &ldquo;{messageText}&rdquo;
                       </p>
                     </div>
                   )}

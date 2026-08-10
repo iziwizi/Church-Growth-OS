@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { HandHeart, ArrowRight, Clock, MessageCircle } from 'lucide-react'
 
 export interface PrayerItem {
@@ -51,9 +52,9 @@ export function PrayerRequestsCard({ prayers = DEFAULT_PRAYERS }: { prayers?: Pr
             <p className="text-xs text-muted-foreground">Recent congregation prayer needs</p>
           </div>
         </div>
-        <a href="/prayer-requests" className="flex items-center gap-1 text-xs font-medium text-brand-600 dark:text-brand-400 hover:underline">
+        <Link href="/prayer-requests" className="flex items-center gap-1 text-xs font-medium text-brand-600 dark:text-brand-400 hover:underline">
           View All <ArrowRight className="h-3 w-3" />
-        </a>
+        </Link>
       </div>
 
       <div className="space-y-3">

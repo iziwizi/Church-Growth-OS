@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { Sparkles, FileText, CheckCircle2, ArrowRight } from 'lucide-react'
 
 interface ExecutiveReportCardProps {
@@ -18,38 +19,35 @@ export function ExecutiveReportCard({
   summary = 'AI processed 24h metrics: 318 active members evaluated for engagement. 5 high-priority follow-ups scheduled for pastor review. Morning declaration broadcast dispatched via WhatsApp with 98% delivery rate.',
   messagesSent = 318,
   deliveryRate = 98,
-  visitors = 12,
+  visitors = 14,
   followUpsDue = 5,
 }: ExecutiveReportCardProps) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-brand-500/20 bg-gradient-to-br from-card via-card to-brand-950/20 p-6 shadow-sm">
-      {/* Background glow */}
-      <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-brand-500/10 blur-2xl" />
-
+    <div className="rounded-2xl border border-border bg-card p-5 shadow-xs">
       {/* Header */}
-      <div className="flex items-center justify-between border-b pb-4">
+      <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-purple-600 text-white shadow-md">
-            <Sparkles className="h-5 w-5" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400">
+            <Sparkles className="h-5 w-5 animate-pulse" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="font-display text-base font-bold text-foreground">Today&apos;s AI Executive Report</h2>
-              <span className="rounded-full bg-brand-500/10 border border-brand-500/20 px-2 py-0.5 text-[10px] font-semibold text-brand-400">
-                6:00 AM UTC
+              <h3 className="font-display text-base font-bold text-foreground">Daily Ministry Intelligence</h3>
+              <span className="inline-flex items-center rounded-full bg-brand-500/10 px-2 py-0.5 text-[10px] font-semibold text-brand-600 dark:text-brand-400 border border-brand-500/20">
+                6:00 AM Digest
               </span>
             </div>
             <p className="text-xs text-muted-foreground">{churchName} • {date}</p>
           </div>
         </div>
 
-        <a
+        <Link
           href="/reports"
           className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-accent transition-colors"
         >
           <FileText className="h-3.5 w-3.5" />
           View Full Report
-        </a>
+        </Link>
       </div>
 
       {/* Executive Summary Preview */}
@@ -82,11 +80,11 @@ export function ExecutiveReportCard({
       <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
         <div className="flex items-center gap-1.5 text-emerald-500 font-medium">
           <CheckCircle2 className="h-3.5 w-3.5" />
-          Report automatically dispatched to Email & WhatsApp
+          Report automatically dispatched to Email &amp; WhatsApp
         </div>
-        <a href="/reports" className="sm:hidden flex items-center gap-1 font-semibold text-brand-500">
+        <Link href="/reports" className="sm:hidden flex items-center gap-1 font-semibold text-brand-500">
           Full Report <ArrowRight className="h-3 w-3" />
-        </a>
+        </Link>
       </div>
     </div>
   )

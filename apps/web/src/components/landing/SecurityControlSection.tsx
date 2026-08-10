@@ -43,7 +43,7 @@ export function SecurityControlSection() {
             <span>Ministry Trust &amp; Privacy</span>
           </div>
           <h2 className="font-display text-3xl sm:text-5xl font-extrabold tracking-tight text-foreground text-balance">
-            Your Congregation's Data. Completely Protected.
+            Your Congregation&apos;s Data. Completely Protected.
           </h2>
           <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
             We take spiritual stewardship and privacy seriously. Strict tenant isolation, granular staff permissions, and server-side encryption keep your ministry safe.

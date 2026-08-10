@@ -55,7 +55,7 @@ export function MinistryGrowthOS() {
               </p>
             </div>
             <div className="rounded-2xl bg-muted/40 p-3.5 text-xs text-muted-foreground font-mono border border-border/40">
-              "38 visitors followed up • ₦1.8M giving reconciled • 2 new home fellowships launched"
+              &ldquo;38 visitors followed up • ₦1.8M giving reconciled • 2 new home fellowships launched&rdquo;
             </div>
           </motion.div>
 
@@ -76,7 +76,7 @@ export function MinistryGrowthOS() {
                 Strategic Ministry Goals
               </h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Set annual church objectives (e.g. "Plant 3 Satellite Branches", "Train 100 Small Group Leaders") and track real milestones directly connected to your member database.
+                Set annual church objectives (e.g. &ldquo;Plant 3 Satellite Branches&rdquo;, &ldquo;Train 100 Small Group Leaders&rdquo;) and track real milestones directly connected to your member database.
               </p>
             </div>
             <div className="space-y-2 pt-1 text-xs">
