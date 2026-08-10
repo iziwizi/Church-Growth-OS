@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowRight,
@@ -22,7 +23,6 @@ import {
   Send,
   Zap,
 } from 'lucide-react'
-import { RotatingGlobe } from './RotatingGlobe'
 
 export function LandingHero() {
   const [activeTab, setActiveTab] = useState<'overview' | 'automation' | 'growth'>('overview')
@@ -38,12 +38,21 @@ export function LandingHero() {
 
   return (
     <section className="relative isolate pt-24 pb-16 sm:pt-32 sm:pb-24 md:pt-40 md:pb-32 overflow-hidden w-full max-w-full">
-      {/* ── High-Visibility Continuous Rotating Global Globe in Background ─ */}
-      <RotatingGlobe />
-
-      {/* ── Ambient Background Glow & Grids ─────────────────────────────── */}
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(120,119,198,0.22),rgba(255,255,255,0))] dark:bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(120,119,198,0.32),rgba(0,0,0,0))]" />
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:32px_32px]" />
+      {/* ── Cinematic Church Background with Dark Gradient Overlay ──────── */}
+      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+        <Image
+          src="/hero-church-bg.jpg"
+          alt="Modern Ministry Church Worship"
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover object-top opacity-25 dark:opacity-20 scale-105 transition-transform duration-1000"
+        />
+        {/* Multi-layered Vignette & Soft Gradient for Perfect Text Legibility */}
+        <div className="absolute inset-0 bg-gradient-to-b from-background/95 via-background/85 to-background" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_15%,rgba(99,102,241,0.18),transparent_70%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:32px_32px]" />
+      </div>
 
       <div className="relative z-10 mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 w-full">
         {/* Hero Headline & Value Pitch */}
@@ -181,7 +190,7 @@ export function LandingHero() {
                 </div>
               </div>
 
-              {/* Interactive Tabs (Scrollable on mobile) */}
+              {/* Interactive Tabs */}
               <div className="w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border/40 text-xs font-semibold">
                 <button
                   type="button"
