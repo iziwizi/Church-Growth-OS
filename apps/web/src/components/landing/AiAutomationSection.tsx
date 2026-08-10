@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Bot,
@@ -18,73 +18,125 @@ import {
   CheckCheck,
   RefreshCw,
   Edit3,
-  Check,
-  Radio,
   Share2,
+  MousePointer,
 } from 'lucide-react'
 
-type DispatchStage = 'idle' | 'approved' | 'routing' | 'whatsapp' | 'email' | 'sms' | 'complete'
+type DispatchStage = 'drafting' | 'review' | 'editing' | 'approved' | 'routing' | 'whatsapp' | 'email' | 'sms' | 'complete'
 
 export function AiAutomationSection() {
-  const [selectedMode, setSelectedMode] = useState<'manual' | 'autonomous'>('manual')
-  const [isEditing, setIsEditing] = useState(false)
+  // Mode order: 1. Autonomous Mode (default), 2. Human Approval Mode
+  const [selectedMode, setSelectedMode] = useState<'autonomous' | 'manual'>('autonomous')
+  const [dispatchStage, setDispatchStage] = useState<DispatchStage>('drafting')
   const [messageText, setMessageText] = useState(
     'Dear Sister Sarah, thank you for worshipping with Grace City today! Pastor Emmanuel and our team would love to share this week’s study notes with you and invite you to our midweek fellowship.'
   )
-  const [dispatchStage, setDispatchStage] = useState<DispatchStage>('idle')
+  const [cursorTarget, setCursorTarget] = useState<'idle' | 'edit' | 'approve' | 'hidden'>('idle')
+  const [isClicking, setIsClicking] = useState(false)
+  const cycleTimeoutRef = useRef<NodeJS.Timeout[]>([])
 
-  // Auto-trigger workflow in Autonomous mode
-  useEffect(() => {
-    if (selectedMode === 'autonomous' && dispatchStage === 'idle') {
-      const timer = setTimeout(() => {
-        handleTriggerDispatch()
-      }, 1500)
-      return () => clearTimeout(timer)
-    }
-  }, [selectedMode, dispatchStage])
-
-  const handleTriggerDispatch = () => {
-    if (dispatchStage !== 'idle') return
-    setIsEditing(false)
-    setDispatchStage('approved')
-
-    setTimeout(() => {
-      setDispatchStage('routing')
-    }, 450)
-
-    setTimeout(() => {
-      setDispatchStage('whatsapp')
-    }, 900)
-
-    setTimeout(() => {
-      setDispatchStage('email')
-    }, 1400)
-
-    setTimeout(() => {
-      setDispatchStage('sms')
-    }, 1900)
-
-    setTimeout(() => {
-      setDispatchStage('complete')
-    }, 2400)
+  // Clear all pending cycle timeouts
+  const clearCycleTimers = () => {
+    cycleTimeoutRef.current.forEach((timer) => clearTimeout(timer))
+    cycleTimeoutRef.current = []
   }
 
-  const handleReset = () => {
-    setDispatchStage('idle')
-    setIsEditing(false)
+  const [cycleKey, setCycleKey] = useState(0)
+
+  // Self-running continuous demonstration loop
+  useEffect(() => {
+    clearCycleTimers()
+
+    const addTimer = (fn: () => void, delayMs: number) => {
+      const t = setTimeout(fn, delayMs)
+      cycleTimeoutRef.current.push(t)
+      return t
+    }
+
+    if (selectedMode === 'autonomous') {
+      // ── AUTONOMOUS MODE CYCLE (Automatic Continuous Product Demo) ────────
+      setCursorTarget('hidden')
+      setDispatchStage('drafting')
+
+      addTimer(() => setDispatchStage('approved'), 700)
+      addTimer(() => setDispatchStage('routing'), 1200)
+      addTimer(() => setDispatchStage('whatsapp'), 1800)
+      addTimer(() => setDispatchStage('email'), 2400)
+      addTimer(() => setDispatchStage('sms'), 3000)
+      addTimer(() => setDispatchStage('complete'), 3600)
+
+      // Pause 3.5s then auto-replay
+      addTimer(() => {
+        setCycleKey((prev) => prev + 1)
+      }, 7200)
+    } else {
+      // ── HUMAN APPROVAL MODE CYCLE (Simulated Pointer / Human-in-the-Loop) ──
+      setDispatchStage('review')
+      setCursorTarget('idle')
+
+      // 1. Move cursor to Edit Copy button
+      addTimer(() => {
+        setCursorTarget('edit')
+      }, 900)
+
+      // 2. Click Edit Copy
+      addTimer(() => {
+        setIsClicking(true)
+        setDispatchStage('editing')
+      }, 1600)
+
+      addTimer(() => {
+        setIsClicking(false)
+      }, 1900)
+
+      // 3. Move cursor to Approve & Send button
+      addTimer(() => {
+        setCursorTarget('approve')
+      }, 2600)
+
+      // 4. Click Approve & Send
+      addTimer(() => {
+        setIsClicking(true)
+        setDispatchStage('approved')
+      }, 3400)
+
+      addTimer(() => {
+        setIsClicking(false)
+        setCursorTarget('idle')
+        setDispatchStage('routing')
+      }, 3700)
+
+      // 5. Sequential multi-channel dispatch
+      addTimer(() => setDispatchStage('whatsapp'), 4200)
+      addTimer(() => setDispatchStage('email'), 4800)
+      addTimer(() => setDispatchStage('sms'), 5400)
+      addTimer(() => setDispatchStage('complete'), 6000)
+
+      // Pause 3.5s then auto-replay
+      addTimer(() => {
+        setCycleKey((prev) => prev + 1)
+      }, 9800)
+    }
+
+    return () => clearCycleTimers()
+  }, [selectedMode, cycleKey])
+
+  const handleManualReplay = () => {
+    clearCycleTimers()
+    setCycleKey((prev) => prev + 1)
   }
 
   return (
     <section id="automation" className="py-20 sm:py-32 relative overflow-hidden w-full max-w-full">
       <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 w-full">
-        {/* Rich Dark Hero Box */}
+        {/* Rich Container Box */}
         <div className="relative rounded-2xl sm:rounded-3xl bg-gradient-to-br from-zinc-950 via-slate-900 to-indigo-950 text-white p-4 sm:p-8 md:p-14 border border-brand-500/30 shadow-2xl overflow-hidden w-full">
           {/* Ambient Lighting Orbs */}
           <div className="pointer-events-none absolute top-0 right-0 w-[500px] h-[500px] bg-brand-500/15 blur-[140px] rounded-full" />
           <div className="pointer-events-none absolute bottom-0 left-0 w-[400px] h-[400px] bg-purple-500/10 blur-[130px] rounded-full" />
 
           <div className="relative grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
-            {/* Left Col: Explanation & Switcher */}
+            {/* Left Col: Explanation & Mode Switcher */}
             <div className="lg:col-span-6 space-y-6">
               <div className="inline-flex items-center gap-2 rounded-full bg-brand-500/20 px-3.5 py-1 text-xs font-semibold text-brand-300 border border-brand-500/30">
                 <Bot className="h-3.5 w-3.5 text-brand-400 animate-pulse" />
@@ -99,17 +151,45 @@ export function AiAutomationSection() {
                 You decide whether AI actions run autonomously in the background or pause for human approval before sending any messages to your congregation.
               </p>
 
-              {/* Mode Switcher Buttons */}
+              {/* Mode Switcher: 1. Autonomous Mode (Default) | 2. Human Approval Mode */}
               <div className="space-y-3 pt-2">
                 <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">
-                  Select Operating Mode to Preview Behavior:
+                  Select Operating Mode to Preview Live Behavior:
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Mode 1: Autonomous Mode (Default) */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedMode('autonomous')
+                      handleManualReplay()
+                    }}
+                    className={`flex items-start gap-3 p-4 rounded-2xl border text-left transition-all ${
+                      selectedMode === 'autonomous'
+                        ? 'border-emerald-400 bg-emerald-500/20 shadow-lg ring-1 ring-emerald-400/50'
+                        : 'border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800/60'
+                    }`}
+                  >
+                    <Zap className="h-5 w-5 text-emerald-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                        Autonomous Mode
+                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/30 text-emerald-300 font-bold uppercase">
+                          Default
+                        </span>
+                      </h4>
+                      <p className="text-[11px] text-zinc-400 mt-0.5">
+                        Workflows run 24/7 in real-time as triggers occur without waiting.
+                      </p>
+                    </div>
+                  </button>
+
+                  {/* Mode 2: Human Approval Mode */}
                   <button
                     type="button"
                     onClick={() => {
                       setSelectedMode('manual')
-                      handleReset()
+                      handleManualReplay()
                     }}
                     className={`flex items-start gap-3 p-4 rounded-2xl border text-left transition-all ${
                       selectedMode === 'manual'
@@ -125,34 +205,13 @@ export function AiAutomationSection() {
                       </p>
                     </div>
                   </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedMode('autonomous')
-                      handleReset()
-                    }}
-                    className={`flex items-start gap-3 p-4 rounded-2xl border text-left transition-all ${
-                      selectedMode === 'autonomous'
-                        ? 'border-emerald-400 bg-emerald-500/20 shadow-lg ring-1 ring-emerald-400/50'
-                        : 'border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800/60'
-                    }`}
-                  >
-                    <Zap className="h-5 w-5 text-emerald-400 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="text-xs font-bold text-white">Autonomous Mode</h4>
-                      <p className="text-[11px] text-zinc-400 mt-0.5">
-                        Workflows run 24/7 in real-time as triggers occur without waiting.
-                      </p>
-                    </div>
-                  </button>
                 </div>
               </div>
             </div>
 
-            {/* Right Col: Highly Polished Interactive Multi-Channel Simulation */}
-            <div className="lg:col-span-6">
-              <div className="rounded-3xl border border-zinc-700/80 bg-zinc-900/95 backdrop-blur-2xl p-5 sm:p-7 space-y-5 shadow-2xl ring-1 ring-white/10">
+            {/* Right Col: Self-Running Interactive Simulation Card */}
+            <div className="lg:col-span-6 relative">
+              <div className="relative rounded-3xl border border-zinc-700/80 bg-zinc-900/95 backdrop-blur-2xl p-5 sm:p-7 space-y-5 shadow-2xl ring-1 ring-white/10 overflow-hidden">
                 {/* Header Bar */}
                 <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
                   <div className="flex items-center gap-2">
@@ -160,27 +219,35 @@ export function AiAutomationSection() {
                       className={`h-2.5 w-2.5 rounded-full ${
                         dispatchStage === 'complete'
                           ? 'bg-emerald-400'
-                          : dispatchStage !== 'idle'
+                          : ['routing', 'whatsapp', 'email', 'sms'].includes(dispatchStage)
                           ? 'bg-amber-400 animate-ping'
                           : 'bg-brand-400 animate-pulse'
                       }`}
                     />
                     <span className="text-xs font-bold text-white">
-                      {dispatchStage === 'complete'
-                        ? 'Multi-Channel Dispatch Complete'
-                        : selectedMode === 'manual'
-                        ? 'Safety Review Queue'
-                        : '24/7 Autonomous Engine'}
+                      {selectedMode === 'autonomous'
+                        ? '24/7 Autonomous Action Engine'
+                        : 'Staff Safety Review Queue'}
                     </span>
                   </div>
 
-                  <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-300">
-                    Live Demo Simulation
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-300">
+                      Live Demo Simulation
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleManualReplay}
+                      title="Replay simulation"
+                      className="p-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition-colors"
+                    >
+                      <RefreshCw className="h-3 w-3" />
+                    </button>
+                  </div>
                 </div>
 
-                {/* ── Message Card / Editable Box ──────────────────────────── */}
-                <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4 sm:p-5 space-y-3">
+                {/* ── Message Card / Review State ──────────────────────────── */}
+                <div className="relative rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4 sm:p-5 space-y-3">
                   <div className="flex items-center justify-between text-xs border-b border-zinc-800/80 pb-2">
                     <span className="font-bold text-zinc-200 flex items-center gap-1.5">
                       <MessageSquare className="h-3.5 w-3.5 text-brand-400" />
@@ -189,23 +256,14 @@ export function AiAutomationSection() {
                     <span className="text-[10px] text-zinc-400 font-mono">Trigger: Visitor Check-In</span>
                   </div>
 
-                  {isEditing ? (
+                  {dispatchStage === 'editing' ? (
                     <div className="space-y-2">
-                      <textarea
-                        value={messageText}
-                        onChange={(e) => setMessageText(e.target.value)}
-                        rows={3}
-                        className="w-full rounded-xl bg-zinc-900 border border-brand-500/50 p-3 text-xs text-zinc-100 focus:outline-none focus:ring-1 focus:ring-brand-500 leading-relaxed resize-none"
-                      />
-                      <div className="flex items-center justify-between text-[10px] text-zinc-400">
-                        <span>{messageText.length} characters</span>
-                        <button
-                          type="button"
-                          onClick={() => setIsEditing(false)}
-                          className="px-3 py-1 rounded-lg bg-brand-600 text-white font-bold hover:bg-brand-500 transition-colors"
-                        >
-                          Save Changes
-                        </button>
+                      <div className="w-full rounded-xl bg-zinc-900 border border-brand-500/60 p-3 text-xs text-zinc-100 leading-relaxed font-mono animate-pulse">
+                        &ldquo;{messageText} (Reviewed &amp; personalized by Pastor Emmanuel)&rdquo;
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-brand-400 font-semibold">
+                        <span>Staff personalization applied</span>
+                        <span>Saving draft...</span>
                       </div>
                     </div>
                   ) : (
@@ -216,47 +274,70 @@ export function AiAutomationSection() {
                     </div>
                   )}
 
-                  {/* Actions Bar */}
+                  {/* Actions Ribbon */}
                   <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
                     <span className="text-[11px] text-zinc-400">
-                      Target Audience: <strong className="text-white">14 First-Time Guests</strong>
+                      Target: <strong className="text-white">New Sunday Visitors</strong>
                     </span>
 
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
-                      {dispatchStage === 'idle' && (
+                    <div className="flex items-center gap-2 w-full sm:w-auto relative">
+                      {selectedMode === 'manual' ? (
                         <>
-                          <button
-                            type="button"
-                            onClick={() => setIsEditing(!isEditing)}
-                            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-300 text-[11px] font-semibold hover:bg-zinc-700 transition-colors"
+                          <span
+                            id="demo-edit-btn"
+                            className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border text-[11px] font-semibold transition-all ${
+                              dispatchStage === 'editing'
+                                ? 'border-brand-400 bg-brand-500/20 text-brand-300 ring-2 ring-brand-400/50'
+                                : 'border-zinc-700 bg-zinc-800 text-zinc-300'
+                            }`}
                           >
                             <Edit3 className="h-3 w-3" />
-                            {isEditing ? 'Cancel' : 'Edit Copy'}
-                          </button>
+                            Edit Copy
+                          </span>
 
-                          <button
-                            type="button"
-                            onClick={handleTriggerDispatch}
-                            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-xl bg-brand-600 text-white text-[11px] font-bold shadow-lg shadow-brand-600/30 hover:bg-brand-500 hover:scale-105 active:scale-95 transition-all"
+                          <span
+                            id="demo-approve-btn"
+                            className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-xl text-[11px] font-bold transition-all shadow-md ${
+                              ['approved', 'routing', 'whatsapp', 'email', 'sms', 'complete'].includes(dispatchStage)
+                                ? 'bg-emerald-600 text-white shadow-emerald-600/30'
+                                : 'bg-brand-600 text-white hover:bg-brand-500'
+                            }`}
                           >
                             <Send className="h-3 w-3" />
-                            Approve &amp; Send
-                          </button>
+                            {['approved', 'routing', 'whatsapp', 'email', 'sms', 'complete'].includes(dispatchStage)
+                              ? 'Approved ✓'
+                              : 'Approve & Send'}
+                          </span>
                         </>
-                      )}
-
-                      {dispatchStage !== 'idle' && (
-                        <button
-                          type="button"
-                          onClick={handleReset}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-300 text-[11px] font-semibold hover:bg-zinc-700 transition-colors"
-                        >
-                          <RefreshCw className="h-3 w-3" />
-                          Reset Simulation
-                        </button>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-400 font-bold text-xs border border-emerald-500/30">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          {['approved', 'routing', 'whatsapp', 'email', 'sms', 'complete'].includes(dispatchStage)
+                            ? 'Auto-Approved in 0.5s'
+                            : 'AI Analyzing...'}
+                        </span>
                       )}
                     </div>
                   </div>
+
+                  {/* ── Simulated Animated Cursor (for Human Approval Mode) ─── */}
+                  {selectedMode === 'manual' && cursorTarget !== 'hidden' && (
+                    <motion.div
+                      animate={{
+                        x: cursorTarget === 'edit' ? 140 : cursorTarget === 'approve' ? 245 : 40,
+                        y: cursorTarget === 'edit' ? 85 : cursorTarget === 'approve' ? 85 : 20,
+                        scale: isClicking ? 0.85 : 1,
+                        opacity: cursorTarget === 'idle' ? 0.4 : 1,
+                      }}
+                      transition={{ duration: 0.6, ease: 'easeInOut' }}
+                      className="pointer-events-none absolute top-0 left-0 z-30 flex items-center gap-1 text-white drop-shadow-md"
+                    >
+                      <MousePointer className="h-5 w-5 text-brand-400 fill-brand-500" />
+                      {isClicking && (
+                        <span className="h-3 w-3 rounded-full bg-brand-400 animate-ping absolute -top-1 -left-1" />
+                      )}
+                    </motion.div>
+                  )}
                 </div>
 
                 {/* ── Multi-Channel Pipeline Distribution Tracks ───────────── */}
@@ -264,14 +345,14 @@ export function AiAutomationSection() {
                   <div className="flex items-center justify-between text-[11px] font-bold text-zinc-300">
                     <span className="flex items-center gap-1.5">
                       <Share2 className="h-3.5 w-3.5 text-brand-400" />
-                      Multi-Channel Delivery Pipeline Status
+                      Multi-Channel Delivery Pipeline
                     </span>
                     <span className="text-[10px] text-zinc-400 font-mono">
-                      {dispatchStage === 'idle'
-                        ? 'Standby'
-                        : dispatchStage === 'complete'
-                        ? '100% Delivered'
-                        : 'Broadcasting...'}
+                      {dispatchStage === 'complete'
+                        ? 'Completed'
+                        : ['routing', 'whatsapp', 'email', 'sms'].includes(dispatchStage)
+                        ? 'Broadcasting...'
+                        : 'Standby'}
                     </span>
                   </div>
 
@@ -290,14 +371,14 @@ export function AiAutomationSection() {
                         <MessageSquare className="h-3.5 w-3.5" />
                       </div>
                       <div>
-                        <p className="font-semibold text-white">WhatsApp Business Cloud API</p>
-                        <p className="text-[10px] text-zinc-400">1-to-1 Personal Welcome Note</p>
+                        <p className="font-semibold text-white">WhatsApp Business Cloud</p>
+                        <p className="text-[10px] text-zinc-400">1-to-1 Personal Welcome Message</p>
                       </div>
                     </div>
                     <div>
                       {['whatsapp', 'email', 'sms', 'complete'].includes(dispatchStage) ? (
                         <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400">
-                          <CheckCheck className="h-3.5 w-3.5" /> Delivered (98.4% Open Rate)
+                          <CheckCheck className="h-3.5 w-3.5" /> Message Delivered
                         </span>
                       ) : dispatchStage === 'routing' ? (
                         <span className="text-[10px] text-brand-400 font-medium">Routing...</span>
@@ -322,14 +403,14 @@ export function AiAutomationSection() {
                         <Mail className="h-3.5 w-3.5" />
                       </div>
                       <div>
-                        <p className="font-semibold text-white">Resend Custom-Domain Email</p>
+                        <p className="font-semibold text-white">Resend Verified Email</p>
                         <p className="text-[10px] text-zinc-400">Weekly Bulletin &amp; Study Guide</p>
                       </div>
                     </div>
                     <div>
                       {['email', 'sms', 'complete'].includes(dispatchStage) ? (
                         <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400">
-                          <CheckCheck className="h-3.5 w-3.5" /> Sent (SPF/DKIM Verified)
+                          <CheckCheck className="h-3.5 w-3.5" /> Email Sent (SPF/DKIM)
                         </span>
                       ) : ['routing', 'whatsapp'].includes(dispatchStage) ? (
                         <span className="text-[10px] text-brand-400 font-medium">Routing...</span>
@@ -354,14 +435,14 @@ export function AiAutomationSection() {
                         <Smartphone className="h-3.5 w-3.5" />
                       </div>
                       <div>
-                        <p className="font-semibold text-white">Direct SMS Sender ID</p>
-                        <p className="text-[10px] text-zinc-400">Instant Prayer Circle Notification</p>
+                        <p className="font-semibold text-white">Direct SMS Gateway</p>
+                        <p className="text-[10px] text-zinc-400">Instant Prayer Fellowship Notice</p>
                       </div>
                     </div>
                     <div>
                       {['sms', 'complete'].includes(dispatchStage) ? (
                         <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400">
-                          <CheckCheck className="h-3.5 w-3.5" /> Delivered (Route 1)
+                          <CheckCheck className="h-3.5 w-3.5" /> SMS Delivered (Route 1)
                         </span>
                       ) : ['routing', 'whatsapp', 'email'].includes(dispatchStage) ? (
                         <span className="text-[10px] text-brand-400 font-medium">Routing...</span>
@@ -384,19 +465,23 @@ export function AiAutomationSection() {
                       <div className="flex items-center gap-2">
                         <CheckCircle2 className="h-4 w-4 text-emerald-400 flex-shrink-0" />
                         <div>
-                          <p className="font-bold text-white">245 Congregation Members Reached</p>
+                          <p className="font-bold text-white">
+                            {selectedMode === 'autonomous'
+                              ? 'Autonomous Multi-Channel Workflow Dispatched'
+                              : 'Approved by Staff & Successfully Dispatched'}
+                          </p>
                           <p className="text-[10px] text-zinc-400">
-                            Delivered across 3 channels in 1.8 seconds • Immutable Audit Log Created
+                            Simulated workflow delivered across 3 channels • Auto-replaying in 3s
                           </p>
                         </div>
                       </div>
 
                       <button
                         type="button"
-                        onClick={handleReset}
+                        onClick={handleManualReplay}
                         className="px-3 py-1.5 rounded-xl bg-zinc-800 border border-zinc-700 text-[11px] font-bold text-zinc-200 hover:bg-zinc-700 transition-colors flex-shrink-0"
                       >
-                        Replay Demo
+                        Replay
                       </button>
                     </motion.div>
                   )}
