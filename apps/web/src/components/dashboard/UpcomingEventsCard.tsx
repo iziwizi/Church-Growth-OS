@@ -10,7 +10,8 @@ export interface EventItem {
   time: string
   isOnline: boolean
   location?: string
-  registeredCount: number
+  registeredCount?: number
+  registrations?: number
 }
 
 const DEFAULT_EVENTS: EventItem[] = [
@@ -21,7 +22,7 @@ const DEFAULT_EVENTS: EventItem[] = [
     time: '6:00 PM',
     isOnline: false,
     location: 'Main Sanctuary',
-    registeredCount: 145,
+    registrations: 145,
   },
   {
     id: '2',
@@ -30,7 +31,7 @@ const DEFAULT_EVENTS: EventItem[] = [
     time: '7:00 PM',
     isOnline: true,
     location: 'Zoom Conference',
-    registeredCount: 28,
+    registrations: 28,
   },
   {
     id: '3',
@@ -39,7 +40,7 @@ const DEFAULT_EVENTS: EventItem[] = [
     time: '5:00 PM',
     isOnline: false,
     location: 'Youth Center',
-    registeredCount: 89,
+    registrations: 89,
   },
 ]
 
@@ -65,13 +66,13 @@ export function UpcomingEventsCard({ events = DEFAULT_EVENTS }: { events?: Event
         {events.map((evt) => (
           <div
             key={evt.id}
-            className="flex items-start justify-between rounded-xl border border-border bg-muted/20 p-3.5 transition-all hover:bg-muted/50"
+            className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background/50 p-3 hover:bg-accent/40 transition-colors"
           >
-            <div className="space-y-1">
-              <p className="text-xs font-semibold text-foreground">{evt.title}</p>
-              <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-foreground truncate">{evt.title}</p>
+              <div className="mt-1 flex items-center gap-3 text-[11px] text-muted-foreground">
                 <span className="flex items-center gap-1">
-                  <Calendar className="h-3 w-3 text-brand-500" />
+                  <Calendar className="h-3 w-3" />
                   {evt.date} • {evt.time}
                 </span>
                 <span className="flex items-center gap-1">
@@ -86,7 +87,7 @@ export function UpcomingEventsCard({ events = DEFAULT_EVENTS }: { events?: Event
             </div>
             <div className="flex items-center gap-1 rounded-full bg-brand-500/10 px-2.5 py-1 text-[11px] font-semibold text-brand-500 shrink-0">
               <Users className="h-3 w-3" />
-              {evt.registrations}
+              {evt.registrations ?? evt.registeredCount ?? 0}
             </div>
           </div>
         ))}

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import Image from 'next/image'
 import { ShieldCheck, Eye, EyeOff, Loader2, LogIn } from 'lucide-react'
 import { toast } from 'sonner'
@@ -188,9 +189,9 @@ export default function AdminLoginPage() {
 
         <p className="text-center text-[11px] text-muted-foreground">
           Not an administrator?{' '}
-          <a href="/login" className="font-semibold text-brand-600 hover:underline">
+          <Link href="/login" className="font-semibold text-brand-600 hover:underline">
             Church sign-in →
-          </a>
+          </Link>
         </p>
 
         <p className="text-center text-[10px] text-muted-foreground">
