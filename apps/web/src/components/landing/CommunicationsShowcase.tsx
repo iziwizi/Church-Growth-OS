@@ -72,8 +72,11 @@ export function CommunicationsShowcase() {
 
   return (
     <section className="py-20 sm:py-32 bg-muted/30 border-y border-border/50 relative overflow-hidden w-full max-w-full">
-      {/* Background Ambient Glow */}
-      <div className="pointer-events-none absolute top-1/2 left-1/4 w-[600px] h-[350px] bg-brand-500/10 blur-[150px] rounded-full -z-10" />
+      {/* Background Ambient Glow — smaller/lighter blur on mobile only; this
+          element is mostly off-viewport at narrow widths and its large
+          blur radius is expensive to recomposite on mobile GPUs during
+          scroll. Desktop (sm: and up) is unchanged. */}
+      <div className="pointer-events-none absolute top-1/2 left-1/4 w-[300px] h-[180px] blur-[70px] sm:w-[600px] sm:h-[350px] sm:blur-[150px] bg-brand-500/10 rounded-full -z-10" />
 
       <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 w-full">
         <div className="text-center max-w-3xl mx-auto space-y-4">

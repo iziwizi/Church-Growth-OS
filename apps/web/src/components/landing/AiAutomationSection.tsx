@@ -34,6 +34,8 @@ export function AiAutomationSection() {
   const [cursorTarget, setCursorTarget] = useState<'idle' | 'edit' | 'approve' | 'hidden'>('idle')
   const [isClicking, setIsClicking] = useState(false)
   const cycleTimeoutRef = useRef<NodeJS.Timeout[]>([])
+  const sectionRef = useRef<HTMLElement>(null)
+  const [isInView, setIsInView] = useState(true)
 
   // Clear all pending cycle timeouts
   const clearCycleTimers = () => {
@@ -43,9 +45,29 @@ export function AiAutomationSection() {
 
   const [cycleKey, setCycleKey] = useState(0)
 
-  // Self-running continuous demonstration loop
+  // Pause the self-running demo (and the GPU compositing work its
+  // continuous backdrop-blur/gradient updates require) while the section
+  // is scrolled out of view. Previously this loop ran forever regardless
+  // of visibility, forcing the browser to keep recompositing an expensive
+  // backdrop-blur-2xl layer indefinitely — a likely contributor to mobile
+  // Chromium rendering artifacts observed on nearby sections while
+  // scrolling. Purely a performance/stability fix; the demo behaves
+  // identically whenever it's actually visible.
+  useEffect(() => {
+    const node = sectionRef.current
+    if (!node || typeof IntersectionObserver === 'undefined') return
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsInView(entry.isIntersecting),
+      { threshold: 0.1 }
+    )
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [])
+
+  // Self-running continuous demonstration loop — only while in view.
   useEffect(() => {
     clearCycleTimers()
+    if (!isInView) return
 
     const addTimer = (fn: () => void, delayMs: number) => {
       const t = setTimeout(fn, delayMs)
@@ -119,7 +141,7 @@ export function AiAutomationSection() {
     }
 
     return () => clearCycleTimers()
-  }, [selectedMode, cycleKey])
+  }, [selectedMode, cycleKey, isInView])
 
   const handleManualReplay = () => {
     clearCycleTimers()
@@ -127,13 +149,19 @@ export function AiAutomationSection() {
   }
 
   return (
-    <section id="automation" className="py-20 sm:py-32 relative overflow-hidden w-full max-w-full">
+    <section id="automation" ref={sectionRef} className="py-20 sm:py-32 relative overflow-hidden w-full max-w-full">
       <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 w-full">
         {/* Rich Container Box */}
         <div className="relative rounded-2xl sm:rounded-3xl bg-gradient-to-br from-zinc-950 via-slate-900 to-indigo-950 text-white p-4 sm:p-8 md:p-14 border border-brand-500/30 shadow-2xl overflow-hidden w-full">
-          {/* Ambient Lighting Orbs */}
-          <div className="pointer-events-none absolute top-0 right-0 w-[500px] h-[500px] bg-brand-500/15 blur-[140px] rounded-full" />
-          <div className="pointer-events-none absolute bottom-0 left-0 w-[400px] h-[400px] bg-purple-500/10 blur-[130px] rounded-full" />
+          {/* Ambient Lighting Orbs — smaller/lighter blur on mobile only.
+              These are large, mostly off-viewport decorative elements;
+              their full-size blur radius is expensive to rasterize and
+              recomposite on mobile GPUs, which — combined with the demo
+              card's own backdrop-blur below — is the likely source of the
+              rendering artifacts this fix addresses. Desktop (sm: and up)
+              is unchanged. */}
+          <div className="pointer-events-none absolute top-0 right-0 w-[260px] h-[260px] blur-[60px] sm:w-[500px] sm:h-[500px] sm:blur-[140px] bg-brand-500/15 rounded-full" />
+          <div className="pointer-events-none absolute bottom-0 left-0 w-[220px] h-[220px] blur-[55px] sm:w-[400px] sm:h-[400px] sm:blur-[130px] bg-purple-500/10 rounded-full" />
 
           <div className="relative grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
             {/* Left Col: Explanation & Mode Switcher */}
@@ -211,7 +239,12 @@ export function AiAutomationSection() {
 
             {/* Right Col: Self-Running Interactive Simulation Card */}
             <div className="lg:col-span-6 relative">
-              <div className="relative rounded-3xl border border-zinc-700/80 bg-zinc-900/95 backdrop-blur-2xl p-5 sm:p-7 space-y-5 shadow-2xl ring-1 ring-white/10 overflow-hidden">
+              {/* backdrop-blur-2xl (40px) is expensive to keep recompositing
+                  continuously on mobile GPUs; reduced to backdrop-blur-md
+                  (12px, matching the cost already used elsewhere on this
+                  page, e.g. CoreFeatures cards) below the sm: breakpoint.
+                  Desktop appearance is unchanged. */}
+              <div className="relative rounded-3xl border border-zinc-700/80 bg-zinc-900/95 backdrop-blur-md sm:backdrop-blur-2xl p-5 sm:p-7 space-y-5 shadow-2xl ring-1 ring-white/10 overflow-hidden">
                 {/* Header Bar */}
                 <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
                   <div className="flex items-center gap-2">
