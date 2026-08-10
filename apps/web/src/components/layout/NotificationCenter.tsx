@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Bell, Check, Sparkles, UserPlus, HandHeart, MessageSquare, AlertCircle } from 'lucide-react'
+import { Bell, Check, Sparkles, UserPlus, HandHeart, MessageSquare, AlertCircle, Heart, HandshakeIcon, Megaphone } from 'lucide-react'
 import * as Popover from '@radix-ui/react-popover'
 import { motion, AnimatePresence } from 'framer-motion'
-import { collection, query, onSnapshot, orderBy, limit } from 'firebase/firestore'
+import { collection, query, onSnapshot, orderBy, limit, doc, updateDoc, writeBatch } from 'firebase/firestore'
 import { db } from '@/lib/firebase/client'
 import { useChurchStore } from '@/store'
 
@@ -14,7 +14,7 @@ export interface NotificationItem {
   title: string
   description: string
   time: string
-  type: 'ai' | 'visitor' | 'prayer' | 'comm' | 'alert'
+  type: 'ai' | 'visitor' | 'prayer' | 'comm' | 'alert' | 'testimony' | 'partnership' | 'announcement'
   read: boolean
 }
 
@@ -79,10 +79,20 @@ export function NotificationCenter() {
 
   const markAllAsRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+    if (!church?.id) return
+    const unread = notifications.filter((n) => !n.read)
+    if (unread.length === 0) return
+    const batch = writeBatch(db)
+    unread.forEach((n) => batch.update(doc(db, 'churches', church.id, 'notifications', n.id), { read: true }))
+    batch.commit().catch((err) => console.warn('Failed to persist mark-all-read:', err))
   }
 
   const markAsRead = (id: string) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
+    if (!church?.id) return
+    updateDoc(doc(db, 'churches', church.id, 'notifications', id), { read: true }).catch((err) =>
+      console.warn('Failed to persist read status:', err)
+    )
   }
 
   const handleNotificationClick = (item: NotificationItem) => {
@@ -93,6 +103,15 @@ export function NotificationCenter() {
         break
       case 'prayer':
         router.push('/prayer-requests')
+        break
+      case 'testimony':
+        router.push('/testimonies')
+        break
+      case 'partnership':
+        router.push('/partnerships')
+        break
+      case 'announcement':
+        router.push('/dashboard')
         break
       case 'comm':
         router.push('/communications')
@@ -116,10 +135,18 @@ export function NotificationCenter() {
         return <UserPlus className="h-4 w-4 text-emerald-400" />
       case 'prayer':
         return <HandHeart className="h-4 w-4 text-rose-400" />
+      case 'testimony':
+        return <Heart className="h-4 w-4 text-pink-400" />
+      case 'partnership':
+        return <HandshakeIcon className="h-4 w-4 text-teal-400" />
+      case 'announcement':
+        return <Megaphone className="h-4 w-4 text-brand-400" />
       case 'comm':
         return <MessageSquare className="h-4 w-4 text-blue-400" />
       case 'alert':
         return <AlertCircle className="h-4 w-4 text-amber-400" />
+      default:
+        return <AlertCircle className="h-4 w-4 text-muted-foreground" />
     }
   }
 

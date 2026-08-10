@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { verifyAuthenticatedUser } from '@/lib/server/auth-guard'
 
 /**
  * DELETE /api/upload/delete
@@ -6,11 +7,25 @@ import { NextRequest, NextResponse } from 'next/server'
  * Requires CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET server env vars.
  */
 export async function DELETE(request: NextRequest) {
+  const authCheck = await verifyAuthenticatedUser(request)
+  if (!authCheck.authorized) {
+    return NextResponse.json({ error: authCheck.error ?? 'Authentication required.' }, { status: 401 })
+  }
+
   try {
     const { publicId } = await request.json() as { publicId?: string }
 
     if (!publicId) {
       return NextResponse.json({ error: 'publicId is required' }, { status: 400 })
+    }
+
+    // Assets are uploaded under `churches/{churchId}/...` — only a member of
+    // that church (or the Super Admin) may delete them.
+    if (authCheck.role !== 'super_admin') {
+      const ownedPrefix = `churches/${authCheck.churchId}/`
+      if (!authCheck.churchId || !publicId.startsWith(ownedPrefix)) {
+        return NextResponse.json({ error: 'You are not authorized to delete this asset.' }, { status: 403 })
+      }
     }
 
     const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME

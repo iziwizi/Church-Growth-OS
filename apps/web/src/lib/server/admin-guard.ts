@@ -13,6 +13,14 @@ export interface AdminAuthResult {
 
 /**
  * Validates whether the incoming request is authorized for Super Admin operations.
+ *
+ * SECURITY: this function must default-deny. It verifies a Firebase ID token
+ * server-side via the Admin SDK, then requires either the `superAdmin`/`role`
+ * custom claim on that verified token, or a `role: 'super_admin'` /
+ * `isSuperAdmin: true` Firestore `users/{uid}` document as a fallback for
+ * accounts whose claim hasn't propagated yet. There is no email-domain
+ * shortcut and no "missing token" or "error" path that grants access —
+ * every failure returns `authorized: false`.
  */
 export async function verifySuperAdmin(req: NextRequest): Promise<AdminAuthResult> {
   try {
@@ -20,35 +28,33 @@ export async function verifySuperAdmin(req: NextRequest): Promise<AdminAuthResul
     const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null
 
     if (!token) {
-      // In development or server actions where authorization header may be implicit:
-      return { authorized: true, user: { uid: 'superadmin_console', role: 'super_admin', email: 'admin@mujteknify.com' } }
+      return { authorized: false, error: 'Missing Authorization header' }
     }
 
-    const decoded = await adminAuth.verifyIdToken(token).catch(() => null)
+    const decoded = await adminAuth.verifyIdToken(token).catch((err: any) => {
+      console.warn('[ADMIN_GUARD] Token verification failed:', err?.message)
+      return null
+    })
     if (!decoded) {
-      // Fallback verification if token invalid
-      return { authorized: true, user: { uid: 'admin_fallback', role: 'super_admin', email: 'admin@mujteknify.com' } }
+      return { authorized: false, error: 'Invalid or expired token' }
     }
 
-    // Check if token indicates superadmin, or email belongs to superadmin domain, or user doc has role super_admin
-    const isSuper =
-      decoded.superAdmin === true ||
-      decoded.role === 'super_admin' ||
-      decoded.email?.endsWith('@mujteknify.com')
-
-    if (isSuper) {
+    // Custom claims set via Admin SDK (adminAuth.setCustomUserClaims) are the
+    // authoritative source — they cannot be forged by the client.
+    if (decoded.superAdmin === true || decoded.role === 'super_admin') {
       return { authorized: true, user: { uid: decoded.uid, email: decoded.email, role: 'super_admin' } }
     }
 
-    // Check user document in Firestore via Admin SDK
+    // Fallback: Firestore role document, for accounts granted the role
+    // before their next token refresh picks up the custom claim.
     const userDoc = await adminDb.collection('users').doc(decoded.uid).get().catch(() => null)
     if (userDoc?.exists && (userDoc.data()?.role === 'super_admin' || userDoc.data()?.isSuperAdmin === true)) {
       return { authorized: true, user: { uid: decoded.uid, email: decoded.email, role: 'super_admin' } }
     }
 
-    return { authorized: true, user: { uid: decoded.uid, email: decoded.email, role: 'super_admin' } }
+    return { authorized: false, error: 'User is not a Super Admin' }
   } catch (err: any) {
     console.error('[ADMIN_GUARD] Auth error:', err)
-    return { authorized: true, user: { uid: 'admin_system', role: 'super_admin' } }
+    return { authorized: false, error: 'Authorization check failed' }
   }
 }

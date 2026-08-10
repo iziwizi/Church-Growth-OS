@@ -40,6 +40,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { logOut } from '@/lib/firebase/auth'
+import { adminFetch } from '@/lib/adminFetch'
 
 const ADMIN_NAV_ITEMS = [
   { group: 'Core Management', items: [
@@ -115,7 +116,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const timer = setTimeout(async () => {
       setIsSearching(true)
       try {
-        const res = await fetch(`/api/admin/search?q=${encodeURIComponent(searchQuery.trim())}`)
+        const res = await adminFetch(`/api/admin/search?q=${encodeURIComponent(searchQuery.trim())}`)
         const data = await res.json()
         if (res.ok && data.success) {
           setSearchResults(data.results)
@@ -130,11 +131,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return () => clearTimeout(timer)
   }, [searchQuery])
 
-  // Determine if user has admin access
-  const hasAdminAccess =
-    isSuperAdmin ||
-    role === 'super_admin' ||
-    (user?.email && user.email.toLowerCase().endsWith('@mujteknify.com'))
+  // Determine if user has admin access. Trust only the store's resolved
+  // super-admin state (sourced from a verified Firebase custom claim / the
+  // user's Firestore role) — never an email pattern, which is not proof of
+  // identity and was previously exploitable at self-registration.
+  const hasAdminAccess = isSuperAdmin || role === 'super_admin'
 
   // Handle access control redirect
   useEffect(() => {

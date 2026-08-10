@@ -27,6 +27,67 @@ export interface UserProfileData {
   status: 'active' | 'suspended' | 'pending'
 }
 
+export type VerificationSendStatus = 'sent' | 'already_verified' | 'rate_limited' | 'fallback_sent' | 'failed'
+
+export interface VerificationSendResult {
+  status: VerificationSendStatus
+  message: string
+  retryAfterSeconds?: number
+}
+
+/**
+ * Requests a verification email via the primary (Resend/Admin SDK) route,
+ * falling back to Firebase's own client-side mailer only for genuine
+ * provider/config failures — never for rate limiting, so a confused user
+ * clicking resend repeatedly gets one clear "please wait Ns" message
+ * instead of silently cascading into Firebase's own per-user cooldown
+ * (which previously surfaced as a generic, unexplained "too many requests").
+ */
+async function requestVerificationEmail(email: string, fullName?: string): Promise<VerificationSendResult> {
+  try {
+    const res = await fetch('/api/auth/send-verification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, fullName }),
+    })
+    const data = await res.json().catch(() => ({}) as any)
+
+    if (res.ok && data.status === 'sent') {
+      return { status: 'sent', message: data.message ?? 'Verification email sent — please check your inbox.' }
+    }
+    if (data.status === 'already_verified') {
+      return { status: 'already_verified', message: 'This email address is already verified.' }
+    }
+    if (data.status === 'rate_limited') {
+      return {
+        status: 'rate_limited',
+        message: data.error ?? 'Please wait before requesting another verification email.',
+        retryAfterSeconds: data.retryAfterSeconds,
+      }
+    }
+    // config_error / provider_error / anything unexpected: last-resort fallback.
+    return attemptFirebaseFallback()
+  } catch {
+    return attemptFirebaseFallback()
+  }
+}
+
+async function attemptFirebaseFallback(): Promise<VerificationSendResult> {
+  const user = auth.currentUser
+  if (!user) {
+    return { status: 'failed', message: 'No signed-in user to send a verification email to.' }
+  }
+  try {
+    await sendEmailVerification(user)
+    return { status: 'fallback_sent', message: 'Verification email sent via backup provider — please check your inbox.' }
+  } catch (err: any) {
+    if (err?.code === 'auth/too-many-requests') {
+      return { status: 'rate_limited', message: 'Too many requests. Please wait a few minutes before trying again.' }
+    }
+    return { status: 'failed', message: mapAuthError(err) }
+  }
+}
+
 export function mapAuthError(error: unknown): string {
   if (typeof error === 'object' && error !== null && 'code' in error) {
     const code = (error as { code: string }).code
@@ -58,7 +119,7 @@ export async function signUpUser(
   email: string,
   password: string,
   fullName: string
-): Promise<{ user: User; verificationSent: boolean }> {
+): Promise<{ user: User; verification: VerificationSendResult }> {
   console.log('[AUTH_DEBUG] (lib/firebase/auth.ts:signUpUser) Registration started for email:', email)
 
   // 1. Create Firebase Authentication account
@@ -113,59 +174,13 @@ export async function signUpUser(
     console.error('  stack  :', docErr?.stack)
   }
 
-  // 4. Send Email Verification via server-side API route
-  let verificationSent = false
-  console.log('[AUTH_DEBUG] (lib/firebase/auth.ts:signUpUser) Calling /api/auth/send-verification endpoint...')
-  try {
-    const res = await fetch('/api/auth/send-verification', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: user.email, fullName }),
-    })
+  // 4. Send Email Verification via server-side API route (with a controlled
+  // fallback — see requestVerificationEmail for why this no longer retries
+  // blindly into Firebase's own rate limiter).
+  const verification = await requestVerificationEmail(user.email ?? email, fullName)
+  console.log('[AUTH_DEBUG] (lib/firebase/auth.ts:signUpUser) Verification result:', verification)
 
-    console.log('[AUTH_DEBUG] /api/auth/send-verification response status:', res.status)
-    const data = await res.json()
-    console.log('[AUTH_DEBUG] /api/auth/send-verification response body:', data)
-
-    if (res.ok && data.success) {
-      verificationSent = true
-      console.log('[AUTH_DEBUG] Verification email sent successfully via Resend. MessageID:', data.messageId)
-    } else {
-      console.error('[AUTH_DEBUG] /api/auth/send-verification API returned error:', data.error)
-      // Fallback: try Firebase built-in
-      try {
-        console.log('[AUTH_DEBUG] Attempting Firebase fallback sendEmailVerification(user)...')
-        await sendEmailVerification(user)
-        verificationSent = true
-        console.log('[AUTH_DEBUG] Fallback sendEmailVerification SUCCESS!')
-      } catch (fbErr: any) {
-        console.error('[AUTH_DEBUG] Fallback sendEmailVerification FAILED!')
-        console.error('  code   :', fbErr?.code)
-        console.error('  message:', fbErr?.message)
-        console.error('  stack  :', fbErr?.stack)
-      }
-    }
-  } catch (fetchErr: any) {
-    console.error('[AUTH_DEBUG] Could not reach /api/auth/send-verification API route!')
-    console.error('  error  :', fetchErr)
-    console.error('  message:', fetchErr?.message)
-    console.error('  stack  :', fetchErr?.stack)
-    // Fallback: try Firebase built-in
-    try {
-      console.log('[AUTH_DEBUG] Attempting Firebase fallback sendEmailVerification(user)...')
-      await sendEmailVerification(user)
-      verificationSent = true
-      console.log('[AUTH_DEBUG] Fallback sendEmailVerification SUCCESS!')
-    } catch (fbErr: any) {
-      console.error('[AUTH_DEBUG] Fallback sendEmailVerification FAILED!')
-      console.error('  code   :', fbErr?.code)
-      console.error('  message:', fbErr?.message)
-      console.error('  stack  :', fbErr?.stack)
-    }
-  }
-
-  console.log('[AUTH_DEBUG] (lib/firebase/auth.ts:signUpUser) Completed. Returning { user, verificationSent:', verificationSent, '}')
-  return { user, verificationSent }
+  return { user, verification }
 }
 
 export async function signInUser(email: string, password: string): Promise<UserCredential> {
@@ -232,52 +247,14 @@ export async function sendPasswordReset(email: string): Promise<void> {
   return sendPasswordResetEmail(auth, email)
 }
 
-export async function resendVerification(): Promise<boolean> {
+export async function resendVerification(): Promise<VerificationSendResult> {
   const user = auth.currentUser
-  if (!user) {
-    console.error('[AUTH_DEBUG] (resendVerification) No authenticated user in auth.currentUser')
-    throw new Error('No user is currently signed in. Please sign in to request a verification email.')
-  }
-
-  if (!user.email) {
-    throw new Error('No email address associated with this account.')
+  if (!user?.email) {
+    return { status: 'failed', message: 'No user is currently signed in. Please sign in to request a verification email.' }
   }
 
   console.log('[AUTH_DEBUG] (resendVerification) Resending verification for user:', user.email, 'uid:', user.uid)
-
-  try {
-    const res = await fetch('/api/auth/send-verification', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: user.email,
-        fullName: user.displayName ?? 'Pastor',
-      }),
-    })
-    console.log('[AUTH_DEBUG] (resendVerification) API status:', res.status)
-    const data = await res.json()
-    console.log('[AUTH_DEBUG] (resendVerification) API data:', data)
-
-    if (res.ok && data.success) {
-      console.log('[AUTH_DEBUG] (resendVerification) Resend verification email SUCCESS! MessageID:', data.messageId)
-      return true
-    }
-
-    console.error('[AUTH_DEBUG] (resendVerification) Resend API returned error, trying fallback:', data.error)
-    await sendEmailVerification(user)
-    console.log('[AUTH_DEBUG] (resendVerification) Fallback sendEmailVerification SUCCESS.')
-    return true
-  } catch (err: any) {
-    console.error('[AUTH_DEBUG] (resendVerification) Resend error:', err?.code, err?.message, err?.stack)
-    try {
-      await sendEmailVerification(user)
-      console.log('[AUTH_DEBUG] (resendVerification) Fallback sendEmailVerification SUCCESS.')
-      return true
-    } catch (fbErr: any) {
-      console.error('[AUTH_DEBUG] (resendVerification) Firebase fallback error:', fbErr?.code, fbErr?.message, fbErr?.stack)
-      throw fbErr
-    }
-  }
+  return requestVerificationEmail(user.email, user.displayName ?? 'Pastor')
 }
 
 export async function logOut(): Promise<void> {

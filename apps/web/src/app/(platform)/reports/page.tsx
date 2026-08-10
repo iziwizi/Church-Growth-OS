@@ -28,6 +28,7 @@ import {
   where,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase/client'
+import { getIdToken } from '@/lib/firebase/auth'
 import { useChurchStore } from '@/store'
 import { generateExecutiveReportPDF } from '@/lib/reports/generatePDF'
 import { toast } from 'sonner'
@@ -148,9 +149,13 @@ export default function ReportsPage() {
     if (!church?.id) return
     setGeneratingReport(true)
     try {
+      const idToken = await getIdToken()
       const res = await fetch('/api/church/daily-report/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+        },
         body: JSON.stringify({ churchId: church.id }),
       })
       const data = await res.json()
@@ -349,13 +354,13 @@ export default function ReportsPage() {
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Mail className="h-3 w-3" /> Email
-                    </span>
-                    <span>•</span>
-                    <span className="flex items-center gap-1">
-                      <Smartphone className="h-3 w-3" /> In-App
-                    </span>
+                    {(rpt.deliveredChannels ?? ['in_app']).map((ch: string, i: number) => (
+                      <span key={ch} className="flex items-center gap-1">
+                        {i > 0 && <span className="mr-2">•</span>}
+                        {ch === 'email' ? <Mail className="h-3 w-3" /> : <Smartphone className="h-3 w-3" />}
+                        {ch === 'in_app' ? 'In-App' : ch === 'email' ? 'Email' : ch === 'whatsapp' ? 'WhatsApp' : ch}
+                      </span>
+                    ))}
                   </div>
                 </div>
               ))

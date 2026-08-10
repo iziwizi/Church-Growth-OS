@@ -34,22 +34,35 @@ export default function AdminLoginPage() {
       const user = credential.user
       console.log('[ADMIN_LOGIN] Firebase Auth sign-in SUCCESS. UID:', user.uid)
 
-      // 2. Fetch Firestore Profile to verify Super Admin status
+      // 2. Verify Super Admin status from a server-issued custom claim
+      // (authoritative) with the Firestore role document as a fallback.
+      // Email domain is never trusted for authorization.
       let role = 'user'
       let isSuperAdmin = false
 
       try {
-        const userSnap = await getDoc(doc(db, 'users', user.uid))
-        if (userSnap.exists()) {
-          const userData = userSnap.data()
-          role = userData?.role ?? 'user'
-          console.log('[ADMIN_LOGIN] Firestore user role:', role)
+        const tokenResult = await user.getIdTokenResult()
+        if (tokenResult.claims.superAdmin === true || tokenResult.claims.role === 'super_admin') {
+          role = 'super_admin'
         }
-      } catch (fsErr: any) {
-        console.warn('[ADMIN_LOGIN] Firestore profile check warning:', fsErr?.message)
+      } catch (claimErr: any) {
+        console.warn('[ADMIN_LOGIN] Custom claim check warning:', claimErr?.message)
       }
 
-      isSuperAdmin = role === 'super_admin' || (user.email?.endsWith('@mujteknify.com') ?? false)
+      if (role !== 'super_admin') {
+        try {
+          const userSnap = await getDoc(doc(db, 'users', user.uid))
+          if (userSnap.exists()) {
+            const userData = userSnap.data()
+            role = userData?.role ?? 'user'
+            console.log('[ADMIN_LOGIN] Firestore user role:', role)
+          }
+        } catch (fsErr: any) {
+          console.warn('[ADMIN_LOGIN] Firestore profile check warning:', fsErr?.message)
+        }
+      }
+
+      isSuperAdmin = role === 'super_admin'
       console.log('[ADMIN_LOGIN] Super Admin status resolved:', isSuperAdmin)
 
       if (!isSuperAdmin) {

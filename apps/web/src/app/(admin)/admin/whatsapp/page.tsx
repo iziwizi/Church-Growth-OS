@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { MessageSquare, Save, Loader2, Send, CheckCircle2, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/adminFetch'
 
 export default function AdminWhatsAppPage() {
   const [saving, setSaving] = useState(false)
@@ -29,7 +30,7 @@ export default function AdminWhatsAppPage() {
   async function loadWhatsapp() {
     setLoading(true)
     try {
-      const res = await fetch('/api/admin/whatsapp')
+      const res = await adminFetch('/api/admin/whatsapp')
       const data = await res.json()
       if (res.ok && data.success && data.config) {
         setConfig((prev) => ({ ...prev, ...data.config }))
@@ -47,7 +48,7 @@ export default function AdminWhatsAppPage() {
     e.preventDefault()
     setSaving(true)
     try {
-      const res = await fetch('/api/admin/whatsapp', {
+      const res = await adminFetch('/api/admin/whatsapp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),
@@ -95,7 +96,7 @@ export default function AdminWhatsAppPage() {
     }
     setSendingTest(true)
     try {
-      const res = await fetch('/api/admin/whatsapp/send-test', {
+      const res = await adminFetch('/api/admin/whatsapp/send-test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

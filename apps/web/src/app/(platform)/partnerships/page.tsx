@@ -15,6 +15,7 @@ import {
   getDocs,
   addDoc,
   deleteDoc,
+  updateDoc,
   doc,
   serverTimestamp,
   orderBy,
@@ -96,6 +97,17 @@ export default function PartnershipsPage() {
     }
   }
 
+  const handleActivate = async (id: string) => {
+    if (!church?.id) return
+    try {
+      await updateDoc(doc(db, 'churches', church.id, 'partnerships', id), { status: 'active' })
+      toast.success('Partner activated.')
+      setPartners((prev) => prev.map((p) => (p.id === id ? { ...p, status: 'active' } : p)))
+    } catch {
+      toast.error('Failed to activate partner.')
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -166,13 +178,24 @@ export default function PartnershipsPage() {
                       </span>
                     </td>
                     <td className="p-3.5 text-right">
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(p.id)}
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-lg border hover:bg-rose-500/10 text-muted-foreground hover:text-rose-500"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        {p.status === 'pending' && (
+                          <button
+                            type="button"
+                            onClick={() => handleActivate(p.id)}
+                            className="inline-flex h-7 items-center rounded-lg border border-emerald-500/30 px-2.5 text-[11px] font-semibold text-emerald-600 hover:bg-emerald-500/10"
+                          >
+                            Activate
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(p.id)}
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-lg border hover:bg-rose-500/10 text-muted-foreground hover:text-rose-500"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

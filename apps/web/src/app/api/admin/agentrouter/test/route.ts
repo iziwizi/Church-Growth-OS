@@ -35,82 +35,105 @@ export async function POST(req: NextRequest) {
     const apiKey = agentRouter.apiKey.trim()
     const baseUrl = agentRouter.baseUrl || 'https://co.agentrouter.org/v1'
     const protocol = agentRouter.protocol || 'openai'
-    const testModel = agentRouter.primaryModel || 'claude-3-5-sonnet-20241022'
+    const testModel = agentRouter.primaryModel || 'anthropic/claude-3.5-sonnet'
 
     let testResponseText = ''
     let httpStatus = 200
 
-    if (protocol === 'anthropic') {
-      // Anthropic Protocol
-      const res = await fetch(`${baseUrl}/v1/messages`, {
-        method: 'POST',
-        headers: {
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: testModel,
-          messages: [{ role: 'user', content: 'Respond with exactly: "AGENTROUTER_OK"' }],
-          max_tokens: 15,
-          temperature: 0,
-        }),
-      })
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 15_000)
 
-      httpStatus = res.status
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}))
-        const errMsg = errData?.error?.message || errData?.message || `HTTP ${res.status}: ${res.statusText}`
-        return NextResponse.json(
-          {
-            success: false,
-            error: `AgentRouter Anthropic test failed: ${errMsg}`,
-            latencyMs: Date.now() - startTime,
+    try {
+      if (protocol === 'anthropic') {
+        // Anthropic Protocol. Guard against a double `/v1` when baseUrl
+        // already ends in `/v1` — the OpenAI branch already had this guard;
+        // this branch didn't, so switching to Anthropic protocol without
+        // also editing the base URL silently produced a malformed
+        // `.../v1/v1/messages` request that 404'd
+        // (docs/PRODUCTION_ENGINEERING_AUDIT.md §5).
+        const endpoint = baseUrl.endsWith('/v1') ? `${baseUrl}/messages` : `${baseUrl}/v1/messages`
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          signal: controller.signal,
+          headers: {
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'Content-Type': 'application/json',
           },
-          { status: 400 }
+          body: JSON.stringify({
+            model: testModel,
+            messages: [{ role: 'user', content: 'Respond with exactly: "AGENTROUTER_OK"' }],
+            max_tokens: 15,
+            temperature: 0,
+          }),
+        })
+
+        httpStatus = res.status
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}))
+          const errMsg = errData?.error?.message || errData?.message || `HTTP ${res.status}: ${res.statusText}`
+          return NextResponse.json(
+            {
+              success: false,
+              error: `AgentRouter Anthropic test failed: ${errMsg}`,
+              latencyMs: Date.now() - startTime,
+            },
+            { status: 400 }
+          )
+        }
+
+        const data = await res.json()
+        testResponseText = data.content?.[0]?.text?.trim() ?? 'OK'
+      } else {
+        // OpenAI Compatible Protocol (Default)
+        const endpoint = baseUrl.endsWith('/v1')
+          ? `${baseUrl}/chat/completions`
+          : `${baseUrl}/v1/chat/completions`
+
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          signal: controller.signal,
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: testModel,
+            messages: [
+              { role: 'user', content: 'Respond with exactly: "AGENTROUTER_OK"' },
+            ],
+            max_tokens: 15,
+            temperature: 0,
+          }),
+        })
+
+        httpStatus = res.status
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}))
+          const errMsg = errData?.error?.message || errData?.message || `HTTP ${res.status}: ${res.statusText}`
+          return NextResponse.json(
+            {
+              success: false,
+              error: `AgentRouter OpenAI test failed: ${errMsg}`,
+              latencyMs: Date.now() - startTime,
+            },
+            { status: 400 }
+          )
+        }
+
+        const data = await res.json()
+        testResponseText = data.choices?.[0]?.message?.content?.trim() ?? 'OK'
+      }
+    } catch (fetchErr: any) {
+      if (fetchErr?.name === 'AbortError') {
+        return NextResponse.json(
+          { success: false, error: 'AgentRouter did not respond within 15 seconds (timeout).', latencyMs: Date.now() - startTime },
+          { status: 504 }
         )
       }
-
-      const data = await res.json()
-      testResponseText = data.content?.[0]?.text?.trim() ?? 'OK'
-    } else {
-      // OpenAI Compatible Protocol (Default)
-      const endpoint = baseUrl.endsWith('/v1')
-        ? `${baseUrl}/chat/completions`
-        : `${baseUrl}/v1/chat/completions`
-
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: testModel,
-          messages: [
-            { role: 'user', content: 'Respond with exactly: "AGENTROUTER_OK"' },
-          ],
-          max_tokens: 15,
-          temperature: 0,
-        }),
-      })
-
-      httpStatus = res.status
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}))
-        const errMsg = errData?.error?.message || errData?.message || `HTTP ${res.status}: ${res.statusText}`
-        return NextResponse.json(
-          {
-            success: false,
-            error: `AgentRouter OpenAI test failed: ${errMsg}`,
-            latencyMs: Date.now() - startTime,
-          },
-          { status: 400 }
-        )
-      }
-
-      const data = await res.json()
-      testResponseText = data.choices?.[0]?.message?.content?.trim() ?? 'OK'
+      throw fetchErr
+    } finally {
+      clearTimeout(timeout)
     }
 
     const latencyMs = Date.now() - startTime

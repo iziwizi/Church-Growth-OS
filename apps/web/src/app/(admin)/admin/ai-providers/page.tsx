@@ -19,6 +19,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/adminFetch'
 
 interface ModelItem {
   id: string
@@ -41,7 +42,7 @@ export default function AdminAIProvidersPage() {
     agentrouterKey: '',
     agentrouterBaseUrl: 'https://co.agentrouter.org/v1',
     agentrouterProtocol: 'openai' as 'openai' | 'anthropic',
-    primaryModel: 'claude-3-5-sonnet-20241022',
+    primaryModel: 'anthropic/claude-3.5-sonnet',
     fallbackModel: 'gpt-4o-mini',
     aiMode: 'autonomous',
     enabled: true,
@@ -49,14 +50,14 @@ export default function AdminAIProvidersPage() {
     latencyMs: null as number | null,
     status: 'unconfigured',
     taskRouting: {
-      VISITOR_FOLLOW_UP: 'claude-3-5-sonnet-20241022',
-      SERMON_SUMMARY: 'claude-3-5-sonnet-20241022',
-      EMAIL_WRITING: 'claude-3-5-sonnet-20241022',
+      VISITOR_FOLLOW_UP: 'anthropic/claude-3.5-sonnet',
+      SERMON_SUMMARY: 'anthropic/claude-3.5-sonnet',
+      EMAIL_WRITING: 'anthropic/claude-3.5-sonnet',
       WHATSAPP_WRITING: 'gpt-4o-mini',
       CONTENT_SUMMARY: 'gpt-4o-mini',
-      DAILY_REPORT: 'claude-3-5-sonnet-20241022',
-      STRATEGIC_ANALYSIS: 'claude-3-5-sonnet-20241022',
-      PRAYER_DEVOTIONAL: 'claude-3-5-sonnet-20241022',
+      DAILY_REPORT: 'anthropic/claude-3.5-sonnet',
+      STRATEGIC_ANALYSIS: 'anthropic/claude-3.5-sonnet',
+      PRAYER_DEVOTIONAL: 'anthropic/claude-3.5-sonnet',
       EVENT_PROMO: 'gpt-4o-mini',
       STORE_PROMOTION: 'gpt-4o-mini',
     },
@@ -73,7 +74,7 @@ export default function AdminAIProvidersPage() {
   })
 
   const [discoveredModels, setDiscoveredModels] = useState<ModelItem[]>([
-    { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet (Anthropic)', provider: 'Anthropic', contextLength: 200000 },
+    { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet (Anthropic)', provider: 'Anthropic', contextLength: 200000 },
     { id: 'claude-3-7-sonnet', name: 'Claude 3.7 Sonnet (Hybrid Reasoning)', provider: 'Anthropic', contextLength: 200000 },
     { id: 'claude-3-5-haiku', name: 'Claude 3.5 Haiku (Fast)', provider: 'Anthropic', contextLength: 200000 },
     { id: 'gpt-4o', name: 'GPT-4o (OpenAI Omni)', provider: 'OpenAI', contextLength: 128000 },
@@ -95,7 +96,7 @@ export default function AdminAIProvidersPage() {
   async function loadAIConfig() {
     setLoading(true)
     try {
-      const res = await fetch('/api/admin/ai-providers')
+      const res = await adminFetch('/api/admin/ai-providers')
       const data = await res.json()
       if (res.ok && data.success && data.config) {
         setHasStoredKey(!!data.config.hasAgentRouterKey)
@@ -115,7 +116,7 @@ export default function AdminAIProvidersPage() {
 
   async function loadModels() {
     try {
-      const res = await fetch('/api/admin/agentrouter/models')
+      const res = await adminFetch('/api/admin/agentrouter/models')
       if (res.ok) {
         const data = await res.json()
         if (data.models && Array.isArray(data.models) && data.models.length > 0) {
@@ -130,7 +131,7 @@ export default function AdminAIProvidersPage() {
   const handleRefreshModels = async () => {
     setRefreshingModels(true)
     try {
-      const res = await fetch('/api/admin/agentrouter/models')
+      const res = await adminFetch('/api/admin/agentrouter/models')
       if (!res.ok) throw new Error('Failed to fetch models')
       const data = await res.json()
       if (data.models && data.models.length > 0) {
@@ -148,7 +149,7 @@ export default function AdminAIProvidersPage() {
     e.preventDefault()
     setSaving(true)
     try {
-      const res = await fetch('/api/admin/ai-providers', {
+      const res = await adminFetch('/api/admin/ai-providers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),
@@ -172,7 +173,7 @@ export default function AdminAIProvidersPage() {
     setTestingAgentRouter(true)
     setTestResult(null)
     try {
-      const res = await fetch('/api/admin/agentrouter/test', { method: 'POST' })
+      const res = await adminFetch('/api/admin/agentrouter/test', { method: 'POST' })
       const data = await res.json()
       if (res.ok && data.success) {
         setTestResult({ ok: true, message: data.message ?? 'AgentRouter Connection successful!', latencyMs: data.latencyMs })
@@ -194,7 +195,7 @@ export default function AdminAIProvidersPage() {
   const handleTestDirectProvider = async (provider: string) => {
     setTestingDirect(provider)
     try {
-      const res = await fetch('/api/admin/providers/test', {
+      const res = await adminFetch('/api/admin/providers/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider }),

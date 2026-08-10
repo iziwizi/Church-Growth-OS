@@ -1,29 +1,35 @@
+// NOTE: `firebase.json` deploys `firestore/firestore.rules`, NOT this file.
+// This root-level copy exists only for editor convenience / historical
+// reasons and MUST be kept byte-identical to firestore/firestore.rules —
+// two divergent copies previously caused a real security gap (edits made
+// here had zero production effect). If you change rules, edit
+// firestore/firestore.rules first and copy it here, not the reverse.
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     // ============================================================================
     // HELPER FUNCTIONS
-    // Reconciled from two rule sets:
-    //   (A) Current live Firebase rules — comprehensive collection coverage
-    //   (B) Proposed new rules — improved security architecture
     //
     // Key design principle: helpers that may be used during CREATE must NOT
     // reference resource.data (document doesn't exist yet on create).
     // Separate create-safe and read/update/delete helpers are used where needed.
+    //
+    // isSuperAdmin() is claims-only by design — it must NEVER fall back to a
+    // Firestore document field, because Firestore documents (e.g. a user's
+    // own `users/{uid}` doc) can be client-writable. Custom claims can only
+    // be set server-side via the Admin SDK (see scripts/grant-super-admin.mjs
+    // and /api/admin/users), so they're the only trustworthy signal here.
     // ============================================================================
 
-    // True if the request is from any authenticated user
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // True if the current user matches the given userId
     function isUser(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // True if the user has a Super Admin custom claim
     function isSuperAdmin() {
       return isAuthenticated() && (
         request.auth.token.superAdmin == true ||
@@ -37,8 +43,6 @@ service cloud.firestore {
     }
 
     // ── Create-safe church membership check ───────────────────────────────
-    // Does NOT reference resource.data — safe to use in create rules.
-    // Checks: custom claims, church owner lookup, user doc churchId.
     function isChurchMemberCreate(churchId) {
       return isAuthenticated() && (
         isSuperAdmin() ||
@@ -49,7 +53,6 @@ service cloud.firestore {
     }
 
     // ── Read/Update/Delete church membership check ────────────────────────
-    // May reference resource.data (document already exists for RUD operations).
     function isChurchMember(churchId) {
       return isAuthenticated() && (
         isSuperAdmin() ||
@@ -61,7 +64,6 @@ service cloud.firestore {
     }
 
     // ── Create-safe church owner/admin check ──────────────────────────────
-    // Does NOT reference resource.data — safe for create rules.
     function isChurchOwnerCreate(churchId) {
       return isAuthenticated() && (
         isSuperAdmin() ||
@@ -75,7 +77,6 @@ service cloud.firestore {
     }
 
     // ── Read/Update/Delete church owner/admin check ───────────────────────
-    // May reference resource.data.
     function isChurchOwner(churchId) {
       return isAuthenticated() && (
         isSuperAdmin() ||
@@ -99,9 +100,17 @@ service cloud.firestore {
         isSuperAdmin() ||
         (resource != null && resource.data.churchId == request.auth.token.churchId)
       );
-      // User creates their own profile document during registration
+      // User creates their own profile document during registration.
       allow create: if isAuthenticated() && request.auth.uid == userId;
-      allow update: if isAuthenticated() && (isUser(userId) || isSuperAdmin());
+      // Users may update their own profile, but NEVER their own `role` —
+      // only a Super Admin (via /api/admin/users, which sets the real
+      // custom claim through the Admin SDK) may change a role. Without this
+      // guard, a user could self-write role:'super_admin' to this document
+      // and satisfy privilege checks that fall back to reading it.
+      allow update: if isAuthenticated() && (
+        isSuperAdmin() ||
+        (isUser(userId) && request.resource.data.role == resource.data.role)
+      );
       allow delete: if isSuperAdmin();
     }
 
@@ -117,17 +126,29 @@ service cloud.firestore {
         getUserData().churchId == churchId
       );
 
-      // Setup Wizard: user creates a church document where they are the owner
+      // Setup Wizard: user creates a church document where they are the owner.
       allow create: if isAuthenticated() && (
         isSuperAdmin() ||
         request.resource.data.ownerId == request.auth.uid
       );
 
+      // Church members/owners may update their tenant document, EXCEPT the
+      // `plan` and `subscription` fields — those may only change via a
+      // Super Admin action or a server-verified payment webhook (both use
+      // the Admin SDK, which bypasses these rules). This closes the gap
+      // where a client could otherwise activate a paid plan without any
+      // real payment (see docs/PRODUCTION_ENGINEERING_AUDIT.md §7).
       allow update: if isAuthenticated() && (
         isSuperAdmin() ||
-        resource.data.ownerId == request.auth.uid ||
-        request.auth.token.churchId == churchId ||
-        getUserData().churchId == churchId
+        (
+          (
+            resource.data.ownerId == request.auth.uid ||
+            request.auth.token.churchId == churchId ||
+            getUserData().churchId == churchId
+          ) &&
+          request.resource.data.plan == resource.data.plan &&
+          request.resource.data.subscription == resource.data.subscription
+        )
       );
 
       allow delete: if isSuperAdmin();
@@ -173,8 +194,9 @@ service cloud.firestore {
       }
 
       // ── Prayer Requests ─────────────────────────────────────────────────
-      // Public submissions must go through /api/public/submit (server-side validation).
-      // Direct client writes require church membership.
+      // Public submissions go through /api/public/submit (Admin SDK, bypasses
+      // rules, resolves churchId server-side from the slug). Direct client
+      // writes require church membership.
       match /prayerRequests/{requestId} {
         allow read: if isChurchMember(churchId);
         allow create: if isChurchMemberCreate(churchId);
@@ -241,7 +263,6 @@ service cloud.firestore {
       }
 
       // ── Testimonies ─────────────────────────────────────────────────────
-      // Public submissions must go through /api/public/submit (server-side validation).
       match /testimonies/{testimonyId} {
         allow read: if isChurchMember(churchId);
         allow create: if isChurchMemberCreate(churchId);
@@ -287,8 +308,18 @@ service cloud.firestore {
         allow delete: if isChurchOwner(churchId);
       }
 
-      // ── Support Tickets ──────────────────────────────────────────────────
+      // ── Legacy tenant-scoped support tickets (superseded by the
+      // top-level /platformSupportTickets collection, kept read-only here
+      // for any historical records) ────────────────────────────────────────
       match /supportTickets/{ticketId} {
+        allow read: if isChurchMember(churchId);
+        allow create: if isChurchMemberCreate(churchId);
+        allow update: if isChurchMember(churchId);
+        allow delete: if isChurchOwner(churchId);
+      }
+
+      // ── In-app notifications for this church tenant ──────────────────────
+      match /notifications/{notificationId} {
         allow read: if isChurchMember(churchId);
         allow create: if isChurchMemberCreate(churchId);
         allow update: if isChurchMember(churchId);
@@ -306,7 +337,7 @@ service cloud.firestore {
       // ── Subscription ─────────────────────────────────────────────────────
       match /subscription/{subId} {
         allow read: if isChurchMember(churchId);
-        allow write: if isChurchOwner(churchId);
+        allow write: if isSuperAdmin(); // server webhook / Admin SDK only
       }
 
       // ── Reports ──────────────────────────────────────────────────────────
@@ -344,7 +375,7 @@ service cloud.firestore {
       // ── Daily Growth Reports (/churches/{churchId}/dailyReports/{reportId}) ─
       match /dailyReports/{reportId} {
         allow read: if isChurchMember(churchId);
-        allow create: if isChurchOwnerCreate(churchId);
+        allow create: if isSuperAdmin(); // written by Admin SDK (daily report generator)
         allow update: if isChurchOwner(churchId);
         allow delete: if isChurchOwner(churchId);
       }
@@ -366,43 +397,73 @@ service cloud.firestore {
 
     // ============================================================================
     // SYSTEM — Platform Infrastructure & Configuration
-    // (/system/infrastructure, /system/pricing, /system/maintenance, /system/*)
+    //
+    // `pricing`, `featureFlags`, and `maintenance` are readable by any
+    // authenticated user (needed client-side for pricing display, feature
+    // gating, and the maintenance banner). Every other `system/*` document
+    // — most importantly `infrastructure`, which stores AgentRouter/OpenAI/
+    // Resend/WhatsApp/Paystack/Cloudinary secrets in plaintext — is
+    // readable ONLY by a Super Admin. The previous blanket
+    // `allow read: if isAuthenticated()` on the whole collection let any
+    // signed-up trial user read every platform secret directly via the
+    // client SDK (see docs/PRODUCTION_ENGINEERING_AUDIT.md, finding S5).
     // ============================================================================
 
-    match /system/{document=**} {
-      // All authenticated users can READ system/pricing (for pricing page + feature gating)
-      // and system/maintenance (for the MaintenanceGate component)
+    match /system/pricing {
       allow read: if isAuthenticated();
-      // Only Super Admins can WRITE system configuration
+      allow write: if isSuperAdmin();
+    }
+
+    match /system/featureFlags {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
+    }
+
+    match /system/maintenance {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
+    }
+
+    match /system/{document} {
+      allow read: if isSuperAdmin();
       allow write: if isSuperAdmin();
     }
 
     // ============================================================================
     // PLATFORM SUPPORT TICKETS (/platformSupportTickets/{ticketId})
+    // Single canonical ticket store — both the Church Admin and Super Admin
+    // consoles read/write here. `churchId` is checked against the caller's
+    // own custom claim so any staff member of the ticket's church (not just
+    // its original creator) can read and reply to the thread.
     // ============================================================================
 
     match /platformSupportTickets/{ticketId} {
       allow read: if isAuthenticated() && (
-        resource == null ||
-        resource.data.userId == request.auth.uid ||
-        isSuperAdmin()
+        isSuperAdmin() ||
+        resource.data.churchId == request.auth.token.churchId ||
+        resource.data.userId == request.auth.uid
       );
-      allow create: if isAuthenticated();
+      allow create: if isAuthenticated() && (
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.churchId == request.auth.token.churchId
+      );
       allow update: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid || isSuperAdmin()
+        isSuperAdmin() ||
+        resource.data.churchId == request.auth.token.churchId
       );
       allow delete: if isSuperAdmin();
     }
 
     // ============================================================================
-    // NOTIFICATIONS (/notifications/{notificationId})
+    // NOTIFICATIONS (/notifications/{notificationId}) — platform-level,
+    // distinct from the per-church /churches/{id}/notifications above.
     // ============================================================================
 
     match /notifications/{notificationId} {
       allow read: if isAuthenticated() && (
-        resource == null || resource.data.userId == request.auth.uid
+        resource == null || resource.data.userId == request.auth.uid || isSuperAdmin()
       );
-      allow create: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
       allow update: if isAuthenticated() && (
         resource == null || resource.data.userId == request.auth.uid
       );
@@ -416,14 +477,15 @@ service cloud.firestore {
     // ============================================================================
 
     match /payments/{paymentId} {
-      // Read only for authenticated users who own this payment or are Super Admin
       allow read: if isAuthenticated() && (
         isSuperAdmin() ||
         resource == null ||
         resource.data.userId == request.auth.uid ||
         resource.data.churchId == request.auth.token.churchId
       );
-      // Writes go through server-side webhooks/Admin SDK only
+      // Writes go through server-side webhooks/Admin SDK only — see
+      // docs/PRODUCTION_ENGINEERING_AUDIT.md §7 for why this must never
+      // be relaxed to allow a client-side "successful" payment write.
       allow write: if false;
     }
 
@@ -442,6 +504,10 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
     }
 
+    // Platform-wide announcements (Super Admin → churches). Recipient
+    // scoping (`all` | `selected_churches` | `selected_users`) lives in the
+    // document itself; every authenticated user may read the collection and
+    // filter client-side for announcements addressed to them.
     match /announcements/{announcementId} {
       allow read: if isAuthenticated();
       allow write: if isSuperAdmin();

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Tag, Save, Loader2, Plus, Sparkles, Check, Trash2, Edit3, X, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/adminFetch'
 
 interface PlanTier {
   id: string
@@ -95,7 +96,7 @@ export default function AdminPricingPlansPage() {
   async function loadPricing() {
     setLoading(true)
     try {
-      const res = await fetch('/api/admin/pricing-plans')
+      const res = await adminFetch('/api/admin/pricing-plans')
       const data = await res.json()
       if (res.ok && data.success && data.plans) {
         setPlans(data.plans)
@@ -113,7 +114,7 @@ export default function AdminPricingPlansPage() {
     e.preventDefault()
     setSaving(true)
     try {
-      const res = await fetch('/api/admin/pricing-plans', {
+      const res = await adminFetch('/api/admin/pricing-plans', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(plans),

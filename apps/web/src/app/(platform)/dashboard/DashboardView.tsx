@@ -229,10 +229,16 @@ export function DashboardView() {
   const ch = church as any
   const profileDone = !!(ch?.name && ch?.slug)
   const missionDone = !!(ch?.missionStatement || ch?.aiProfile?.mission || ch?.aiProfile?.vision)
+  // Reads the top-level `church.growthObjectives` field — the only
+  // location actually loaded into the client church store (AuthInitializer
+  // only reads the top-level churches/{churchId} doc, never the ai/profile
+  // subcollection), so checking `ch.aiProfile.*` here always evaluated to
+  // false regardless of real setup state
+  // (docs/PRODUCTION_ENGINEERING_AUDIT.md §10).
   const goalsDone = !!(
-    ch?.aiProfile?.growthObjectives?.primaryGoal ||
-    ch?.aiProfile?.ministryGoals?.length ||
-    ch?.aiProfile?.primaryGoal
+    ch?.growthObjectives?.primary ||
+    ch?.growthObjectives?.custom ||
+    ch?.ministryGoals?.length
   )
   const logoDone = !!(ch?.branding?.logoUrl)
   const contactDone = !!(
@@ -259,7 +265,7 @@ export function DashboardView() {
   const checklistItems = [
     { label: 'Church Profile & Slug', done: profileDone, href: '/settings?tab=profile' },
     { label: 'Mission & Vision', done: missionDone, href: '/settings?tab=profile' },
-    { label: 'Growth Objectives', done: goalsDone, href: '/settings?tab=profile' },
+    { label: 'Growth Objectives', done: goalsDone, href: '/settings?tab=growth' },
     { label: 'Logo & Branding', done: logoDone, href: '/settings?tab=branding' },
     { label: 'Location & Contact', done: contactDone, href: '/settings?tab=profile' },
     { label: 'Social Media Links', done: socialDone, href: '/settings?tab=social' },

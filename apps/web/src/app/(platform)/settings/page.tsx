@@ -48,10 +48,12 @@ type SettingsTab =
   | 'giving'
   | 'preferences'
   | 'security'
+  | 'growth'
 
 const SETTINGS_NAV = [
   { id: 'profile' as SettingsTab, label: 'Church Profile', icon: Building2 },
   { id: 'branding' as SettingsTab, label: 'Branding & Theme', icon: Palette },
+  { id: 'growth' as SettingsTab, label: 'Growth Objectives', icon: Sparkles },
   { id: 'users' as SettingsTab, label: 'Users & Roles', icon: Users },
   { id: 'social' as SettingsTab, label: 'Social Media Links', icon: Globe },
   { id: 'notifications' as SettingsTab, label: 'Notifications', icon: Bell },
@@ -68,7 +70,7 @@ function SettingsPageContent() {
 
   useEffect(() => {
     const tab = searchParams.get('tab') as SettingsTab | null
-    if (tab && ['profile', 'branding', 'users', 'social', 'notifications', 'branches', 'subscription', 'giving', 'preferences', 'security'].includes(tab)) {
+    if (tab && ['profile', 'branding', 'growth', 'users', 'social', 'notifications', 'branches', 'subscription', 'giving', 'preferences', 'security'].includes(tab)) {
       setActiveTab(tab)
     }
   }, [searchParams])
@@ -130,6 +132,7 @@ function SettingsPageContent() {
         <div className="lg:col-span-3">
           {activeTab === 'profile' && <ProfileSettingsTab church={church} setChurch={setChurch} />}
           {activeTab === 'branding' && <BrandingSettingsTab church={church} setChurch={setChurch} />}
+          {activeTab === 'growth' && <GrowthObjectivesSettingsTab church={church} setChurch={setChurch} />}
           {activeTab === 'users' && <UsersSettingsTab church={church} setChurch={setChurch} />}
           {activeTab === 'social' && <SocialMediaSettingsTab church={church} setChurch={setChurch} />}
           {activeTab === 'notifications' && <NotificationsSettingsTab church={church} setChurch={setChurch} />}
@@ -149,6 +152,138 @@ export default function SettingsPage() {
     <Suspense fallback={<div className="flex h-64 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-brand-600" /></div>}>
       <SettingsPageContent />
     </Suspense>
+  )
+}
+
+// ── Growth Objectives Settings Tab ───────────────────────────────────────
+// Single source of truth: `church.growthObjectives.{primary,secondary,custom}`
+// — the top-level field the setup wizard writes AND the only one actually
+// loaded into the client church store (AuthInitializer never merges the
+// `ai/profile` subcollection). Editing here updates the same field the
+// dashboard checklist and setup wizard read, rather than creating a third
+// duplicate location (docs/PRODUCTION_ENGINEERING_AUDIT.md §10).
+const GROWTH_GOALS_LIST = [
+  { id: 'increase_attendance', label: 'Increase Attendance', desc: 'Grow Sunday and midweek service attendance' },
+  { id: 'increase_visitors', label: 'Increase First-Time Visitors', desc: 'Attract new guests and outreach visitors' },
+  { id: 'visitor_followup', label: 'Improve Visitor Follow-up', desc: 'Automate 7-day visitor engagement' },
+  { id: 'member_retention', label: 'Improve Member Retention', desc: 'Convert visitors to active members' },
+  { id: 'increase_engagement', label: 'Increase Engagement', desc: 'Boost member participation in church life' },
+  { id: 'social_reach', label: 'Increase Social Media Reach', desc: 'AI content generation for social channels' },
+  { id: 'online_views', label: 'Increase Online Service Views', desc: 'Grow YouTube, Facebook, and stream audiences' },
+  { id: 'whatsapp_comm', label: 'Improve WhatsApp Communication', desc: 'Automate broadcasts & 2-way engagement' },
+  { id: 'email_comm', label: 'Improve Email Communication', desc: 'Pastoral letters, newsletters & reminders' },
+  { id: 'event_participation', label: 'Increase Event Participation', desc: 'Promote services, conferences & retreats' },
+  { id: 'volunteer_engagement', label: 'Improve Volunteer Engagement', desc: 'Organize workforce and department teams' },
+  { id: 'giving_support', label: 'Increase Giving & Support', desc: 'Encourage tithes, offerings & seed faith' },
+  { id: 'pastoral_followup', label: 'Strengthen Pastoral Follow-up', desc: 'Personalized care and disengagement checks' },
+  { id: 'evangelism_outreach', label: 'Improve Evangelism & Outreach', desc: 'Outreach campaigns and community growth' },
+]
+
+function GrowthObjectivesSettingsTab({ church, setChurch }: { church: any; setChurch: any }) {
+  const [saving, setSaving] = useState(false)
+  const existing = church.growthObjectives ?? {}
+  const [primaryGoal, setPrimaryGoal] = useState<string>(existing.primary ?? 'visitor_followup')
+  const [secondaryGoals, setSecondaryGoals] = useState<string[]>(
+    Array.isArray(existing.secondary) ? existing.secondary : church.ministryGoals ?? []
+  )
+  const [customObjective, setCustomObjective] = useState<string>(existing.custom ?? '')
+
+  const toggleGoal = (id: string) => {
+    setSecondaryGoals((prev) => (prev.includes(id) ? prev.filter((g) => g !== id) : [...prev, id]))
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const growthObjectives = { primary: primaryGoal, secondary: secondaryGoals, custom: customObjective.trim() || null }
+      await updateDoc(doc(db, 'churches', church.id), {
+        growthObjectives,
+        ministryGoals: secondaryGoals,
+        updatedAt: serverTimestamp(),
+      })
+      setChurch({ ...church, growthObjectives, ministryGoals: secondaryGoals })
+      toast.success('Growth objectives updated! Reports, AI insights, and the daily briefing will reflect this.')
+    } catch {
+      toast.error('Failed to update growth objectives.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-5">
+      <div>
+        <h2 className="font-display text-base font-bold text-foreground">Growth Objectives</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          What does growth mean to {church.name}? Church Growth OS AI tailors automations, reports, and insights to these targets.
+        </p>
+      </div>
+
+      <div>
+        <label className="text-xs font-bold text-foreground block mb-1">Primary Growth Goal</label>
+        <select
+          value={primaryGoal}
+          onChange={(e) => setPrimaryGoal(e.target.value)}
+          className="flex h-9 w-full rounded-xl border border-input bg-background px-3 text-xs font-semibold text-brand-500 focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          {GROWTH_GOALS_LIST.map((g) => (
+            <option key={g.id} value={g.id}>{g.label} — {g.desc}</option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="text-xs font-bold text-foreground block mb-1">Secondary Growth Goals</label>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 max-h-64 overflow-y-auto pr-1">
+          {GROWTH_GOALS_LIST.map((goal) => {
+            const selected = secondaryGoals.includes(goal.id)
+            return (
+              <button
+                key={goal.id}
+                type="button"
+                onClick={() => toggleGoal(goal.id)}
+                className={`flex items-start gap-2 rounded-xl border p-2.5 text-left text-xs transition-all ${
+                  selected ? 'border-brand-500 bg-brand-500/10 ring-1 ring-brand-500/30' : 'border-border bg-background hover:bg-accent'
+                }`}
+              >
+                <div className={`flex h-4 w-4 mt-0.5 shrink-0 items-center justify-center rounded-md border ${selected ? 'bg-brand-600 border-brand-600 text-white' : 'border-input'}`}>
+                  {selected && <CheckCircle2 className="h-3 w-3" />}
+                </div>
+                <div>
+                  <p className="font-bold text-foreground">{goal.label}</p>
+                  <p className="text-[10px] text-muted-foreground leading-tight">{goal.desc}</p>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div>
+        <label className="text-xs font-bold text-foreground block mb-1">
+          Specific Ministry Objective / Vision <span className="text-muted-foreground font-normal">(Optional)</span>
+        </label>
+        <textarea
+          rows={3}
+          value={customObjective}
+          onChange={(e) => setCustomObjective(e.target.value)}
+          placeholder="e.g., We want to plant 2 new campuses, increase youth attendance by 30%..."
+          className="flex w-full rounded-xl border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+        />
+      </div>
+
+      <div className="flex justify-end pt-2 border-t">
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          className="inline-flex h-9 items-center gap-2 rounded-xl bg-brand-600 px-5 font-semibold text-white hover:bg-brand-500 disabled:opacity-50 text-xs"
+        >
+          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+          Save Growth Objectives
+        </button>
+      </div>
+    </div>
   )
 }
 

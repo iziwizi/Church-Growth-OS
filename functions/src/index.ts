@@ -8,6 +8,7 @@ export {
   processJobQueue,
   morningDeclarations,
   birthdayAndAnniversaryCheck,
+  ensureSundayServiceEvents,
 } from './scheduled/index'
 
 // ── AI Engagement Engine ─────────────────────────────────────

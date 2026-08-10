@@ -11,6 +11,13 @@ function VerifyEmailForm() {
   const router = useRouter()
   const [resending, setResending] = useState(false)
   const [checking, setChecking] = useState(false)
+  const [cooldownSeconds, setCooldownSeconds] = useState(0)
+
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return
+    const timer = setInterval(() => setCooldownSeconds((s) => Math.max(0, s - 1)), 1000)
+    return () => clearInterval(timer)
+  }, [cooldownSeconds])
 
   // Auto polling Firebase Auth status every 3 seconds
   useEffect(() => {
@@ -73,21 +80,31 @@ function VerifyEmailForm() {
   }
 
   const handleResend = async () => {
+    if (cooldownSeconds > 0) return
     console.log('[VERIFY_EMAIL_DEBUG] (verify-email/page.tsx:75) Resend button clicked...')
     setResending(true)
     try {
-      console.log('[VERIFY_EMAIL_DEBUG] (verify-email/page.tsx:78) Calling resendVerification()...')
-      await resendVerification()
-      console.log('[VERIFY_EMAIL_DEBUG] (verify-email/page.tsx:80) resendVerification() SUCCESS!')
-      toast.success('Verification email sent! Check your inbox and spam folder.')
+      const result = await resendVerification()
+      console.log('[VERIFY_EMAIL_DEBUG] (verify-email/page.tsx:80) resendVerification() result:', result)
+
+      switch (result.status) {
+        case 'sent':
+        case 'fallback_sent':
+          toast.success(result.message)
+          setCooldownSeconds(60)
+          break
+        case 'already_verified':
+          toast.success(result.message)
+          break
+        case 'rate_limited':
+          toast.warning(result.message)
+          setCooldownSeconds(result.retryAfterSeconds ?? 60)
+          break
+        default:
+          toast.error(result.message)
+      }
     } catch (err: any) {
-      console.error('====================================================')
-      console.error('[VERIFY_EMAIL_DEBUG] (verify-email/page.tsx:84) RESEND VERIFICATION EXCEPTION!')
-      console.error('  Error  :', err)
-      console.error('  Code   :', err?.code)
-      console.error('  Message:', err?.message)
-      console.error('  Stack  :', err?.stack)
-      console.error('====================================================')
+      console.error('[VERIFY_EMAIL_DEBUG] Unexpected resend exception:', err)
       toast.error(mapAuthError(err))
     } finally {
       setResending(false)
@@ -153,11 +170,11 @@ function VerifyEmailForm() {
         <button
           type="button"
           onClick={handleResend}
-          disabled={resending}
+          disabled={resending || cooldownSeconds > 0}
           className="inline-flex items-center gap-1.5 font-medium text-brand-500 hover:underline disabled:opacity-50"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${resending ? 'animate-spin' : ''}`} />
-          <span>Resend Verification</span>
+          <span>{cooldownSeconds > 0 ? `Resend available in ${cooldownSeconds}s` : 'Resend Verification'}</span>
         </button>
 
         <button

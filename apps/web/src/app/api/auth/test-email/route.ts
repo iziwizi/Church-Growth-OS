@@ -1,13 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { verifySuperAdmin } from '@/lib/server/admin-guard'
+import { checkRateLimit } from '@/lib/server/rate-limit'
 
 /**
  * POST /api/auth/test-email
  *
- * Development/Admin diagnostic endpoint to verify Resend email dispatch.
+ * Super Admin diagnostic endpoint to verify Resend email dispatch.
  * Sends a test email using the verified `mujteknify.com` domain.
  * Accepts: { to?: string, recipient?: string, email?: string }
+ *
+ * SECURITY: this was previously unauthenticated and accepted an arbitrary
+ * destination, making it an open relay against the platform's paid,
+ * reputation-sensitive Resend account — a likely contributor to the
+ * verification-email deliverability problem (see docs/PRODUCTION_ENGINEERING_AUDIT.md §6).
  */
 export async function POST(req: NextRequest) {
+  const authCheck = await verifySuperAdmin(req)
+  if (!authCheck.authorized) {
+    return NextResponse.json({ error: authCheck.error ?? 'Super Admin authorization required.' }, { status: 403 })
+  }
+
+  const rateLimit = checkRateLimit(`test-email:${authCheck.user?.uid ?? 'admin'}`, 5, 60_000)
+  if (!rateLimit.allowed) {
+    return NextResponse.json({ error: 'Too many test emails sent. Please wait a moment.' }, { status: 429 })
+  }
+
   try {
     const body = await req.json().catch(() => ({}))
     const rawTo = body.to || body.recipient || body.email

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Mail, Save, Loader2, Send, CheckCircle2, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/adminFetch'
 
 export default function AdminEmailProvidersPage() {
   const [saving, setSaving] = useState(false)
@@ -26,7 +27,7 @@ export default function AdminEmailProvidersPage() {
   async function loadEmailConfig() {
     setLoading(true)
     try {
-      const res = await fetch('/api/admin/email-providers')
+      const res = await adminFetch('/api/admin/email-providers')
       const data = await res.json()
       if (res.ok && data.success && data.config) {
         setConfig((prev) => ({
@@ -47,7 +48,7 @@ export default function AdminEmailProvidersPage() {
     e.preventDefault()
     setSaving(true)
     try {
-      const res = await fetch('/api/admin/email-providers', {
+      const res = await adminFetch('/api/admin/email-providers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),
@@ -69,7 +70,7 @@ export default function AdminEmailProvidersPage() {
   const handleTestConnection = async () => {
     setTesting(true)
     try {
-      const res = await fetch('/api/auth/test-email', {
+      const res = await adminFetch('/api/auth/test-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ to: testEmailAddress.trim() || 'mujteknify@gmail.com' }),
@@ -94,7 +95,7 @@ export default function AdminEmailProvidersPage() {
     }
     setSendingTest(true)
     try {
-      const res = await fetch('/api/auth/test-email', {
+      const res = await adminFetch('/api/auth/test-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ to: testEmailAddress.trim() }),

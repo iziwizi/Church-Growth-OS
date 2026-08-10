@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Flag, Loader2, RefreshCw, CheckCircle2, ShieldAlert } from 'lucide-react'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/adminFetch'
 
 interface FeatureFlagItem {
   key: string
@@ -32,7 +33,7 @@ export default function AdminFeatureFlagsPage() {
   const loadFlags = async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/admin/feature-flags')
+      const res = await adminFetch('/api/admin/feature-flags')
       const data = await res.json()
       if (res.ok && data.success) {
         setFlags(data.flags || {})
@@ -60,7 +61,7 @@ export default function AdminFeatureFlagsPage() {
     setTogglingKey(key)
 
     try {
-      const res = await fetch('/api/admin/feature-flags', {
+      const res = await adminFetch('/api/admin/feature-flags', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key, value: nextVal }),

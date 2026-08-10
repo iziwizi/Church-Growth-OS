@@ -89,9 +89,14 @@ export class CloudinaryUploadService implements IUploadService {
 
   async delete(publicId: string): Promise<void> {
     // Deletion requires server-side signing — call via API route
+    const { getIdToken } = await import('@/lib/firebase/auth')
+    const idToken = await getIdToken()
     const response = await fetch('/api/upload/delete', {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+      },
       body: JSON.stringify({ publicId }),
     })
 

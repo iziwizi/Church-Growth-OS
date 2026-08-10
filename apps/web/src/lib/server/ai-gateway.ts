@@ -34,6 +34,10 @@ export interface AIGatewayResponse {
   creditsConsumed: number
   latencyMs: number
   error?: string
+  /** True when every real provider failed and an offline canned template was returned instead — not a real AI generation. */
+  usedTemplateFallback?: boolean
+  /** The upstream provider error that caused the template fallback, if any. */
+  providerError?: string
 }
 
 export interface AgentRouterConfig {
@@ -62,18 +66,18 @@ export async function getCanonicalAIConfig(): Promise<{
   let agentRouterKey = process.env.AGENTROUTER_API_KEY ?? ''
   let baseUrl = 'https://co.agentrouter.org/v1'
   let protocol: 'openai' | 'anthropic' = 'openai'
-  let primaryModel = 'claude-3-5-sonnet-20241022'
+  let primaryModel = 'anthropic/claude-3.5-sonnet'
   let fallbackModel = 'gpt-4o-mini'
   let enabled = true
   let taskRouting: Record<string, string> = {
-    VISITOR_FOLLOW_UP: 'claude-3-5-sonnet-20241022',
-    SERMON_SUMMARY: 'claude-3-5-sonnet-20241022',
-    EMAIL_WRITING: 'claude-3-5-sonnet-20241022',
+    VISITOR_FOLLOW_UP: 'anthropic/claude-3.5-sonnet',
+    SERMON_SUMMARY: 'anthropic/claude-3.5-sonnet',
+    EMAIL_WRITING: 'anthropic/claude-3.5-sonnet',
     WHATSAPP_WRITING: 'gpt-4o-mini',
     CONTENT_SUMMARY: 'gpt-4o-mini',
-    DAILY_REPORT: 'claude-3-5-sonnet-20241022',
-    STRATEGIC_ANALYSIS: 'claude-3-5-sonnet-20241022',
-    PRAYER_DEVOTIONAL: 'claude-3-5-sonnet-20241022',
+    DAILY_REPORT: 'anthropic/claude-3.5-sonnet',
+    STRATEGIC_ANALYSIS: 'anthropic/claude-3.5-sonnet',
+    PRAYER_DEVOTIONAL: 'anthropic/claude-3.5-sonnet',
     EVENT_PROMO: 'gpt-4o-mini',
     STORE_PROMOTION: 'gpt-4o-mini',
   }
@@ -189,7 +193,7 @@ export async function executeAIGateway(req: AIGatewayRequest): Promise<AIGateway
     req.preferredModel ||
     agentRouter.taskRouting[task] ||
     agentRouter.primaryModel ||
-    'claude-3-5-sonnet-20241022'
+    'anthropic/claude-3.5-sonnet'
 
   const systemInstruction =
     TASK_SYSTEM_PROMPTS[task] ??
@@ -206,10 +210,17 @@ export async function executeAIGateway(req: AIGatewayRequest): Promise<AIGateway
       const isAnthropicProtocol = agentRouter.protocol === 'anthropic'
       const cleanBaseUrl = agentRouter.baseUrl
 
+      const timeoutController = new AbortController()
+      const timeoutHandle = setTimeout(() => timeoutController.abort(), 20_000)
+
       if (isAnthropicProtocol) {
-        // Anthropic Compatible endpoint: POST ${baseUrl}/v1/messages
-        const res = await fetch(`${cleanBaseUrl}/v1/messages`, {
+        // Anthropic Compatible endpoint: POST ${baseUrl}/v1/messages — guard
+        // against a double `/v1` if the base URL already includes it (see
+        // the same fix in api/admin/agentrouter/test/route.ts).
+        const endpoint = cleanBaseUrl.endsWith('/v1') ? `${cleanBaseUrl}/messages` : `${cleanBaseUrl}/v1/messages`
+        const res = await fetch(endpoint, {
           method: 'POST',
+          signal: timeoutController.signal,
           headers: {
             'x-api-key': agentRouter.apiKey.trim(),
             'anthropic-version': '2023-06-01',
@@ -222,7 +233,7 @@ export async function executeAIGateway(req: AIGatewayRequest): Promise<AIGateway
             max_tokens: req.maxTokens ?? 1500,
             temperature: req.temperature ?? 0.7,
           }),
-        })
+        }).finally(() => clearTimeout(timeoutHandle))
 
         if (res.ok) {
           const data = await res.json()
@@ -240,6 +251,7 @@ export async function executeAIGateway(req: AIGatewayRequest): Promise<AIGateway
 
         const res = await fetch(endpoint, {
           method: 'POST',
+          signal: timeoutController.signal,
           headers: {
             Authorization: `Bearer ${agentRouter.apiKey.trim()}`,
             'Content-Type': 'application/json',
@@ -253,7 +265,7 @@ export async function executeAIGateway(req: AIGatewayRequest): Promise<AIGateway
             max_tokens: req.maxTokens ?? 1500,
             temperature: req.temperature ?? 0.7,
           }),
-        })
+        }).finally(() => clearTimeout(timeoutHandle))
 
         if (res.ok) {
           const data = await res.json()
@@ -302,18 +314,30 @@ export async function executeAIGateway(req: AIGatewayRequest): Promise<AIGateway
     }
   }
 
-  // 5. Fallback Execution: Structured Ministry Templates
+  // 5. Fallback Execution: Structured Ministry Templates. This is NOT real
+  // AI generation — it's a canned, offline-safe placeholder so the UI has
+  // something to show when every real provider failed. Credits must not be
+  // deducted for it (see step 6) and the caller must be told this happened
+  // rather than presenting it as a normal successful generation — a
+  // previous version deducted a credit and reported success unconditionally
+  // whenever this path was hit (docs/PRODUCTION_ENGINEERING_AUDIT.md §5).
+  let usedTemplateFallback = false
   if (!generatedText) {
     generatedText = generateStructuredMinistryTemplate(task, req.prompt, req.churchName ?? 'Church')
     activeProvider = 'Ministry Template Engine (Offline Safe)'
     activeModel = 'template-v1'
+    usedTemplateFallback = true
+    if (lastError) {
+      console.warn('[AI_GATEWAY] Falling back to offline template after provider failure:', lastError)
+    }
   }
 
   const latencyMs = Date.now() - startTime
 
-  // 6. Atomic Usage Tracking & Single Credit Deduction (Only if generation succeeded)
+  // 6. Atomic Usage Tracking & Single Credit Deduction (Only for real
+  // provider generations — never for the offline template fallback).
   let creditsConsumed = 0
-  if (generatedText && churchId && adminDb) {
+  if (generatedText && !usedTemplateFallback && churchId && adminDb) {
     try {
       creditsConsumed = 1
       const churchRef = adminDb.collection('churches').doc(churchId)
@@ -348,6 +372,8 @@ export async function executeAIGateway(req: AIGatewayRequest): Promise<AIGateway
     task,
     creditsConsumed,
     latencyMs,
+    usedTemplateFallback,
+    providerError: usedTemplateFallback ? lastError ?? undefined : undefined,
   }
 }
 

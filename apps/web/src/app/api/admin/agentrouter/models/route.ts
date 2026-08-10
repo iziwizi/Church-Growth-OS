@@ -12,7 +12,7 @@ export interface AgentRouterModelItem {
 
 // Canonical curated models available through AgentRouter
 const STANDARD_AGENTROUTER_MODELS: AgentRouterModelItem[] = [
-  { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet (Anthropic)', provider: 'Anthropic', contextLength: 200000, description: 'Best for complex reasoning, sermon repurposing, and executive reports' },
+  { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet (Anthropic)', provider: 'Anthropic', contextLength: 200000, description: 'Best for complex reasoning, sermon repurposing, and executive reports' },
   { id: 'claude-3-7-sonnet', name: 'Claude 3.7 Sonnet (Hybrid Reasoning)', provider: 'Anthropic', contextLength: 200000, description: 'Latest state-of-the-art hybrid reasoning model' },
   { id: 'claude-3-5-haiku', name: 'Claude 3.5 Haiku (Fast)', provider: 'Anthropic', contextLength: 200000, description: 'High-speed, cost-efficient for visitor follow-ups and short broadcasts' },
   { id: 'gpt-4o', name: 'GPT-4o (OpenAI Omni)', provider: 'OpenAI', contextLength: 128000, description: 'Flagship multimodal model with broad world knowledge' },

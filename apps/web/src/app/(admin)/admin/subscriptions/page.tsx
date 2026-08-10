@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { CreditCard, Loader2, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/adminFetch'
 
 export default function AdminSubscriptionsPage() {
   const [subscriptions, setSubscriptions] = useState<any[]>([])
@@ -16,7 +17,7 @@ export default function AdminSubscriptionsPage() {
   async function loadSubscriptions() {
     setLoading(true)
     try {
-      const res = await fetch('/api/admin/subscriptions')
+      const res = await adminFetch('/api/admin/subscriptions')
       const data = await res.json()
       if (res.ok && data.success) {
         setSubscriptions(data.subscriptions ?? [])
@@ -34,7 +35,7 @@ export default function AdminSubscriptionsPage() {
     setUpdatingId(churchId)
     try {
       const branchesLimit = planId === 'enterprise' ? -1 : planId === 'growth' ? 5 : 1
-      const res = await fetch('/api/admin/subscriptions', {
+      const res = await adminFetch('/api/admin/subscriptions', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ churchId, status, planId, branchesLimit }),

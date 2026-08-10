@@ -4,7 +4,6 @@ import { useEffect, useState, useRef } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { onAuthChange, getUserProfile, logOut } from '@/lib/firebase/auth'
 import { getUserChurch } from '@/lib/auth/checkChurchSetup'
-import { ensureSuperAdminProfile } from '@/lib/auth/seedSuperAdmin'
 import { useAuthStore, useChurchStore } from '@/store'
 import { Loader2, AlertCircle, RefreshCw, LogOut } from 'lucide-react'
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
@@ -68,14 +67,14 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
       try {
         if (firebaseUser) {
           setUser(firebaseUser)
-          const isSuperAdminEmail = firebaseUser.email?.endsWith('@mujteknify.com') ?? false
 
-          // Handle Super Admin
-          if (isSuperAdminEmail && firebaseUser.email) {
-            await ensureSuperAdminProfile(firebaseUser.uid, firebaseUser.email).catch((e) =>
-              console.warn('[AUTH_INIT] Super Admin profile notice:', e?.message)
-            )
-          }
+          // Super Admin status is only ever trusted from a server-issued
+          // Firebase custom claim (set via the Admin SDK — see
+          // scripts/grant-super-admin.ts) — never from an email pattern,
+          // which anyone can self-register at signup.
+          const tokenResult = await firebaseUser.getIdTokenResult().catch(() => null)
+          const claimsSuperAdmin =
+            tokenResult?.claims?.superAdmin === true || tokenResult?.claims?.role === 'super_admin'
 
           // Fetch user profile from Firestore
           let profile = await getUserProfile(firebaseUser.uid).catch((e) => {
@@ -84,7 +83,7 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
           })
 
           // Issue 9 Fix: Recover missing user profile if auth user exists but /users/{uid} is missing
-          if (!profile && !isSuperAdminEmail) {
+          if (!profile) {
             console.log('[AUTH_INIT] Missing profile for authenticated user. Recovering default profile...')
             try {
               const fallbackProfile = {
@@ -94,7 +93,7 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
                 photoURL: firebaseUser.photoURL ?? null,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
-                role: 'owner' as const,
+                role: claimsSuperAdmin ? ('super_admin' as const) : ('owner' as const),
                 subscriptionStatus: 'trial' as const,
                 churchId: null,
                 emailVerified: firebaseUser.emailVerified,
@@ -109,8 +108,8 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
           }
 
           let activeChurchId = profile?.churchId ?? null
-          let activeRole = profile?.role ?? (isSuperAdminEmail ? 'super_admin' : 'owner')
-          const isSuperAdmin = isSuperAdminEmail || activeRole === 'super_admin'
+          let activeRole = profile?.role ?? (claimsSuperAdmin ? 'super_admin' : 'owner')
+          const isSuperAdmin = claimsSuperAdmin || activeRole === 'super_admin'
 
           let churchDoc = null
 
@@ -185,11 +184,7 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
     const hasChurch = !!church?.id
     const isDashboard = pathname === '/dashboard'
 
-    const isSuperAdmin =
-      storeIsSuperAdmin ||
-      role === 'super_admin' ||
-      user?.email?.endsWith('@mujteknify.com') ||
-      false
+    const isSuperAdmin = storeIsSuperAdmin || role === 'super_admin'
 
     // Case A: Super Admin Routing (Issue 7 Fix: Independent of church document)
     if (isSuperAdmin) {

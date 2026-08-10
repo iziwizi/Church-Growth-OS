@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
       hasAgentRouterKey: !!agentrouterKey,
       agentrouterBaseUrl: data?.agentrouterBaseUrl || 'https://co.agentrouter.org/v1',
       agentrouterProtocol: data?.agentrouterProtocol || 'openai',
-      primaryModel: data?.aiDefaultModel || data?.primaryModel || 'claude-3-5-sonnet-20241022',
+      primaryModel: data?.aiDefaultModel || data?.primaryModel || 'anthropic/claude-3.5-sonnet',
       fallbackModel: data?.aiFallbackModel || data?.fallbackModel || 'gpt-4o-mini',
       aiMode: data?.aiDefaultMode || 'autonomous',
       enabled: data?.aiEnabled ?? true,
@@ -51,14 +51,14 @@ export async function GET(req: NextRequest) {
 
       // Task-level model routing matrix
       taskRouting: data?.taskRouting || {
-        VISITOR_FOLLOW_UP: 'claude-3-5-sonnet-20241022',
-        SERMON_SUMMARY: 'claude-3-5-sonnet-20241022',
-        EMAIL_WRITING: 'claude-3-5-sonnet-20241022',
+        VISITOR_FOLLOW_UP: 'anthropic/claude-3.5-sonnet',
+        SERMON_SUMMARY: 'anthropic/claude-3.5-sonnet',
+        EMAIL_WRITING: 'anthropic/claude-3.5-sonnet',
         WHATSAPP_WRITING: 'gpt-4o-mini',
         CONTENT_SUMMARY: 'gpt-4o-mini',
-        DAILY_REPORT: 'claude-3-5-sonnet-20241022',
-        STRATEGIC_ANALYSIS: 'claude-3-5-sonnet-20241022',
-        PRAYER_DEVOTIONAL: 'claude-3-5-sonnet-20241022',
+        DAILY_REPORT: 'anthropic/claude-3.5-sonnet',
+        STRATEGIC_ANALYSIS: 'anthropic/claude-3.5-sonnet',
+        PRAYER_DEVOTIONAL: 'anthropic/claude-3.5-sonnet',
         EVENT_PROMO: 'gpt-4o-mini',
         STORE_PROMOTION: 'gpt-4o-mini',
       },
@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
     const existingDoc = await adminDb.collection('system').doc('infrastructure').get()
     const existingData = existingDoc.exists ? existingDoc.data() : {}
 
-    const selectedPrimaryModel = primaryModel || existingData?.aiDefaultModel || 'claude-3-5-sonnet-20241022'
+    const selectedPrimaryModel = primaryModel || existingData?.aiDefaultModel || 'anthropic/claude-3.5-sonnet'
     const selectedFallbackModel = fallbackModel || existingData?.aiFallbackModel || 'gpt-4o-mini'
 
     const updatePayload: Record<string, any> = {

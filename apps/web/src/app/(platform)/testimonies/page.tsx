@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Heart, Plus, Search, Loader2, Trash2, CheckCircle2, X, Sparkles } from 'lucide-react'
-import { collection, query, getDocs, addDoc, deleteDoc, doc, serverTimestamp, orderBy } from 'firebase/firestore'
+import { collection, query, getDocs, addDoc, deleteDoc, updateDoc, doc, serverTimestamp, orderBy } from 'firebase/firestore'
 import { db } from '@/lib/firebase/client'
 import { useChurchStore } from '@/store'
 import { toast } from 'sonner'
@@ -79,6 +79,20 @@ export default function TestimoniesPage() {
     }
   }
 
+  const handleApprove = async (id: string) => {
+    if (!church?.id) return
+    try {
+      await updateDoc(doc(db, 'churches', church.id, 'testimonies', id), {
+        status: 'approved',
+        isPublic: true,
+      })
+      toast.success('Testimony approved for sharing.')
+      setTestimonies((prev) => prev.map((t) => (t.id === id ? { ...t, status: 'approved', isPublic: true } : t)))
+    } catch {
+      toast.error('Failed to approve testimony.')
+    }
+  }
+
   const filteredTestimonies = testimonies.filter(
     (t) =>
       t.title?.toLowerCase().includes(search.toLowerCase()) ||
@@ -131,8 +145,14 @@ export default function TestimoniesPage() {
             <div key={t.id} className="rounded-2xl border bg-card p-5 shadow-xs flex flex-col justify-between space-y-3">
               <div>
                 <div className="flex items-center justify-between">
-                  <span className="rounded-full bg-pink-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-pink-500">
-                    Approved
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${
+                      t.status === 'approved'
+                        ? 'bg-pink-500/10 text-pink-500'
+                        : 'bg-amber-500/10 text-amber-600'
+                    }`}
+                  >
+                    {t.status === 'approved' ? 'Approved' : 'Pending Review'}
                   </span>
                   <Sparkles className="h-3.5 w-3.5 text-amber-500" />
                 </div>
@@ -141,7 +161,16 @@ export default function TestimoniesPage() {
                 <p className="text-xs text-muted-foreground mt-2 leading-relaxed line-clamp-4">{t.content}</p>
               </div>
 
-              <div className="flex items-center justify-end border-t pt-3">
+              <div className="flex items-center justify-end gap-2 border-t pt-3">
+                {t.status !== 'approved' && (
+                  <button
+                    type="button"
+                    onClick={() => handleApprove(t.id)}
+                    className="inline-flex h-7 items-center gap-1 rounded-lg border border-emerald-500/30 px-2.5 text-[11px] font-semibold text-emerald-600 hover:bg-emerald-500/10"
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Approve
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => handleDelete(t.id)}

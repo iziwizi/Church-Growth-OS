@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Search, Loader2, UserCheck, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/adminFetch'
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<any[]>([])
@@ -17,7 +18,7 @@ export default function AdminUsersPage() {
   async function loadUsers() {
     setLoading(true)
     try {
-      const res = await fetch('/api/admin/users')
+      const res = await adminFetch('/api/admin/users')
       const data = await res.json()
       if (res.ok && data.success) {
         setUsers(data.users ?? [])
@@ -34,7 +35,7 @@ export default function AdminUsersPage() {
   const handleUpdateRole = async (userId: string, role: string) => {
     setUpdatingId(userId)
     try {
-      const res = await fetch('/api/admin/users', {
+      const res = await adminFetch('/api/admin/users', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, role }),

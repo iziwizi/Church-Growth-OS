@@ -20,6 +20,7 @@ import {
   ImageIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/adminFetch'
 
 interface HealthService {
   name: string
@@ -85,7 +86,7 @@ export default function AdminPlatformHealthPage() {
     setChecking(true)
     try {
       // Test AgentRouter
-      const arRes = await fetch('/api/admin/agentrouter/test', { method: 'POST' }).catch(() => null)
+      const arRes = await adminFetch('/api/admin/agentrouter/test', { method: 'POST' }).catch(() => null)
       const arData = arRes ? await arRes.json().catch(() => ({})) : {}
 
       setServices((prev) =>

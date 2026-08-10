@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Search, Loader2, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/adminFetch'
 
 export default function AdminSupportDeskPage() {
   const [tickets, setTickets] = useState<any[]>([])
@@ -10,6 +11,7 @@ export default function AdminSupportDeskPage() {
   const [search, setSearch] = useState('')
   const [selectedTicket, setSelectedTicket] = useState<any | null>(null)
   const [replyMessage, setReplyMessage] = useState('')
+  const [updating, setUpdating] = useState(false)
 
   useEffect(() => {
     loadAllTickets()
@@ -18,7 +20,7 @@ export default function AdminSupportDeskPage() {
   async function loadAllTickets() {
     setLoading(true)
     try {
-      const res = await fetch('/api/admin/support')
+      const res = await adminFetch('/api/admin/support')
       const data = await res.json()
       if (res.ok && data.success) {
         setTickets(data.tickets ?? [])
@@ -33,8 +35,10 @@ export default function AdminSupportDeskPage() {
   }
 
   const handleUpdateStatus = async (ticketId: string, status: string, reply?: string) => {
+    if (updating) return
+    setUpdating(true)
     try {
-      const res = await fetch('/api/admin/support', {
+      const res = await adminFetch('/api/admin/support', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ticketId, status, replyMessage: reply }),
@@ -48,6 +52,8 @@ export default function AdminSupportDeskPage() {
       }
     } catch {
       toast.error('Failed to update status.')
+    } finally {
+      setUpdating(false)
     }
   }
 
@@ -190,12 +196,13 @@ export default function AdminSupportDeskPage() {
               <button type="button" onClick={() => setSelectedTicket(null)} className="h-8 rounded-xl border px-3">Close</button>
               <button
                 type="button"
+                disabled={updating}
                 onClick={() => {
                   handleUpdateStatus(selectedTicket.id, 'resolved', replyMessage)
                   setSelectedTicket(null)
                   setReplyMessage('')
                 }}
-                className="h-8 rounded-xl bg-brand-600 px-4 font-semibold text-white hover:bg-brand-500"
+                className="h-8 rounded-xl bg-brand-600 px-4 font-semibold text-white hover:bg-brand-500 disabled:opacity-50"
               >
                 Send Reply &amp; Resolve
               </button>

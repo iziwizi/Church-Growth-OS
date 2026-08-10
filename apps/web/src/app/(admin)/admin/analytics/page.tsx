@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Activity, TrendingUp, Building2, Users, DollarSign, Loader2, Cpu, CheckCircle2, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/adminFetch'
 
 export default function AdminAnalyticsPage() {
   const [loading, setLoading] = useState(true)
@@ -25,7 +26,7 @@ export default function AdminAnalyticsPage() {
   async function loadMetrics() {
     setLoading(true)
     try {
-      const res = await fetch('/api/admin/analytics')
+      const res = await adminFetch('/api/admin/analytics')
       const data = await res.json()
       if (res.ok && data.success && data.metrics) {
         setMetrics(data.metrics)

@@ -80,16 +80,17 @@ export async function PATCH(req: NextRequest) {
         createdAt: new Date().toISOString(),
       })
 
-      // 1. Notify church tenant in Firestore
+      // 1. Notify church tenant in Firestore (type 'alert' routes to /support,
+      // description is the field the notification bell actually reads).
       if (ticketData.churchId) {
         await adminDb
           .collection('churches')
           .doc(ticketData.churchId)
           .collection('notifications')
           .add({
-            type: 'SUPPORT_TICKET_REPLY',
+            type: 'alert',
             title: `Support Ticket Update: ${ticketData.subject || 'Inquiry'}`,
-            message: `Super Admin replied: "${replyMessage.slice(0, 120)}..."`,
+            description: `Super Admin replied: "${replyMessage.slice(0, 120)}${replyMessage.length > 120 ? '...' : ''}"`,
             ticketId,
             read: false,
             createdAt: FieldValue.serverTimestamp(),

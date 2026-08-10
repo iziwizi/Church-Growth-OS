@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Cloud, Save, Loader2, CheckCircle2, AlertTriangle, TestTube, BarChart3 } from 'lucide-react'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/adminFetch'
 
 interface CloudinaryUsage {
   plan: string
@@ -35,7 +36,7 @@ export default function AdminCloudinaryPage() {
     setLoading(true)
     try {
       // Load via server-side route — never exposes the secret
-      const res = await fetch('/api/admin/cloudinary/save')
+      const res = await adminFetch('/api/admin/cloudinary/save')
       const data = await res.json()
       if (data.success && data.config) {
         setConfig(prev => ({
@@ -61,7 +62,7 @@ export default function AdminCloudinaryPage() {
 
     setSaving(true)
     try {
-      const res = await fetch('/api/admin/cloudinary/save', {
+      const res = await adminFetch('/api/admin/cloudinary/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -90,7 +91,7 @@ export default function AdminCloudinaryPage() {
     setTesting(true)
     setTestResult(null)
     try {
-      const res = await fetch('/api/admin/cloudinary/test', { method: 'POST' })
+      const res = await adminFetch('/api/admin/cloudinary/test', { method: 'POST' })
       const data = await res.json()
       if (res.ok && data.success) {
         setTestResult({ ok: true, message: data.message, usage: data.usage })

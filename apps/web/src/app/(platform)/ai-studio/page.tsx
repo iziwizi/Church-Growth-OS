@@ -14,6 +14,7 @@ import {
   limit,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase/client'
+import { getIdToken } from '@/lib/firebase/auth'
 import { useChurchStore, useAuthStore } from '@/store'
 import { toast } from 'sonner'
 
@@ -72,9 +73,13 @@ export default function AIStudioPage() {
     setGenerating(true)
     setResult('')
     try {
+      const idToken = await getIdToken()
       const response = await fetch('/api/ai/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+        },
         body: JSON.stringify({
           prompt: prompt.trim(),
           contentType,
@@ -115,7 +120,11 @@ export default function AIStudioPage() {
         ...prev.slice(0, 9),
       ])
 
-      toast.success('🎉 AI content generated and credits tracked!')
+      if (data.usedTemplateFallback) {
+        toast.warning('AI providers are currently unavailable — showing a basic template instead. No credits were used.')
+      } else {
+        toast.success('🎉 AI content generated and credits tracked!')
+      }
     } catch (err: any) {
       toast.error(err.message ?? 'Failed to generate content.')
     } finally {

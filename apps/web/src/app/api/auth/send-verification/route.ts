@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth } from '@/lib/firebase/admin-sdk'
 import { getAppUrl } from '@/lib/config/app-url'
+import { checkRateLimit, getClientIp } from '@/lib/server/rate-limit'
 
 /**
  * POST /api/auth/send-verification
- * 
+ *
  * Generates a Firebase email verification link (server-side via Admin SDK),
- * then sends a formatted email via Resend.
+ * then sends a formatted email via Resend. Returns a truthful `status` so
+ * the client never claims "email sent" unless Resend actually accepted the
+ * send — and applies its own cooldown so repeated resend clicks fail fast
+ * with a clear message instead of silently falling through to Firebase's
+ * own per-user rate limiter (which produced the confusing generic
+ * "too many requests" error previously).
  */
 export async function POST(req: NextRequest) {
   try {
@@ -14,15 +20,47 @@ export async function POST(req: NextRequest) {
     const { email, fullName } = body
 
     if (!email || typeof email !== 'string') {
-      return NextResponse.json({ error: 'Email is required.' }, { status: 400 })
+      return NextResponse.json({ status: 'invalid_request', error: 'Email is required.' }, { status: 400 })
+    }
+
+    // Per-email cooldown (60s) and a per-IP ceiling to blunt abuse — this
+    // route sends real email via a paid, reputation-sensitive domain.
+    const emailLimit = checkRateLimit(`verify-email:${email.toLowerCase()}`, 1, 60_000)
+    if (!emailLimit.allowed) {
+      return NextResponse.json(
+        {
+          status: 'rate_limited',
+          error: `Please wait ${emailLimit.retryAfterSeconds}s before requesting another verification email.`,
+          retryAfterSeconds: emailLimit.retryAfterSeconds,
+        },
+        { status: 429 }
+      )
+    }
+    const ipLimit = checkRateLimit(`verify-email-ip:${getClientIp(req)}`, 10, 60 * 60_000)
+    if (!ipLimit.allowed) {
+      return NextResponse.json(
+        { status: 'rate_limited', error: 'Too many verification requests from this network. Please try again later.', retryAfterSeconds: ipLimit.retryAfterSeconds },
+        { status: 429 }
+      )
     }
 
     const resendApiKey = process.env.RESEND_API_KEY
     if (!resendApiKey || resendApiKey.includes('REPLACE_WITH')) {
       return NextResponse.json(
-        { error: 'RESEND_API_KEY is not configured in environment variables.' },
+        { status: 'config_error', error: 'Email provider is not configured on the server.' },
         { status: 500 }
       )
+    }
+
+    // Already-verified accounts should not be told "we sent you an email".
+    try {
+      const existingUser = await adminAuth.getUserByEmail(email)
+      if (existingUser.emailVerified) {
+        return NextResponse.json({ status: 'already_verified', success: true, message: 'This email address is already verified.' })
+      }
+    } catch {
+      // getUserByEmail throws if the user doesn't exist yet (e.g. called
+      // mid-registration) — fall through and attempt to generate the link.
     }
 
     // 1. Generate Firebase email verification link server-side pointing to canonical production URL
@@ -36,8 +74,9 @@ export async function POST(req: NextRequest) {
     try {
       verificationLink = await adminAuth.generateEmailVerificationLink(email, actionCodeSettings)
     } catch (adminErr: any) {
+      console.error('[SEND_VERIFICATION] generateEmailVerificationLink failed:', adminErr?.code, adminErr?.message)
       return NextResponse.json(
-        { error: `Could not generate verification link: ${adminErr?.message ?? 'Unknown Firebase Admin error'}` },
+        { status: 'config_error', error: `Could not generate verification link: ${adminErr?.message ?? 'Unknown Firebase Admin error'}` },
         { status: 500 }
       )
     }
@@ -97,28 +136,27 @@ export async function POST(req: NextRequest) {
     }
 
     if (!resendOk) {
+      console.error('[SEND_VERIFICATION] Resend rejected the send:', resendStatus, resendData)
       return NextResponse.json(
         {
-          status: 'REQUEST_FAILED',
-          error: `Resend API rejected email (Status ${resendStatus}): ${resendData?.message ?? resendText}`,
+          status: 'provider_error',
+          error: `Email provider rejected the request (${resendStatus}): ${resendData?.message ?? resendText}`,
           resendStatus,
-          resendData,
         },
-        { status: 500 }
+        { status: 502 }
       )
     }
 
     return NextResponse.json({
       success: true,
-      status: 'REQUEST_ACCEPTED',
-      message: 'Verification email accepted for delivery.',
+      status: 'sent',
+      message: 'Verification email accepted for delivery by the email provider.',
       messageId: resendData?.id,
-      resendStatus,
-      resendData,
     })
   } catch (err: any) {
+    console.error('[SEND_VERIFICATION] Unexpected error:', err)
     return NextResponse.json(
-      { error: err?.message ?? 'Unexpected server error during verification email send', stack: err?.stack },
+      { status: 'provider_error', error: err?.message ?? 'Unexpected server error while sending verification email.' },
       { status: 500 }
     )
   }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Building2, Search, Loader2, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/adminFetch'
 
 export default function AdminChurchesPage() {
   const [churches, setChurches] = useState<any[]>([])
@@ -17,7 +18,7 @@ export default function AdminChurchesPage() {
   async function loadChurches() {
     setLoading(true)
     try {
-      const res = await fetch('/api/admin/churches')
+      const res = await adminFetch('/api/admin/churches')
       const data = await res.json()
       if (res.ok && data.success) {
         setChurches(data.churches ?? [])
@@ -35,7 +36,7 @@ export default function AdminChurchesPage() {
   const handleUpdatePlan = async (churchId: string, plan: string) => {
     setUpdatingId(churchId)
     try {
-      const res = await fetch('/api/admin/churches', {
+      const res = await adminFetch('/api/admin/churches', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ churchId, plan }),
@@ -58,7 +59,7 @@ export default function AdminChurchesPage() {
     const nextStatus = currentStatus === 'suspended' ? 'active' : 'suspended'
     setUpdatingId(churchId)
     try {
-      const res = await fetch('/api/admin/churches', {
+      const res = await adminFetch('/api/admin/churches', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ churchId, status: nextStatus }),

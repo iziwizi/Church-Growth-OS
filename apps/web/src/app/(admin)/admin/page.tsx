@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase/client'
+import { adminFetch } from '@/lib/adminFetch'
 
 interface PlatformStats {
   churchesCount: number
@@ -39,7 +40,7 @@ export default function AdminDashboardPage() {
     async function loadStats() {
       try {
         // Fetch server-aggregated metrics via Admin SDK
-        const res = await fetch('/api/admin/analytics')
+        const res = await adminFetch('/api/admin/analytics')
         const data = await res.json()
         const metrics = data.metrics || {}
 

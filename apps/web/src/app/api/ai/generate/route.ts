@@ -1,5 +1,9 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { executeAIGateway, type AITaskType } from '@/lib/server/ai-gateway'
+import { verifyAuthenticatedUser } from '@/lib/server/auth-guard'
+import { checkRateLimit } from '@/lib/server/rate-limit'
+import { requireChurchFeature } from '@/lib/server/feature-access'
+import { adminDb } from '@/lib/firebase/admin-sdk'
 
 const CONTENT_TYPE_MAP: Record<string, AITaskType> = {
   sermon_reels: 'CONTENT_SUMMARY',
@@ -18,13 +22,52 @@ const CONTENT_TYPE_MAP: Record<string, AITaskType> = {
  * Centralized AI content generation endpoint.
  * Routes through the canonical AgentRouter AI Gateway.
  */
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  const authCheck = await verifyAuthenticatedUser(req)
+  if (!authCheck.authorized || !authCheck.uid) {
+    return NextResponse.json({ error: authCheck.error ?? 'Authentication required.' }, { status: 401 })
+  }
+
+  const rateLimit = checkRateLimit(`ai-generate:${authCheck.uid}`, 20, 60_000)
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'Too many AI generation requests. Please wait a moment and try again.' },
+      { status: 429 }
+    )
+  }
+
   try {
     const body = await req.json()
-    const { prompt, contentType, churchName, churchId, model, userId } = body
+    const { prompt, contentType, churchName, model } = body
+    const requestedChurchId = body.churchId as string | undefined
 
     if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
       return NextResponse.json({ error: 'Prompt is required.' }, { status: 400 })
+    }
+
+    // A church's AI credits may only be spent by a verified member of that
+    // church (or the platform Super Admin) — never by a client-supplied id.
+    if (authCheck.role !== 'super_admin' && requestedChurchId !== authCheck.churchId) {
+      return NextResponse.json({ error: 'You are not authorized to generate content for this church.' }, { status: 403 })
+    }
+
+    const churchId = requestedChurchId ?? authCheck.churchId ?? undefined
+
+    // Global Feature Flag AND Plan Entitlement AND Role Permission — the
+    // one composed access check (see lib/server/feature-access.ts). This
+    // route previously had no feature/plan gate at all
+    // (docs/PRODUCTION_ENGINEERING_AUDIT.md §2/§5, finding S7).
+    if (churchId && authCheck.role !== 'super_admin') {
+      const churchSnap = adminDb ? await adminDb.collection('churches').doc(churchId).get() : null
+      const rolePermissions = churchSnap?.exists ? churchSnap.data()?.rolePermissions : undefined
+      const featureCheck = await requireChurchFeature(churchId, 'ai_studio', {
+        role: authCheck.role,
+        rolePermissions,
+        roleModule: 'ai',
+      })
+      if (!featureCheck.authorized) {
+        return NextResponse.json({ error: featureCheck.error ?? 'AI Studio is not available on your plan.' }, { status: 403 })
+      }
     }
 
     const task = (CONTENT_TYPE_MAP[contentType] || 'CONTENT_SUMMARY') as AITaskType
@@ -35,7 +78,7 @@ export async function POST(req: Request) {
       contentType,
       churchId,
       churchName,
-      userId,
+      userId: authCheck.uid,
       preferredModel: model,
     })
 
@@ -50,6 +93,8 @@ export async function POST(req: Request) {
       model: response.model,
       creditsConsumed: response.creditsConsumed,
       latencyMs: response.latencyMs,
+      usedTemplateFallback: response.usedTemplateFallback ?? false,
+      providerError: response.providerError,
     })
   } catch (err: any) {
     console.error('[API_AI_GENERATE] Execution error:', err)

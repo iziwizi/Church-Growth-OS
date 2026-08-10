@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { DollarSign, Save, Loader2, RefreshCw, CheckCircle2, ShieldCheck, Receipt } from 'lucide-react'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/adminFetch'
 
 export default function AdminPaymentsPage() {
   const [saving, setSaving] = useState(false)
@@ -26,7 +27,7 @@ export default function AdminPaymentsPage() {
   async function loadPaymentsData() {
     setLoading(true)
     try {
-      const res = await fetch('/api/admin/payments')
+      const res = await adminFetch('/api/admin/payments')
       const data = await res.json()
       if (res.ok && data.success) {
         if (data.credentials) setCredentials((prev) => ({ ...prev, ...data.credentials }))
@@ -45,7 +46,7 @@ export default function AdminPaymentsPage() {
     e.preventDefault()
     setSaving(true)
     try {
-      const res = await fetch('/api/admin/payments', {
+      const res = await adminFetch('/api/admin/payments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(credentials),

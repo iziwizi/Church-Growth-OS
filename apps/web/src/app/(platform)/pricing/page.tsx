@@ -16,8 +16,10 @@ import {
   CreditCard,
   CheckCircle2,
 } from 'lucide-react'
-import { doc, getDoc, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, getDoc, onSnapshot } from 'firebase/firestore'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { db } from '@/lib/firebase/client'
+import { getIdToken } from '@/lib/firebase/auth'
 import { useChurchStore } from '@/store'
 import { toast } from 'sonner'
 
@@ -126,12 +128,38 @@ const DEFAULT_PLANS = [
 
 export default function PricingPage() {
   const { church, setChurch } = useChurchStore()
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const [currency, setCurrency] = useState<'NGN' | 'USD'>('NGN')
   const [plans, setPlans] = useState<any[]>(DEFAULT_PLANS)
   const [loading, setLoading] = useState(true)
   const [selectedPlanForCheckout, setSelectedPlanForCheckout] = useState<any | null>(null)
   const [processingPayment, setProcessingPayment] = useState(false)
   const [gateway, setGateway] = useState<'paystack' | 'flutterwave' | 'stripe'>('paystack')
+  const [verifyingReturn, setVerifyingReturn] = useState(false)
+
+  // After Paystack redirects back with ?paystack_ref=..., listen for the
+  // webhook (see /api/webhooks/paystack) to finish verifying and activating
+  // the plan — this page never activates the plan itself.
+  useEffect(() => {
+    const ref = searchParams?.get('paystack_ref')
+    if (!ref) return
+    setVerifyingReturn(true)
+    const unsubscribe = onSnapshot(doc(db, 'payments', ref), (snap) => {
+      const data = snap.data()
+      if (!data) return
+      if (data.status === 'successful') {
+        toast.success(`🎉 Payment confirmed! Your church is now on the ${data.planName ?? data.planId} plan.`)
+        setVerifyingReturn(false)
+        router.replace('/pricing')
+      } else if (data.status === 'failed') {
+        toast.error('Payment could not be verified. If you were charged, please contact support.')
+        setVerifyingReturn(false)
+        router.replace('/pricing')
+      }
+    })
+    return () => unsubscribe()
+  }, [searchParams, router])
 
   useEffect(() => {
     async function loadDynamicPricing() {
@@ -217,59 +245,44 @@ export default function PricingPage() {
     setSelectedPlanForCheckout(plan)
   }
 
+  // Only Paystack has a real, server-verified integration (initialize →
+  // hosted checkout → webhook signature verification → idempotent plan
+  // activation — see /api/payments/paystack/initialize and
+  // /api/webhooks/paystack). The plan is activated ONLY by that webhook,
+  // never by this client code — a previous version wrote
+  // `payments/{id}.status:'successful'` and activated the plan directly
+  // from the browser with no gateway involved at all
+  // (docs/PRODUCTION_ENGINEERING_AUDIT.md §7). Flutterwave/Stripe are not
+  // yet wired to a real gateway and are disabled below rather than faking
+  // success.
   const executePaymentUpgrade = async () => {
     if (!church || !selectedPlanForCheckout) return
+    if (gateway !== 'paystack') {
+      toast.error(`${gateway} checkout is not yet available. Please use Paystack.`)
+      return
+    }
     setProcessingPayment(true)
     try {
-      const plan = selectedPlanForCheckout
-      const paymentId = `pay_${Date.now()}`
-      const amount = currency === 'NGN' ? plan.priceNumNgn : plan.priceNumUsd
-      const branchesLimit = plan.branches ?? (plan.id === 'enterprise' ? -1 : plan.id === 'growth' ? 3 : 1)
-      const aiCreditsTotal = plan.id === 'enterprise' ? 50000 : plan.id === 'growth' ? 15000 : 5000
-
-      // 1. Record Payment Transaction in Firestore
-      await setDoc(doc(db, 'payments', paymentId), {
-        id: paymentId,
-        churchId: church.id,
-        churchName: church.name,
-        planId: plan.id,
-        planName: plan.name,
-        amount,
-        currency,
-        gateway,
-        reference: `REF-${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
-        status: 'successful',
-        createdAt: serverTimestamp(),
+      const idToken = await getIdToken()
+      const res = await fetch('/api/payments/paystack/initialize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+        },
+        body: JSON.stringify({ planId: selectedPlanForCheckout.id, currency }),
       })
-
-      // 2. Update Church Subscription in Firestore
-      const updatedSubscription = {
-        ...church.subscription,
-        planId: plan.id,
-        status: 'active' as const,
-        branchesLimit,
-        aiCreditsTotal,
-        aiCreditsRemaining: (church.subscription?.aiCreditsRemaining ?? 0) + aiCreditsTotal,
+      const data = await res.json()
+      if (!res.ok || !data.success || !data.authorizationUrl) {
+        throw new Error(data.error ?? 'Could not start checkout.')
       }
 
-      await updateDoc(doc(db, 'churches', church.id), {
-        plan: plan.id,
-        subscription: updatedSubscription,
-        updatedAt: serverTimestamp(),
-      })
-
-      // 3. Update Zustand Store immediately — unblocks multi-branch and features
-      setChurch({
-        ...church,
-        plan: plan.id as any,
-        subscription: updatedSubscription,
-      })
-
-      toast.success(`🎉 Payment Successful! Church Growth OS upgraded to ${plan.name}.`)
-      setSelectedPlanForCheckout(null)
-    } catch (err) {
+      // Redirect to Paystack's hosted checkout. The plan activates only
+      // after Paystack calls our webhook with a verified payment.
+      window.location.href = data.authorizationUrl
+    } catch (err: any) {
       console.error('Upgrade payment error:', err)
-      toast.error('Payment processing failed. Please try again.')
+      toast.error(err.message ?? 'Payment processing failed. Please try again.')
     } finally {
       setProcessingPayment(false)
     }
@@ -281,6 +294,12 @@ export default function PricingPage() {
     <div className="space-y-8 py-4 text-xs">
       {/* Page Header */}
       <div className="text-center space-y-3 max-w-2xl mx-auto">
+        {verifyingReturn && (
+          <div className="inline-flex items-center gap-2 rounded-full bg-amber-500/10 px-3.5 py-1 text-xs font-bold text-amber-600">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <span>Confirming your payment with Paystack…</span>
+          </div>
+        )}
         <div className="inline-flex items-center gap-2 rounded-full bg-brand-500/10 px-3.5 py-1 text-xs font-bold text-brand-500">
           <Sparkles className="h-3.5 w-3.5" />
           <span>SaaS Production Subscription Engine</span>
@@ -473,25 +492,21 @@ export default function PricingPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setGateway('flutterwave')}
-                    className={`rounded-xl border p-2.5 text-center font-bold transition-all ${
-                      gateway === 'flutterwave'
-                        ? 'border-amber-500 bg-amber-500/10 text-amber-500'
-                        : 'border-border text-muted-foreground'
-                    }`}
+                    disabled
+                    title="Flutterwave checkout is not yet available"
+                    className="rounded-xl border border-border p-2.5 text-center font-bold text-muted-foreground/50 cursor-not-allowed"
                   >
                     Flutterwave
+                    <span className="block text-[9px] font-normal">Coming soon</span>
                   </button>
                   <button
                     type="button"
-                    onClick={() => setGateway('stripe')}
-                    className={`rounded-xl border p-2.5 text-center font-bold transition-all ${
-                      gateway === 'stripe'
-                        ? 'border-purple-500 bg-purple-500/10 text-purple-500'
-                        : 'border-border text-muted-foreground'
-                    }`}
+                    disabled
+                    title="Stripe checkout is not yet available"
+                    className="rounded-xl border border-border p-2.5 text-center font-bold text-muted-foreground/50 cursor-not-allowed"
                   >
                     Stripe
+                    <span className="block text-[9px] font-normal">Coming soon</span>
                   </button>
                 </div>
               </div>

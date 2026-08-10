@@ -5,70 +5,73 @@ import {
   Send,
   Loader2,
   CheckCircle2,
+  XCircle,
   Clock,
   Trash2,
-  Sparkles,
   Smartphone,
   Mail,
   MessageSquare,
-  FileText,
   Copy,
-  Info,
-  ShieldCheck,
-  AlertCircle,
-  Tag,
   Lock,
 } from 'lucide-react'
 import {
   collection,
   query,
   getDocs,
-  addDoc,
   deleteDoc,
   doc,
-  serverTimestamp,
   orderBy,
   limit,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase/client'
-import { useChurchStore, useAuthStore } from '@/store'
+import { getIdToken } from '@/lib/firebase/auth'
+import { useChurchStore } from '@/store'
 import { toast } from 'sonner'
 import { useFeatureAccess } from '@/hooks/useFeatureAccess'
 import { UpgradePlanModal } from '@/components/common/UpgradePlanModal'
 
+type Channel = 'whatsapp' | 'email' | 'sms'
+
 const TEMPLATE_PRESETS = [
   {
     name: 'First-Time Guest Pastoral Welcome',
-    channel: 'whatsapp' as const,
+    channels: ['whatsapp'] as Channel[],
     subject: 'Welcome to {{church_name}} Family!',
     body: 'Dear {{member_name}},\n\nIt was a divine privilege having you worship with us at {{church_name}}! On behalf of {{pastor_name}} and the entire church family, you are warmly celebrated.\n\nWe would love to stand in faith with you. Reply to this message if you have any prayer requests! 🙏',
   },
   {
     name: 'Midweek Fellowship & Prayer Reminder',
-    channel: 'whatsapp' as const,
+    channels: ['whatsapp'] as Channel[],
     subject: 'Midweek Fellowship Tonight',
     body: '✨ *{{church_name}} MIDWEEK SERVICE* ✨\n\nBeloved {{member_name}},\n\nJoin us tonight at 6:30 PM for a powerful time of intercession, revelation, and spiritual impartation.\n\n📍 Main Sanctuary & Online.\nCome expectant! 🙏',
   },
   {
     name: 'Sunday Service Special Invitation',
-    channel: 'email' as const,
+    channels: ['email', 'whatsapp'] as Channel[],
     subject: 'Join Us This Sunday at {{church_name}}',
     body: 'Dear {{member_name}},\n\nGrace and peace be multiplied to you in the name of Jesus Christ.\n\n{{pastor_name}} will be ministering a life-transforming message this Sunday. We invite you and your loved ones to experience dynamic worship and the uncompromised Word of God.\n\nService Times: 8:00 AM & 10:30 AM.\n\nWarm regards,\nThe Ministry Team at {{church_name}}',
   },
   {
     name: 'Ministry Resource & Store Release',
-    channel: 'whatsapp' as const,
+    channels: ['whatsapp'] as Channel[],
     subject: 'New Ministry Resource Available',
     body: '📚 *NEW SPIRITUAL RESOURCE — {{church_name}}*\n\nBeloved {{member_name}},\n\nWe are excited to announce our new ministry publication: "{{product_name}}".\n\nEquip yourself for spiritual growth. Visit our Church Store to access your copy today!',
   },
 ]
 
+const CHANNEL_META: Record<Channel, { label: string; icon: typeof Smartphone; color: string }> = {
+  whatsapp: { label: 'WhatsApp', icon: Smartphone, color: 'emerald' },
+  email: { label: 'Email', icon: Mail, color: 'brand' },
+  sms: { label: 'SMS', icon: MessageSquare, color: 'purple' },
+}
+
 export default function CommunicationsPage() {
   const { church } = useChurchStore()
-  const { user } = useAuthStore()
 
   const [activeTab, setActiveTab] = useState<'compose' | 'templates' | 'logs'>('compose')
-  const [channel, setChannel] = useState<'whatsapp' | 'email' | 'sms'>('whatsapp')
+  // Multi-select: WhatsApp only / Email only / SMS only / WhatsApp+Email /
+  // WhatsApp+Email+SMS — or any other combination the church chooses.
+  const [channels, setChannels] = useState<Channel[]>(['whatsapp'])
   const [recipientTag, setRecipientTag] = useState('all')
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
@@ -76,26 +79,29 @@ export default function CommunicationsPage() {
   const [history, setHistory] = useState<any[]>([])
   const [loadingHistory, setLoadingHistory] = useState(true)
 
-  const { hasFeature, planName } = useFeatureAccess()
-  const hasSms = hasFeature('sms')
+  const { isFeatureAllowed, channelsConfigured, planName } = useFeatureAccess()
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const [upgradeFeatureName, setUpgradeFeatureName] = useState('')
   const [upgradeFeatureDesc, setUpgradeFeatureDesc] = useState('')
 
-  const handleSelectChannel = (chId: 'whatsapp' | 'email' | 'sms') => {
-    if (chId === 'sms' && !hasSms) {
-      setUpgradeFeatureName('Termii SMS Broadcast Gateway')
+  const isChannelAvailable = (ch: Channel) => isFeatureAllowed(ch) && channelsConfigured[ch]
+
+  const toggleChannel = (ch: Channel) => {
+    if (!isFeatureAllowed(ch)) {
+      setUpgradeFeatureName(`${CHANNEL_META[ch].label} Broadcasting`)
       setUpgradeFeatureDesc(
-        'SMS text messaging requires a Starter, Growth, or Enterprise ministry plan with dedicated sender ID routing. Upgrade your plan to send SMS broadcasts.'
+        `${CHANNEL_META[ch].label} messaging requires a plan tier that includes this channel, or has been disabled platform-wide. Upgrade your plan to unlock it.`
       )
       setShowUpgradeModal(true)
       return
     }
-    setChannel(chId)
+    if (!channelsConfigured[ch]) {
+      toast.error(`${CHANNEL_META[ch].label} is not configured on the platform yet. Contact support.`)
+      return
+    }
+    setChannels((prev) => (prev.includes(ch) ? prev.filter((c) => c !== ch) : [...prev, ch]))
   }
 
-  // WhatsApp Mode & SMS Sender ID
-  const whatsappMode = church?.settings?.whatsappMode ?? 'shared'
   const smsSenderId = church?.settings?.smsSenderId ?? 'CHURCH'
 
   useEffect(() => {
@@ -130,47 +136,86 @@ export default function CommunicationsPage() {
   }
 
   const applyTemplate = (tpl: typeof TEMPLATE_PRESETS[0]) => {
-    setChannel(tpl.channel)
+    setChannels(tpl.channels.filter((c) => isChannelAvailable(c)))
     setSubject(tpl.subject)
     setMessage(tpl.body)
     setActiveTab('compose')
     toast.success(`Template "${tpl.name}" applied!`)
   }
 
+  async function resolveRecipients(): Promise<Array<{ name?: string; phone?: string; email?: string }>> {
+    if (!church?.id) return []
+    const peopleSnap = await getDocs(collection(db, 'churches', church.id, 'people')).catch(() => null)
+    if (!peopleSnap || peopleSnap.empty) return []
+    const recipients: Array<{ name?: string; phone?: string; email?: string }> = []
+    peopleSnap.docs.forEach((d) => {
+      const p = d.data()
+      const tags: string[] = Array.isArray(p.tags) ? p.tags : [p.tag].filter(Boolean)
+      const matches =
+        recipientTag === 'all' ||
+        (recipientTag === 'workers' && tags.includes('worker')) ||
+        (recipientTag === 'members' && tags.includes('member')) ||
+        (recipientTag === 'visitors' && tags.includes('visitor')) ||
+        (recipientTag === 'first_time_visitors' && tags.includes('visitor')) ||
+        (recipientTag === 'tithers' && tags.includes('partner'))
+      if (matches && (p.phone || p.email)) {
+        recipients.push({ name: p.fullName, phone: p.phone, email: p.email })
+      }
+    })
+    return recipients
+  }
+
   const handleSendBroadcast = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!message.trim() || !church?.id) return
+    if (channels.length === 0) {
+      toast.error('Select at least one channel.')
+      return
+    }
     setSending(true)
 
     try {
-      // Format final message by resolving standard placeholders
-      const churchName = church.name || 'Church'
-      const pastorName = `${church.seniorPastor?.title || 'Pastor'} ${church.seniorPastor?.name || 'Senior Pastor'}`
-      
-      const broadcastData = {
-        channel,
-        recipientTag,
-        subject: subject.trim() || null,
-        message: message.trim(),
-        status: 'sent',
-        provider: channel === 'whatsapp' ? (whatsappMode === 'waba' ? 'Custom WABA' : 'Platform Shared') : channel === 'email' ? 'Resend' : 'Termii',
-        sentBy: user?.uid ?? null,
-        sentByEmail: user?.email ?? null,
-        churchId: church.id,
-        createdAt: serverTimestamp(),
+      const recipients = await resolveRecipients()
+      if (recipients.length === 0) {
+        toast.error('No recipients found with a phone/email for this audience.')
+        setSending(false)
+        return
       }
 
-      const ref = await addDoc(
-        collection(db, 'churches', church.id, 'communications'),
-        broadcastData
-      )
+      const idToken = await getIdToken()
+      const res = await fetch('/api/communications/broadcast', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+        },
+        body: JSON.stringify({
+          churchId: church.id,
+          channels,
+          recipients,
+          subject: subject.trim() || undefined,
+          message: message.trim(),
+          category: recipientTag,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error ?? 'Failed to send broadcast.')
+      }
 
-      setHistory((prev) => [{ id: ref.id, ...broadcastData, createdAt: new Date() }, ...prev])
-      toast.success(`✓ Broadcast dispatched via ${channel.toUpperCase()} to "${recipientTag}" audience.`)
+      const summary = (data.channelResults ?? [])
+        .map((r: any) => `${r.channel.toUpperCase()}: ${r.sent}/${r.attempted || r.sent + r.failed} sent${r.skipped ? ` (skipped: ${r.skipped})` : ''}`)
+        .join(' · ')
+
+      if (data.status === 'sent') toast.success(`✓ Broadcast delivered. ${summary}`)
+      else if (data.status === 'partial') toast.warning(`Broadcast partially delivered. ${summary}`)
+      else toast.error(`Broadcast failed to send. ${summary}`)
+
       setSubject('')
       setMessage('')
-    } catch {
-      toast.error('Failed to send broadcast.')
+      loadHistory()
+    } catch (err: any) {
+      toast.error(err.message ?? 'Failed to send broadcast.')
     } finally {
       setSending(false)
     }
@@ -245,32 +290,33 @@ export default function CommunicationsPage() {
             <div className="flex items-center justify-between border-b pb-3">
               <h2 className="font-display text-sm font-bold text-foreground">Compose Message</h2>
               <div className="flex gap-1.5">
-                {[
-                  { id: 'whatsapp' as const, label: 'WhatsApp', icon: Smartphone, locked: false },
-                  { id: 'email' as const, label: 'Email', icon: Mail, locked: false },
-                  { id: 'sms' as const, label: 'SMS', icon: MessageSquare, locked: !hasSms },
-                ].map((ch) => (
-                  <button
-                    key={ch.id}
-                    type="button"
-                    onClick={() => handleSelectChannel(ch.id)}
-                    className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${
-                      channel === ch.id
-                        ? ch.id === 'whatsapp'
-                          ? 'bg-emerald-600 text-white'
-                          : ch.id === 'email'
-                          ? 'bg-brand-600 text-white'
-                          : 'bg-purple-600 text-white'
-                        : ch.locked
-                        ? 'border bg-muted/20 text-muted-foreground opacity-75 hover:border-brand-500/40'
-                        : 'border hover:bg-accent text-muted-foreground'
-                    }`}
-                  >
-                    <ch.icon className="h-3.5 w-3.5" />
-                    <span>{ch.label}</span>
-                    {ch.locked && <Lock className="h-3 w-3 text-amber-500 ml-0.5" />}
-                  </button>
-                ))}
+                {(['whatsapp', 'email', 'sms'] as Channel[]).map((chId) => {
+                  const meta = CHANNEL_META[chId]
+                  const selected = channels.includes(chId)
+                  const available = isChannelAvailable(chId)
+                  return (
+                    <button
+                      key={chId}
+                      type="button"
+                      onClick={() => toggleChannel(chId)}
+                      className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${
+                        selected
+                          ? chId === 'whatsapp'
+                            ? 'bg-emerald-600 text-white'
+                            : chId === 'email'
+                            ? 'bg-brand-600 text-white'
+                            : 'bg-purple-600 text-white'
+                          : !available
+                          ? 'border bg-muted/20 text-muted-foreground opacity-75 hover:border-brand-500/40'
+                          : 'border hover:bg-accent text-muted-foreground'
+                      }`}
+                    >
+                      <meta.icon className="h-3.5 w-3.5" />
+                      <span>{meta.label}</span>
+                      {!available && <Lock className="h-3 w-3 text-amber-500 ml-0.5" />}
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
@@ -291,7 +337,7 @@ export default function CommunicationsPage() {
                 </select>
               </div>
 
-              {channel === 'email' && (
+              {channels.includes('email') && (
                 <div>
                   <label className="font-semibold text-foreground">Email Subject *</label>
                   <input
@@ -351,7 +397,7 @@ export default function CommunicationsPage() {
               <div className="flex justify-end pt-2">
                 <button
                   type="submit"
-                  disabled={sending}
+                  disabled={sending || channels.length === 0}
                   className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-5 font-semibold text-white hover:bg-brand-500 disabled:opacity-50 text-xs shadow-sm"
                 >
                   {sending ? (
@@ -371,38 +417,30 @@ export default function CommunicationsPage() {
               <h2 className="font-display text-sm font-bold text-foreground">Delivery Pipeline Status</h2>
               <div className="space-y-2 text-xs">
                 {[
-                  {
-                    name: 'WhatsApp Meta Cloud',
-                    channel: 'whatsapp',
-                    mode: whatsappMode === 'waba' ? 'Dedicated WABA' : 'Platform Shared (Mode A)',
-                    icon: '📱',
-                  },
-                  {
-                    name: 'Resend Email Engine',
-                    channel: 'email',
-                    mode: 'Active (platform-verified)',
-                    icon: '📧',
-                  },
-                  {
-                    name: 'SMS Carrier Gateway',
-                    channel: 'sms',
-                    mode: `Sender ID: "${smsSenderId}" (Compliant)`,
-                    icon: '💬',
-                  },
-                ].map((p) => (
-                  <div
-                    key={p.channel}
-                    className="flex flex-col p-2.5 rounded-xl bg-muted/20 space-y-0.5"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-foreground">
-                        {p.icon} {p.name}
+                  { name: 'WhatsApp Meta Cloud', channel: 'whatsapp' as Channel, mode: 'Platform Shared', icon: '📱' },
+                  { name: 'Resend Email Engine', channel: 'email' as Channel, mode: 'Platform Verified Domain', icon: '📧' },
+                  { name: 'SMS Carrier Gateway', channel: 'sms' as Channel, mode: `Sender ID: "${smsSenderId}"`, icon: '💬' },
+                ].map((p) => {
+                  const available = isChannelAvailable(p.channel)
+                  return (
+                    <div
+                      key={p.channel}
+                      className="flex flex-col p-2.5 rounded-xl bg-muted/20 space-y-0.5"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-foreground">
+                          {p.icon} {p.name}
+                        </span>
+                        <span className={`font-bold text-[10px] ${available ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+                          {available ? 'Active' : 'Unavailable'}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-muted-foreground">
+                        {available ? p.mode : !channelsConfigured[p.channel] ? 'Not configured on platform' : 'Not included in your plan'}
                       </span>
-                      <span className="font-bold text-[10px] text-emerald-600">Active</span>
                     </div>
-                    <span className="text-[10px] text-muted-foreground">{p.mode}</span>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
 
@@ -414,24 +452,14 @@ export default function CommunicationsPage() {
                   <span>Total Broadcasts</span>
                   <span className="font-semibold text-foreground">{history.length}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>WhatsApp</span>
-                  <span className="font-semibold text-foreground">
-                    {history.filter((h) => h.channel === 'whatsapp').length}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Email</span>
-                  <span className="font-semibold text-foreground">
-                    {history.filter((h) => h.channel === 'email').length}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>SMS</span>
-                  <span className="font-semibold text-foreground">
-                    {history.filter((h) => h.channel === 'sms').length}
-                  </span>
-                </div>
+                {(['whatsapp', 'email', 'sms'] as Channel[]).map((ch) => (
+                  <div key={ch} className="flex justify-between">
+                    <span>{CHANNEL_META[ch].label}</span>
+                    <span className="font-semibold text-foreground">
+                      {history.filter((h) => (h.channels ?? [h.channel]).includes(ch)).length}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -446,9 +474,13 @@ export default function CommunicationsPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-foreground text-xs">{tpl.name}</span>
-                  <span className="rounded-full bg-brand-500/10 px-2 py-0.5 text-[10px] font-bold text-brand-600 uppercase">
-                    {tpl.channel}
-                  </span>
+                  <div className="flex gap-1">
+                    {tpl.channels.map((c) => (
+                      <span key={c} className="rounded-full bg-brand-500/10 px-2 py-0.5 text-[10px] font-bold text-brand-600 uppercase">
+                        {c}
+                      </span>
+                    ))}
+                  </div>
                 </div>
                 <p className="font-semibold text-[11px] text-muted-foreground">{tpl.subject}</p>
                 <div className="rounded-xl border bg-muted/20 p-3 font-sans text-[11px] whitespace-pre-wrap text-foreground/80 max-h-36 overflow-y-auto">
@@ -481,10 +513,10 @@ export default function CommunicationsPage() {
               <table className="w-full text-left text-xs min-w-[650px]">
                 <thead className="border-b bg-muted/30 text-muted-foreground font-semibold">
                   <tr>
-                    <th className="p-3.5">Channel</th>
+                    <th className="p-3.5">Channels</th>
                     <th className="p-3.5">Audience</th>
                     <th className="p-3.5">Message Snippet</th>
-                    <th className="p-3.5">Provider</th>
+                    <th className="p-3.5">Recipients</th>
                     <th className="p-3.5">Status</th>
                     <th className="p-3.5 text-right">Actions</th>
                   </tr>
@@ -493,17 +525,26 @@ export default function CommunicationsPage() {
                   {history.map((log) => (
                     <tr key={log.id} className="hover:bg-muted/20">
                       <td className="p-3.5 font-bold uppercase text-[10px]">
-                        {log.channel}
+                        {(log.channels ?? [log.channel]).join(' + ')}
                       </td>
-                      <td className="p-3.5 font-medium">{log.recipientTag}</td>
+                      <td className="p-3.5 font-medium">{log.category ?? log.recipientTag}</td>
                       <td className="p-3.5 max-w-xs truncate text-muted-foreground">
                         {log.subject ? `[${log.subject}] ` : ''}
                         {log.message}
                       </td>
-                      <td className="p-3.5 text-muted-foreground text-[11px]">{log.provider ?? 'Platform'}</td>
+                      <td className="p-3.5 text-muted-foreground text-[11px]">{log.recipientCount ?? '—'}</td>
                       <td className="p-3.5">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-600">
-                          <CheckCircle2 className="h-3 w-3" /> {log.status}
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                            log.status === 'sent'
+                              ? 'bg-emerald-500/10 text-emerald-600'
+                              : log.status === 'partial'
+                              ? 'bg-amber-500/10 text-amber-600'
+                              : 'bg-rose-500/10 text-rose-600'
+                          }`}
+                        >
+                          {log.status === 'sent' ? <CheckCircle2 className="h-3 w-3" /> : log.status === 'partial' ? <Clock className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                          {log.status ?? 'sent'}
                         </span>
                       </td>
                       <td className="p-3.5 text-right">

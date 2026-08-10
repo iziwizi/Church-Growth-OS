@@ -43,19 +43,21 @@ function RegisterForm() {
 
     try {
       console.log('[REGISTRATION_DEBUG] (register/page.tsx:44) Calling signUpUser...')
-      const { user, verificationSent } = await signUpUser(data.email, data.password, data.fullName)
+      const { user, verification } = await signUpUser(data.email, data.password, data.fullName)
 
       console.log('[REGISTRATION_DEBUG] (register/page.tsx:47) signUpUser result:', {
         uid: user.uid,
         email: user.email,
         emailVerified: user.emailVerified,
-        verificationSent,
+        verification,
       })
 
-      if (verificationSent) {
-        toast.success('Account created! Verification email accepted for delivery. Please check your inbox.')
+      if (verification.status === 'sent' || verification.status === 'fallback_sent') {
+        toast.success('Account created! ' + verification.message)
+      } else if (verification.status === 'rate_limited') {
+        toast.warning('Account created, but verification email is rate-limited: ' + verification.message)
       } else {
-        toast.success('Account created! Please check your inbox for verification.')
+        toast.warning('Account created, but we could not send the verification email right now. Use "Resend Verification" on the next screen.')
       }
 
       console.log('[REGISTRATION_DEBUG] (register/page.tsx:57) Calling router.replace(\'/verify-email\')...')

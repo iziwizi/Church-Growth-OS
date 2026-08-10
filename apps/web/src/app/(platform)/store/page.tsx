@@ -45,6 +45,7 @@ import {
   where,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase/client'
+import { getIdToken } from '@/lib/firebase/auth'
 import { useChurchStore, useAuthStore } from '@/store'
 import { toast } from 'sonner'
 
@@ -305,9 +306,13 @@ export default function ChurchStorePage() {
         promoProduct.isFree ? 'Free Download' : `₦${promoProduct.priceNgn.toLocaleString()} / $${promoProduct.priceUsd}`
       }. Description: "${promoProduct.description ?? 'A powerful spiritual resource for the body of Christ'}". Channel: ${promoChannel.toUpperCase()}.`
 
+      const idToken = await getIdToken()
       const res = await fetch('/api/ai/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+        },
         body: JSON.stringify({
           prompt,
           contentType: 'store_promotion',

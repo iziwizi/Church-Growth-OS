@@ -4,7 +4,10 @@
  */
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? ''
-const FROM_EMAIL = 'Church Growth OS <notifications@churchgrowthos.com>'
+// Must match the domain actually verified in Resend (see RESEND_FROM_EMAIL
+// used by /api/auth/send-verification) — a mismatched sending domain here
+// was silently failing deliverability for support notifications.
+const FROM_EMAIL = `Church Growth OS <${process.env.RESEND_FROM_EMAIL ?? 'noreply@mujteknify.com'}>`
 
 export async function sendSupportEmailNotification(options: {
   to: string
