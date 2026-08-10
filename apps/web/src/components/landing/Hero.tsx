@@ -23,6 +23,7 @@ import {
   Send,
   Zap,
 } from 'lucide-react'
+import { NetworkGraph } from './NetworkGraph'
 
 export function LandingHero() {
   const [activeTab, setActiveTab] = useState<'overview' | 'automation' | 'growth'>('overview')
@@ -37,26 +38,34 @@ export function LandingHero() {
   }, [])
 
   return (
-    <section className="relative isolate pt-28 pb-20 sm:pt-36 sm:pb-28 md:pt-44 md:pb-36 overflow-hidden w-full max-w-full bg-zinc-950 text-white">
-      {/* ── Cinematic Church Stage Background with Vibrant Lighting ─────── */}
-      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+    <section className="relative isolate pt-28 pb-20 sm:pt-36 sm:pb-28 md:pt-44 md:pb-36 overflow-hidden w-full max-w-full bg-[#070913] text-white">
+      {/* ── Layer 2: Subtle Church Sanctuary Atmosphere Backdrop ────────── */}
+      <div className="pointer-events-none absolute inset-0 -z-20 overflow-hidden">
         <Image
           src="/hero-church-bg.jpg"
           alt="Modern Ministry Church Worship Sanctuary"
           fill
           priority
           sizes="100vw"
-          className="object-cover object-center opacity-65 scale-105"
+          className="object-cover object-center opacity-45 sm:opacity-55 scale-105 transition-transform duration-1000"
         />
 
-        {/* Multi-layered Vignette & Contrast Gradients */}
-        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/65 to-zinc-950/80" />
-        <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/90 via-transparent to-zinc-950" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_25%,rgba(99,102,241,0.25),transparent_75%)]" />
+        {/* Sophisticated Layered Gradient & Contrast Masks */}
+        {/* Darkening directly behind the headline area */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_75%_45%_at_50%_20%,rgba(7,9,19,0.92)_0%,rgba(7,9,19,0.65)_70%,rgba(7,9,19,0.4)_100%)]" />
+        {/* Vertical fades */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#070913] via-[#070913]/55 to-[#070913]/85" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#070913]/90 via-transparent to-[#070913]" />
 
-        {/* Bottom smooth fade into the next section */}
+        {/* Layer 3: Subtle Purple/Indigo Atmospheric Lighting Glow */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_25%,rgba(99,102,241,0.2),transparent_75%)]" />
+
+        {/* Bottom smooth fade to transparent */}
         <div className="absolute bottom-0 left-0 right-0 h-36 bg-gradient-to-t from-background via-background/40 to-transparent" />
       </div>
+
+      {/* ── Layer 4: Minimal Abstract Intelligence Network Visual ──────── */}
+      <NetworkGraph />
 
       <div className="relative z-10 mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 w-full">
         {/* Hero Headline & Value Pitch */}
@@ -404,7 +413,7 @@ export function LandingHero() {
                       </p>
                     </div>
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1 text-xs">
-                      <span className="text-[11px] text-zinc-400">Target: <strong className="text-white">14 New Visitors</strong></span>
+                      <span className="text-[11px] text-zinc-400">Target: <strong>14 New Visitors</strong></span>
                       <div className="flex items-center gap-2 w-full sm:w-auto">
                         <span className="flex-1 sm:flex-none text-center px-3 py-1.5 rounded-lg border border-white/15 bg-zinc-800 text-[11px] font-semibold text-zinc-300 hover:bg-zinc-700 cursor-pointer">
                           Edit Copy
